@@ -101,6 +101,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void flightPaid(int g, double amount, int pax) {
     game.w.flightFx(g, amount, '+\$${fmt(amount)}');
     final pose = game.w.planePose(g);
+    if (!game.hasLayout) return;
     final o = pose != null ? game.worldToScreen(iso(pose.p.x, pose.p.z, pose.p.y)) : Offset(MediaQuery.of(context).size.width / 2, 200);
     final sz = MediaQuery.of(context).size;
     final onScreen = o.dx > 0 && o.dx < sz.width && o.dy > 0 && o.dy < sz.height;
@@ -289,7 +290,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           ),
         ),
         if (s.boostOn) const IgnorePointer(child: _Vignette(color: Color(0xFFFFC531))),
-        if (s.tut == 1 && panel == null && _modal == null) _tutPointer('checkin', 'Toque no Check-in'),
+        if (s.tut == 1 && panel == null && _modal == null && game.hasLayout && game.isLoaded) _tutPointer('checkin', 'Toque no Check-in'),
         RepaintBoundary(child: Stack(children: [
           _topBar(pad),
           _sideButtons(pad),
