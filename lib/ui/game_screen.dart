@@ -58,7 +58,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       if (widget.startPanel != null) return;
       if (s.tut == 0) { _welcome(); }
       else if (widget.offlineSecs > 60) { _offerOffline(widget.offlineSecs); }
-      else if (s.dailyReady) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) openPanel('missions'); }); }
+      else if (s.dailyReady && s.tut >= 3) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) openPanel('missions'); }); }
     });
   }
 
@@ -414,7 +414,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         decoration: BoxDecoration(gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF41588F), K.navy]), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF0E1628), width: 3)),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
           _NavBtn(icon: 'up', label: 'Melhorar', badge: anyUp ? '!' : null, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
-          _NavBtn(icon: 'cap', label: 'Gerentes', badge: mgrAv ? '!' : null, active: panel == 'managers', onTap: () => openPanel('managers')),
+          _NavBtn(icon: 'pax', label: 'Gerentes', badge: mgrAv ? '!' : null, active: panel == 'managers', onTap: () => openPanel('managers')),
           _NavBtn(icon: 'mission', label: 'Missões', badge: s.missionReady || s.dailyReady ? '!' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
           _NavBtn(icon: 'bag', label: 'Loja', badge: s.freeReady ? '!' : null, active: panel == 'shop', onTap: () => openPanel('shop')),
           _NavBtn(icon: 'globe', label: 'Cidades', badge: s.canPrestige ? '!' : null, active: panel == 'cities', onTap: () => openPanel('cities')),

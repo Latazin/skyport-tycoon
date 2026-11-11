@@ -33,7 +33,7 @@ class SkyGame extends FlameGame {
     camera.viewfinder.anchor = Anchor.center;
     final first = s.tut < 2;
     camera.viewfinder.zoom = (size.x / (first ? 760 : 980)).clamp(0.3, 0.9);
-    final o = first ? iso(-30, 6) : iso(-12, 1);
+    final o = first ? iso(-33, 9, 2) : iso(-14, 2);
     camera.viewfinder.position = Vector2(o.dx, o.dy);
     for (var i = 0; i < 6; i++) { Future.delayed(Duration(milliseconds: 400 * i), () => w.spawnAt(Lay.door.$1 + i * 0.5, 17)); }
   }

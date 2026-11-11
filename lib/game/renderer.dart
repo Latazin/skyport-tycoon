@@ -243,7 +243,7 @@ class SceneRenderer extends Component {
   }
 
   void _overlays(Canvas c) {
-    final k = (1 / zoom).clamp(0.8, 2.6);
+    final k = ((1 / zoom).clamp(0.8, 2.6) * 10).roundToDouble() / 10;
     final t = w.t;
     // faíscas
     for (final sp in w.sparks) {
