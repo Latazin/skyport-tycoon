@@ -1,0 +1,56 @@
+name: skyport_tycoon
+description: "SkyPort Tycoon — construa e administre o aeroporto mais movimentado do mundo!"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.18.0
+  flame_audio: ^2.10.0
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/audio/
+    - assets/images/
+    - assets/images/art/
+    - assets/images/art/bg/
+    - assets/images/art/icons/
+  fonts:
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Fredoka-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Fredoka-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#2F7BFF"
+  adaptive_icon_foreground: "assets/images/icon_fg.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#2F7BFF"
+  image: assets/images/splash.png
+  android_12:
+    image: assets/images/splash.png
+    color: "#2F7BFF"
+  fullscreen: true

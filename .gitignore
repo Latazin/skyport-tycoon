@@ -1,0 +1,14 @@
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+android/
+ios/
+web/
+*.jks
+*.keystore
+key.properties
+tool/out/
+node_modules/
+shots/

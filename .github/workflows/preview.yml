@@ -1,0 +1,39 @@
+name: Preview web (capturas)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Preparar
+        run: |
+          flutter create --org com.skyporttycoon --project-name skyport_tycoon --platforms web . >/dev/null
+          rm -f test/widget_test.dart
+          flutter pub get
+      - name: Build web
+        run: flutter build web --release --no-tree-shake-icons --no-web-resources-cdn 2>&1 | tee webbuild.log
+      - name: Capturas
+        run: |
+          cd build/web && (python3 -m http.server 8080 >/dev/null 2>&1 &) && cd ../..
+          npm i --no-save playwright@1.49.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          node tool/shots.js
+      - name: Publicar capturas e build web
+        if: always()
+        run: |
+          mkdir -p shots && cp -f webbuild.log shots/ 2>/dev/null || true
+          cd shots && git init -q && git checkout -q -b previews
+          git config user.name ci && git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "capturas ${GITHUB_SHA}" && git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" previews
+          cd .. && if [ -d build/web ]; then cd build/web && sed -i 's#<base href="/">##' index.html && rm -f flutter_service_worker.js && git init -q && git checkout -q -b webbuild && git config user.name ci && git config user.email ci@users.noreply.github.com && git add -A && git commit -qm "web ${GITHUB_SHA}" && git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" webbuild; fi
