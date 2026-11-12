@@ -11,7 +11,7 @@ import '../core/save.dart';
 import '../core/state.dart';
 import '../game/art.dart';
 import '../game/sky_game.dart';
-import '../game/world.dart' show iso;
+import '../game/world.dart' show iso, Floater;
 import 'effects.dart';
 import 'kit.dart';
 import 'minigames.dart';
@@ -38,32 +38,60 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   final List<(int, String)> _toasts = [];
   int _tid = 0;
   Widget? _modal;
-  double _startZoom = 1, pending = 0;
+  double _startZoom = 1, pending = 0, shownMoney = 0;
   Offset _lastFocal = Offset.zero;
-  int _pausedAt = 0;
+  int _pausedAt = 0, _lastTapMs = 0;
+  Offset _lastTapPos = Offset.zero;
   Timer? _hud;
+  double _tut3 = 0;
+  int _comboShow = 0;
 
   @override
   void initState() {
     super.initState();
     s.fx = this;
+    shownMoney = s.money;
     game = SkyGame(s);
     game.onTap = _onWorldTap;
     game.onAutosave = () => Save.save(s);
     fly.onArrive = (gem, v) { if (!gem) pending = math.max(0, pending - v); _bump = gem ? 'gem' : 'money'; _bumpN++; };
     WidgetsBinding.instance.addObserver(this);
-    _hud = Timer.periodic(const Duration(milliseconds: 200), (_) { if (mounted) setState(() {}); });
+    _hud = Timer.periodic(const Duration(milliseconds: 100), (_) => _tick());
     if (widget.startPanel != null) Future.delayed(const Duration(seconds: 2), () { if (mounted) openPanel(widget.startPanel!); });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.startPanel != null) return;
       if (s.tut == 0) { _welcome(); }
       else if (widget.offlineSecs > 60) { _offerOffline(widget.offlineSecs); }
-      else if (s.dailyReady && s.tut >= 3) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) openPanel('missions'); }); }
+      else if (s.dailyReady && s.tut >= 7) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) openPanel('missions'); }); }
     });
   }
 
   @override
   void dispose() { _hud?.cancel(); WidgetsBinding.instance.removeObserver(this); super.dispose(); }
+
+  void _tick() {
+    if (!mounted) return;
+    // dinheiro "rolando"
+    final target = math.max(0.0, s.money - pending);
+    shownMoney += (target - shownMoney) * 0.35;
+    if ((target - shownMoney).abs() < 1) shownMoney = target;
+    // tutorial
+    if (s.tut == 3) { _tut3 += 0.1; if (_tut3 > 6) { s.tut = 4; toast('Quando um avião decolar, toque no dinheiro!'); } }
+    if (s.tut == 4 && s.pile[0] <= 0 && s.pilesTotal <= 0 && s.flightsAll > 2) s.tut = 5;
+    game.scene.hint = _hint();
+    if (_modal == null && s.chestsQ.isNotEmpty && panel == null && s.tut >= 7) showChests();
+    s.ensurePeriods();
+    setState(() {});
+  }
+  String? _hint() {
+    if (panel != null || _modal != null) return null;
+    switch (s.tut) {
+      case 1: return 'checkin';
+      case 4: return s.pile[0] > 0 ? 'pile' : null;
+      case 5: return s.canUnlock(stationById('g1')) ? 'g1' : null;
+    }
+    return null;
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState st) {
@@ -95,43 +123,61 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
   @override
   void flyCash(double amount) { final sz = MediaQuery.of(context).size; _flyFrom(Offset(sz.width / 2, sz.height * 0.5), amount, 16); Sfx.play('cash'); }
+  @override
+  void flyGemsCenter(int n) { final sz = MediaQuery.of(context).size; _flyGems(n, Offset(sz.width / 2, sz.height * 0.55)); }
   void _flyGems(int n, Offset from) => fly.launch(from, _center(gemKey), math.min(10, 2 + n), n.toDouble(), gem: true);
 
   @override
-  void flightPaid(int g, double amount, int pax) {
-    game.w.flightFx(g, amount, '+\$${fmt(amount)}');
-    final pose = game.w.planePose(g);
-    if (!game.hasLayout) return;
-    final o = pose != null ? game.worldToScreen(iso(pose.p.x, pose.p.z, pose.p.y)) : Offset(MediaQuery.of(context).size.width / 2, 200);
-    final sz = MediaQuery.of(context).size;
-    final onScreen = o.dx > 0 && o.dx < sz.width && o.dy > 0 && o.dy < sz.height;
-    if (onScreen) { _flyFrom(o, amount, 6); } else { Sfx.play('coin'); }
-    Sfx.play('jet', volume: 0.25);
-    if (s.flightsAll == 1) banner('PRIMEIRO VOO!', '$pax passageiros pagaram \$${fmt(amount)}');
+  void flightPaid(int g, double amount, int pax, bool vip) {
+    game.w.flightFx(g, vip ? 'VIP! +\$${fmt(amount)}' : '+\$${fmt(amount)}', vip);
+    Sfx.play('jet', volume: 0.22);
+    if (vip) { banner('VOO VIP!', 'Passagens x10: \$${fmt(amount)}'); Sfx.play('level'); confetti(50); }
+    if (s.flightsAll == 1) banner('PRIMEIRO VOO!', 'Toque no dinheiro no portão para coletar');
   }
 
   @override
-  void stationUp(String id, int from, int to) {
+  void stationUp(String id, int from, int to, String gain) {
     final st = stationById(id);
-    game.w.levelFx(id);
+    game.w.levelFx(id, gain);
     Sfx.haptic();
     if (from == 0) {
       Sfx.play('build'); confetti(70);
       banner('NOVO!', st.name);
-      if (st.kind == Kind.gate) game.focusStation(id);
+      game.focusStation(id);
       return;
     }
     Sfx.play('up', rate: 1 + math.min(to, 60) * 0.008);
     final crossed = milestones.where((m) => from < m && to >= m).toList();
     if (crossed.isNotEmpty) { banner('x2 PRODUÇÃO!', '${st.name} chegou ao nível ${crossed.last}'); Sfx.play('level'); confetti(40); }
-    if (id == 'checkin' && desksFor(to) > desksFor(from)) toast('Novo balcão de check-in aberto!');
-    if (id == 'seguranca' && lanesFor(to) > lanesFor(from)) toast('Nova faixa de raio-X aberta!');
-    if (id == 'lojas' && shopsFor(to) > shopsFor(from)) toast('Novo quiosque na praça!');
+    if (id == 'checkin' && desksFor(to) > desksFor(from)) banner('NOVO BALCÃO!', '${desksFor(to)} balcões de check-in');
+    if (id == 'seguranca' && lanesFor(to) > lanesFor(from)) banner('NOVA FAIXA!', '${lanesFor(to)} faixas de raio-X');
+    if (id == 'seguranca' && from < 20 && to >= 20) toast('Scanners corporais instalados!');
+    if (id == 'lojas' && shopsFor(to) > shopsFor(from)) banner('NOVO QUIOSQUE!', '${shopsFor(to)} lojas na praça');
     if (id == 'pista' && runwayTier(to) > runwayTier(from)) banner('PISTA MAIOR!', 'Agora a pista recebe ${planeTypes[runwayTier(to)].name}');
+    if (id == 'torre' && towerTier(to) > towerTier(from)) banner('TORRE NOVA!', 'Controle de tráfego ampliado');
+    if (id == 'entrada' && parkTier(to) > parkTier(from)) toast('Estacionamento ampliado!');
     if (st.kind == Kind.gate && gateTier(to) > gateTier(from)) {
       final ok = runwayTier(s.lvl('pista')) >= gateTier(to);
       banner('AVIÃO MAIOR!', ok ? '${st.name} agora recebe ${planeTypes[gateTier(to)].name}' : 'Melhore a Pista para receber ${planeTypes[gateTier(to)].name}');
     }
+    if (props.any((p) => p.st == id && from < p.lvl && to >= p.lvl)) toast('Decoração nova em ${st.name}!');
+  }
+  @override
+  void levelUp(int lvl) { banner('NÍVEL $lvl!', 'Aeroporto subiu de nível · ganhou um baú'); Sfx.play('level'); confetti(80); }
+  @override
+  void eventStarted(String type) {
+    Sfx.play('ding');
+    final t = GameState.evNames[type] ?? '';
+    if (type == 'vip') { banner('AVIÃO VIP!', 'O próximo voo de um portão paga x10'); return; }
+    toast('$t Toque no balão!');
+    final e = s.ev; if (e != null) game.focusWorld(e.x, e.z);
+  }
+  @override
+  void bottleneckFreed(String old) {
+    if (old == 'none') return;
+    final name = bottleneckName(old);
+    final c = old == 'gates' ? game.w.stationCenter('g0') : game.w.stationCenter(old);
+    game.w.floaters.add(Floater(c.$1, c.$2, c.$3 + 2.5, 'LIBEROU! $name', const Color(0xFF3FD46B), 1.2));
   }
 
   // ================= PanelHost =================
@@ -155,10 +201,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void claimDaily() {
     if (!s.dailyReady) return;
     final r = s.claimDaily();
-    final sz = MediaQuery.of(context).size;
-    if (r.$1 == 'gems') { _flyGems(r.$2.toInt(), Offset(sz.width / 2, sz.height * 0.6)); toast('+${r.$2.toInt()} gemas!'); }
-    else if (r.$1 == 'coins') { _flyFrom(Offset(sz.width / 2, sz.height * 0.6), r.$2, 14); }
-    else { toast('Lucro x2 por 30 minutos!'); Sfx.play('boost'); }
+    if (r.$1 == 'gems') { flyGemsCenter(r.$2.toInt()); toast('+${r.$2.toInt()} gemas!'); }
+    else if (r.$1 == 'coins') { flyCash(r.$2); }
+    else if (r.$1 == 'boost') { toast('Lucro x2 por 30 minutos!'); Sfx.play('boost'); }
     Sfx.play('gift'); confetti(50); setState(() {});
   }
   @override
@@ -166,12 +211,49 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     if (!s.missionReady) return;
     final g = s.missionGems, c = s.missionCoins;
     s.claimMission();
-    pending += 0;
     final sz = MediaQuery.of(context).size;
-    _flyGems(g, Offset(sz.width / 2, sz.height * 0.7));
-    _flyFrom(Offset(sz.width / 2, sz.height * 0.7), c, 10);
-    Sfx.play('gift'); confetti(45);
+    _flyGems(g, Offset(sz.width / 2, sz.height * 0.75));
+    _flyFrom(Offset(sz.width / 2, sz.height * 0.75), c, 10);
+    Sfx.play('gift'); confetti(35);
     setState(() {});
+  }
+  @override
+  void claimStar() {
+    if (!s.starReady) return;
+    s.claimStar();
+    closePanel();
+    final n = s.star;
+    _showModal(GameModal(title: '$n ESTRELA${n > 1 ? 'S' : ''}!', color: K.purple, actions: [GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); showChests(); }, child: Text('INCRÍVEL!', style: display(22)))],
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < 5; i++) TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 500 + i * 180), curve: Curves.elasticOut, builder: (_, v, c) => Transform.scale(scale: i < n ? v : 1, child: c), child: Opacity(opacity: i < n ? 1 : 0.2, child: const Ico('star', size: 52)))]),
+          const SizedBox(height: 8),
+          Text(starNames[math.min(n, 5)], style: display(24, color: K.purple, outline: false)),
+          const SizedBox(height: 6),
+          Text('Toda a receita agora rende x${fmt(s.starMult)}!${n < 5 ? '\nNovas áreas liberadas: ${stations.where((st) => st.star == n).map((st) => st.name).join(', ')}.' : '\nPróxima cidade liberada!'}', textAlign: TextAlign.center, style: body(15)),
+        ])));
+    Sfx.play('level'); confetti(140); Sfx.haptic(60);
+  }
+  @override
+  void showChests() {
+    if (s.chestsQ.isEmpty || _modal != null) return;
+    final type = s.chestsQ.removeAt(0);
+    _showModal(ChestModal(key: ValueKey('chest${s.chestsQ.length}$type${nowMs()}'), type: type, left: s.chestsQ.length, open: () { final l = s.openChest(type); confetti(60); return l; }, onDone: () { _closeModal(); Save.save(s); if (s.chestsQ.isNotEmpty) Future.delayed(const Duration(milliseconds: 250), showChests); }));
+  }
+  @override
+  void openWheel() {
+    if (!s.spinReady) return;
+    closePanel();
+    _showModal(WheelModal(spin: s.spin, apply: (i) {
+      final r = s.applyWheel(i);
+      switch (r.$1) {
+        case 'coins': flyCash(r.$2); return '\$${fmt(r.$2)}!';
+        case 'gems': flyGemsCenter(r.$2.toInt()); return '${r.$2.toInt()} gemas!';
+        case 'miles': return '${r.$2.toInt()} milhas!';
+        case 'boost': return 'Lucro x2 por 15 min!';
+        case 'chest_gold': return 'Baú de ouro!';
+      }
+      return 'Baú de cartas!';
+    }, onClose: () { _closeModal(); Save.save(s); showChests(); }));
   }
   @override
   void doPrestige() {
@@ -190,35 +272,51 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Sfx.play('level'); confetti(120);
         setState(() {});
       }, child: Text('VOAR!', style: display(18))),
-    ], child: Text('Você começa um aeroporto novo do zero em ${next.name}, mas todo o faturamento lá rende ${fmt(cityMult(s.city + 1))}x. Gerentes e melhorias ficam neste aeroporto. Suas gemas vão com você.', textAlign: TextAlign.center, style: body(15))));
+    ], child: Text('Você começa um aeroporto novo em ${next.name}, mas tudo rende ${fmt(cityMult(s.city + 1))}x. Pesquisa, rotas, frota, gemas e milhas vão com você. Melhorias, gerentes e estrelas ficam aqui.', textAlign: TextAlign.center, style: body(15))));
   }
   @override
   void resetGame() async {
     await Save.wipe();
     if (!mounted) return;
-    _showModal(GameModal(title: 'Progresso apagado', color: K.red, actions: const [], child: Text('Feche e abra o jogo de novo para recomeçar.', textAlign: TextAlign.center, style: body(15))));
+    _showModal(GameModal(title: 'Progresso apagado', color: K.red, child: Text('Feche e abra o jogo de novo para recomeçar.', textAlign: TextAlign.center, style: body(15))));
   }
 
   // ================= mundo =================
   void _onWorldTap(String id) {
     if (id == 'none') { if (panel != null) closePanel(); return; }
-    if (id == 'gift') { _openGift(); return; }
-    if (id.startsWith('plane:')) {
-      final g = int.parse(id.substring(6));
-      s.hurry(g, 1.2);
-      Sfx.play('tick', rate: 1.3); Sfx.haptic();
-      return;
-    }
+    if (id == 'ev') { _tapEvent(); return; }
+    if (id.startsWith('pile:')) { _collect(id == 'pile:shop' ? -1 : int.parse(id.substring(5))); return; }
+    if (id.startsWith('vip:')) { final g = int.parse(id.substring(4)); final n = s.tapVip(g); if (n > 0) { _flyGems(n, game.worldToScreen(iso(Lay.gates[g], -10, 5))); Sfx.play('gift'); toast('Passageiro VIP deixou $n gemas!'); } return; }
+    if (id.startsWith('plane:')) { final g = int.parse(id.substring(6)); s.hurry(g, 1.2); Sfx.play('tick', rate: 1.3); Sfx.haptic(); return; }
     if (panel == 'st:$id') return;
     focusStation(id);
   }
-  void _openGift() {
-    final g = s.gift; if (g == null) return;
-    final r = s.openGift();
-    final o = game.worldToScreen(iso(Lay.gates[g] + 1, -1, 7));
-    if (r.$1) { _flyGems(r.$2.toInt(), o); toast('Passageiro VIP deixou ${r.$2.toInt()} gemas!'); }
-    else { _flyFrom(o, r.$2, 12); toast('Passageiro VIP deixou uma gorjeta!'); }
+  void _collect(int g) {
+    final pos = g < 0 ? iso(7.5, 11.6, 1) : iso(game.w.pilePos(g).$1, game.w.pilePos(g).$2, 1);
+    final v = s.collect(g); if (v <= 0) return;
+    pending += 0;
+    final o = game.worldToScreen(pos);
+    _flyFrom(o, v, math.min(14, 5 + s.combo));
+    Sfx.play('cash', rate: 1 + s.combo * 0.06); Sfx.haptic(s.combo >= 5 ? 30 : 10);
+    if (s.combo >= 2) { _comboShow = nowMs(); }
+    game.w.floaters.add(Floater(g < 0 ? 7.5 : game.w.pilePos(g).$1, g < 0 ? 11.6 : game.w.pilePos(g).$2, 2.5, s.combo >= 2 ? 'COMBO x${s.combo}! +\$${fmt(v)}' : '+\$${fmt(v)}', const Color(0xFFFFE27A), s.combo >= 2 ? 1.3 : 1.0));
+  }
+  void _tapEvent() {
+    final e = s.ev; if (e == null) return;
+    final type = e.type;
+    final r = s.tapEvent();
+    final o = game.worldToScreen(iso(e.x, e.z, 4));
+    if (r.$1 > 0) _flyFrom(o, r.$1, 12);
+    if (r.$2 > 0) { _flyGems(r.$2, o); toast('Achou ${r.$2} gemas!'); }
+    if (type == 'fog') { Sfx.play(r.$3 ? 'level' : 'pop'); if (r.$3) toast('Pista liberada!'); return; }
+    if (type == 'tourists') { game.w.spawnGroup(12); banner('HORA DO RUSH!', '3x passageiros por 1 minuto'); }
+    if (type == 'celeb') toast('Fãs lotaram o terminal!');
     Sfx.play('gift'); confetti(30);
+  }
+  void _doubleTapCheck(Offset p) {
+    final now = nowMs();
+    if (now - _lastTapMs < 320 && (p - _lastTapPos).distance < 40) { game.overview(); _lastTapMs = 0; return; }
+    _lastTapMs = now; _lastTapPos = p;
   }
 
   void _showModal(Widget m) => setState(() => _modal = m);
@@ -227,7 +325,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void _welcome() {
     _showModal(GameModal(title: 'Bem-vindo ao SkyPort!', icon: 'plane', color: K.blue, actions: [
       GBtn(color: K.green, pulse: true, onTap: () { s.tut = 1; _closeModal(); Sfx.startMusic(); }, padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 12), child: Text('VAMOS LÁ!', style: display(22))),
-    ], child: Text('Você agora administra o aeroporto de Vale Verde. Os passageiros chegam, fazem check-in, passam no raio-X e embarcam. Cada voo que decola paga as passagens.\n\nMelhore cada etapa e descubra o gargalo (o "!" vermelho) para lucrar mais!', textAlign: TextAlign.center, style: body(15))));
+    ], child: Text('Você assumiu o pequeno aeroporto de Vale Verde.\n\nPassageiros chegam, fazem check-in, passam no raio-X e embarcam. Cada voo que decola deixa dinheiro no portão.\n\nMelhore as etapas, conquiste 5 estrelas e transforme Vale Verde num hub mundial!', textAlign: TextAlign.center, style: body(15))));
   }
   void _offerOffline(double secs) {
     final v = s.offlineFor(secs); if (v < 1) return;
@@ -240,33 +338,27 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     }));
   }
 
-  Future<void> _playLanding() async {
-    if (!s.landReady) return;
+  Future<void> _playGame(String which) async {
+    final ready = which == 'land' ? s.landReady : which == 'xray' ? s.xrayReady : s.bagReady;
+    if (!ready) { toast('Disponível em ${fmtTime(math.max(0, ((which == 'land' ? s.landAt : which == 'xray' ? s.xrayAt : s.bagAt) - nowMs()) / 1000))}'); return; }
     Sfx.click();
-    final res = await Navigator.of(context).push<GameResult>(MaterialPageRoute(builder: (_) => LandingGame(rewardText: _rewardText)));
-    _gameReward(res, isLand: true);
-  }
-  Future<void> _playXray() async {
-    if (!s.xrayReady) return;
-    Sfx.click();
-    final res = await Navigator.of(context).push<GameResult>(MaterialPageRoute(builder: (_) => XrayGame(rewardText: _rewardText)));
-    _gameReward(res, isLand: false);
-  }
-  String _rewardText(int stars) => stars == 0 ? 'Tente de novo daqui a pouco.' : 'Prêmio: \$${fmt(s.gameReward(const [0.0, 60.0, 150.0, 300.0][stars]))}${stars == 3 ? ' + 3 gemas' : ''}';
-  void _gameReward(GameResult? r, {required bool isLand}) {
-    if (r == null) return;
-    if (isLand) { s.landAt = nowMs() + GameState.gameCd; } else { s.xrayAt = nowMs() + GameState.gameCd; }
-    if (r.stars > 0) {
-      final v = s.gameReward(const [0.0, 60.0, 150.0, 300.0][r.stars]);
-      s.earn(v);
-      final sz = MediaQuery.of(context).size;
-      _flyFrom(Offset(sz.width / 2, sz.height * 0.5), v, 14);
-      if (r.stars == 3) { s.gems += 3; _flyGems(3, Offset(sz.width / 2, sz.height * 0.5)); }
-      Sfx.play('cash'); confetti(40);
+    final page = which == 'land' ? LandingGame(rewardText: _rewardText, level: s.landingLevel) : which == 'xray' ? XrayGame(rewardText: _rewardText) : BagGame(rewardText: _rewardText) as Widget;
+    final res = await Navigator.of(context).push<GameResult>(MaterialPageRoute(builder: (_) => page));
+    if (res == null || !mounted) return;
+    final at = nowMs() + GameState.gameCd;
+    if (which == 'land') { s.landAt = at; if (res.stars > 0) s.inc('landings'); } else if (which == 'xray') { s.xrayAt = at; } else { s.bagAt = at; }
+    s.inc('minigames'); s.sPts += 5;
+    if (res.stars > 0) {
+      final v = s.gameReward(const [0.0, 60.0, 150.0, 300.0][res.stars]);
+      s.earn(v); flyCash(v);
+      if (res.stars == 3) { s.gems += 3; flyGemsCenter(3); s.chestsQ.add('chest'); }
+      s.addXp(res.stars * 3.0);
+      confetti(40);
     }
     Save.save(s);
     setState(() {});
   }
+  String _rewardText(int stars) => stars == 0 ? 'Tente de novo daqui a pouco.' : 'Prêmio: \$${fmt(s.gameReward(const [0.0, 60.0, 150.0, 300.0][stars]))}${stars == 3 ? ' + 3 gemas + baú' : ''}';
 
   // ================= construção =================
   @override
@@ -285,24 +377,29 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
               if (d.pointerCount == 1) game.vel.setValues(delta.dx * 60, delta.dy * 60);
             },
             onScaleEnd: (d) { game.dragging = false; final v = d.velocity.pixelsPerSecond; game.vel.setValues(v.dx.clamp(-2500.0, 2500.0), v.dy.clamp(-2500.0, 2500.0)); },
-            onTapUp: (d) => game.tapAt(d.localPosition),
+            onTapUp: (d) { game.tapAt(d.localPosition); _doubleTapCheck(d.localPosition); },
             child: RepaintBoundary(child: GameWidget(game: game)),
           ),
         ),
         if (s.boostOn) const IgnorePointer(child: _Vignette(color: Color(0xFFFFC531))),
-        if (s.tut == 1 && panel == null && _modal == null && game.hasLayout && game.isLoaded) _tutPointer('checkin', 'Toque no Check-in'),
+        if (s.rushOn) const IgnorePointer(child: _Vignette(color: Color(0xFFFF5A5F))),
+        if (s.turboOn) const IgnorePointer(child: _Vignette(color: Color(0xFF3E8BFF))),
+        if (s.tut == 3 && panel == null && _modal == null) Positioned(top: pad.top + 160, left: 30, right: 30, child: IgnorePointer(child: _TipCard(text: 'Veja: mais balcões, fila andando mais rápido!'))),
+        if (s.tut == 6 && panel == null && _modal == null) Positioned(bottom: pad.bottom + 150, left: 30, right: 30, child: IgnorePointer(child: _TipCard(text: 'Contrate a Lia na Equipe: ela coleta o dinheiro sozinha!'))),
         RepaintBoundary(child: Stack(children: [
           _topBar(pad),
           _sideButtons(pad),
           if (panel == null) _goal(pad),
+          if (panel == null) _bestButton(pad),
           _bottomNav(pad),
         ])),
+        if (nowMs() - _comboShow < 1200 && s.combo >= 2) Positioned(top: MediaQuery.of(context).size.height * 0.3, left: 0, right: 0, child: IgnorePointer(child: Center(child: TweenAnimationBuilder<double>(key: ValueKey(s.combo), tween: Tween(begin: 1.6, end: 1), duration: const Duration(milliseconds: 300), curve: Curves.easeOutBack, builder: (_, v, c) => Transform.scale(scale: v, child: c), child: Text('COMBO x${s.combo}', style: display(44, color: K.gold)))))),
         Positioned(left: 0, right: 0, bottom: 0, child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           transitionBuilder: (c, a) => SlideTransition(position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutBack)), child: c),
           child: panel == null ? const SizedBox.shrink(key: ValueKey('none')) : SafeArea(key: ValueKey(panel), top: false, child: buildPanel(panel!, s, this)),
         )),
-        Positioned(top: pad.top + 112, left: 0, right: 0, child: IgnorePointer(child: Column(children: [for (final t in _toasts) _Toast(key: ValueKey(t.$1), text: t.$2)]))),
+        Positioned(top: pad.top + 118, left: 0, right: 0, child: IgnorePointer(child: Column(children: [for (final t in _toasts) _Toast(key: ValueKey(t.$1), text: t.$2)]))),
         Positioned.fill(child: RepaintBoundary(child: FlyLayer(c: fly))),
         Positioned.fill(child: RepaintBoundary(child: ConfettiLayer(c: conf))),
         if (_banner != null) Positioned.fill(child: BannerView(key: ValueKey(_banner), title: _banner!.$1, sub: _banner!.$2, onDone: _nextBanner)),
@@ -311,24 +408,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     );
   }
 
-  Widget _tutPointer(String id, String text) {
-    final c = game.w.stationCenter(id);
-    final o = game.worldToScreen(iso(c.$1, c.$2, c.$3));
-    final b = math.sin(DateTime.now().millisecondsSinceEpoch / 160) * 8;
-    return Positioned(left: o.dx - 90, top: o.dy - 120 + b, child: IgnorePointer(child: SizedBox(width: 180, child: Column(children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(14), border: Border.all(color: K.gold, width: 2.5)), child: Text(text, style: display(16))),
-      Transform.rotate(angle: math.pi, child: const Ico('up', size: 54)),
-    ]))));
-  }
-
   Widget _topBar(EdgeInsets pad) {
-    final shown = math.max(0.0, s.money - pending);
     final city = cityAt(s.city);
     return Positioned(
       top: pad.top + 6, left: 8, right: 8,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(flex: 6, child: _Res(key: moneyKey, icon: 'coin', value: '\$${fmt(shown)}', sub: '+\$${fmt(s.rate)}/s', bump: _bump == 'money' ? _bumpN : 0, onTap: () => openPanel('upgrades'))),
+          Expanded(flex: 6, child: _Res(key: moneyKey, icon: 'coin', value: '\$${fmt(shownMoney)}', sub: '+\$${fmt(s.rate)}/s', bump: _bump == 'money' ? _bumpN : 0, onTap: () => openPanel('upgrades'))),
           const SizedBox(width: 6),
           Expanded(flex: 3, child: _Res(key: gemKey, icon: 'gem', value: '${s.gems}', bump: _bump == 'gem' ? _bumpN : 0, onTap: () => openPanel('shop'))),
           const SizedBox(width: 6),
@@ -339,21 +425,40 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           )),
         ]),
         const SizedBox(height: 6),
-        GestureDetector(
-          onTap: () => openPanel('cities'),
-          child: Container(
-            width: 190, padding: const EdgeInsets.fromLTRB(8, 4, 10, 6),
-            decoration: BoxDecoration(color: const Color(0xE6182240), borderRadius: BorderRadius.circular(14), border: Border.all(color: s.canPrestige ? K.gold : const Color(0xFF0E1628), width: 2.5)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [const Ico('globe', size: 20), const SizedBox(width: 4), Expanded(child: Text(city.name, style: display(13), overflow: TextOverflow.ellipsis))]),
-              const SizedBox(height: 3),
-              GBar(value: s.prestigeProgress, height: 10, color: s.canPrestige ? K.gold : K.green),
-            ]),
+        Row(children: [
+          GestureDetector(
+            onTap: () => openPanel('stars'),
+            child: Container(
+              width: 196, padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+              decoration: BoxDecoration(color: const Color(0xE6182240), borderRadius: BorderRadius.circular(14), border: Border.all(color: s.starReady ? K.gold : const Color(0xFF0E1628), width: 2.5)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.25, child: const Ico('star', size: 18)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(city.name, style: display(12), overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 3),
+                Row(children: [
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 5), decoration: BoxDecoration(color: K.purple, borderRadius: BorderRadius.circular(6)), child: Text('Nv ${s.alv}', style: display(11, outline: false))),
+                  const SizedBox(width: 4),
+                  Expanded(child: GBar(value: s.xp / s.needXp(), height: 9, color: K.purple)),
+                ]),
+              ]),
+            ),
           ),
-        ),
+          if (s.boostOn || s.rushOn || s.turboOn) ...[
+            const SizedBox(width: 6),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (s.boostOn) _chip('bolt', 'x2 ${fmtTime((s.boostUntil - nowMs()) / 1000)}', K.gold),
+              if (s.rushOn) _chip('rush', 'RUSH ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
+              if (s.turboOn) _chip('turbo', 'TURBO ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
+            ]),
+          ],
+        ]),
       ]),
     );
   }
+  Widget _chip(String ic, String t, Color c) => Container(margin: const EdgeInsets.only(bottom: 2), padding: const EdgeInsets.fromLTRB(2, 1, 8, 1), decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(10), border: Border.all(color: K.navy, width: 2)), child: Row(mainAxisSize: MainAxisSize.min, children: [Ico(ic, size: 18), Text(t, style: display(11))]));
 
   Widget _sideButtons(EdgeInsets pad) {
     final now = nowMs();
@@ -361,43 +466,73 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     return Positioned(
       right: 8, top: pad.top + 62,
       child: Column(children: [
-        _RoundBtn(icon: 'bolt', label: s.boostOn ? cd(s.boostUntil) : s.freeReady ? 'x2 GRÁTIS' : 'x2', glow: s.freeReady && !s.boostOn, active: s.boostOn, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('LUCRO x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
-        const SizedBox(height: 10),
-        _RoundBtn(icon: 'landing', label: s.landReady ? 'POUSO' : cd(s.landAt), glow: s.landReady, dim: !s.landReady, onTap: _playLanding),
-        const SizedBox(height: 10),
-        _RoundBtn(icon: 'xray', label: s.xrayReady ? 'RAIO-X' : cd(s.xrayAt), glow: s.xrayReady, dim: !s.xrayReady, onTap: _playXray),
-        if (s.dailyReady) ...[const SizedBox(height: 10), _RoundBtn(icon: 'gift', label: 'DIÁRIO', glow: true, onTap: () => openPanel('missions'))],
+        _RoundBtn(icon: 'bolt', label: s.freeReady ? 'x2 GRÁTIS' : 'TURBINAS', glow: s.freeReady, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('LUCRO x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
+        const SizedBox(height: 8),
+        if (s.spinReady) ...[_RoundBtn(icon: 'wheel', label: 'ROLETA', glow: true, onTap: openWheel), const SizedBox(height: 8)],
+        _RoundBtn(icon: 'chest', label: s.chestReady ? 'BAÚ' : cd(s.chestAt), glow: s.chestReady, dim: !s.chestReady, onTap: () { if (s.chestReady) { s.takeFreeChest(); showChests(); } else { toast('Baú grátis em ${cd(s.chestAt)}'); } }),
+        const SizedBox(height: 8),
+        _RoundBtn(icon: 'landing', label: s.landReady ? 'POUSO' : cd(s.landAt), glow: s.landReady, dim: !s.landReady, onTap: () => _playGame('land')),
+        const SizedBox(height: 8),
+        _RoundBtn(icon: 'xray', label: s.xrayReady ? 'RAIO-X' : cd(s.xrayAt), glow: s.xrayReady, dim: !s.xrayReady, onTap: () => _playGame('xray')),
+        const SizedBox(height: 8),
+        _RoundBtn(icon: 'bags', label: s.bagReady ? 'MALAS' : cd(s.bagAt), glow: s.bagReady, dim: !s.bagReady, onTap: () => _playGame('bag')),
       ]),
+    );
+  }
+
+  Widget _bestButton(EdgeInsets pad) {
+    final b = s.bestBuy();
+    if (b == null || s.tut < 3) return const SizedBox.shrink();
+    final can = s.money >= b.$2;
+    final st = stationById(b.$1);
+    return Positioned(
+      right: 10, bottom: pad.bottom + 162,
+      child: GBtn(
+        color: can ? K.green : K.grey, enabled: true, pulse: can, radius: 16,
+        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+        onTap: () { if (!can) { toast('Falta \$${fmt(b.$2 - s.money)} para ${st.name}'); return; } s.buyBest(); setState(() {}); },
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Ico(st.icon, size: 36),
+          const SizedBox(width: 4),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(b.$3 ? 'CONSTRUIR' : 'MELHOR COMPRA', style: display(11)),
+            Text(st.name, style: display(14)),
+            Price(fmt(b.$2), size: 12),
+          ]),
+        ]),
+      ),
     );
   }
 
   Widget _goal(EdgeInsets pad) {
     final done = s.missionsDone;
     final p = s.missionProgress();
-    final ready = s.missionReady || (done && s.canPrestige);
+    final ready = s.missionReady || (done && s.canPrestige) || s.starReady;
     final m = s.curMission;
+    final starTxt = s.starReady ? 'Estrela ${s.star + 1} pronta! Toque para ganhar' : null;
     return Positioned(
       left: 10, right: 10, bottom: pad.bottom + 90,
       child: Center(child: GestureDetector(
         onTap: () {
-          if (done) { openPanel('cities'); return; }
+          if (s.starReady) { claimStar(); return; }
+          if (done) { openPanel(s.canPrestige ? 'cities' : 'stars'); return; }
           if (s.missionReady) { claimMission(); return; }
-          if (m.type == 'lvl' || m.type == 'unlock') { focusStation(m.target); } else if (m.type == 'manager') { openPanel('managers'); } else { openPanel('missions'); }
+          if (m.type == 'lvl' || m.type == 'unlock') { focusStation(m.target); } else if (m.type == 'manager') { openPanel('team'); } else if (m.type == 'star') { openPanel('stars'); } else { openPanel('missions'); }
         },
         child: _Pulse(active: ready, child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
           padding: const EdgeInsets.fromLTRB(8, 6, 10, 8),
           decoration: BoxDecoration(color: ready ? const Color(0xFFFFF4C4) : K.cream, borderRadius: BorderRadius.circular(18), border: Border.all(color: ready ? K.goldD : K.navy, width: 3), boxShadow: const [BoxShadow(color: Color(0x44000000), offset: Offset(0, 4))]),
           child: Row(children: [
-            Ico(done ? 'globe' : ready ? 'gift' : 'mission', size: 38),
+            Ico(s.starReady ? 'star' : done ? 'globe' : ready ? 'gift' : 'mission', size: 38),
             const SizedBox(width: 8),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(done ? 'Abra a próxima cidade' : s.missionText(), style: body(15, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(starTxt ?? (done ? 'Complete as estrelas do aeroporto' : s.missionText()), style: body(15, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
-              done ? GBar(value: s.prestigeProgress, height: 12, color: K.gold) : GBar(value: p.$1 / p.$2, height: 12, color: K.green, label: ready ? 'PRONTO!' : null),
+              done || starTxt != null ? GBar(value: s.star / 5, height: 12, color: K.purple, label: '${s.star}/5 estrelas') : GBar(value: p.$1 / p.$2, height: 12, color: K.green, label: ready ? 'PRONTO!' : '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
             ])),
             const SizedBox(width: 8),
-            if (!done) Price('${s.missionGems}', icon: 'gem', size: 15),
+            if (!done && starTxt == null) Price('${s.missionGems}', icon: 'gem', size: 15),
           ]),
         )),
       )),
@@ -406,19 +541,22 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 
   Widget _bottomNav(EdgeInsets pad) {
     final anyUp = stations.any((st) => (s.built(st.id) && !st.oneTime && s.canUp(st)) || s.canUnlock(st));
-    final mgrAv = managers.any((m) => !s.hasMgr(m.id) && s.money >= s.mgrCost(m));
+    final team = managers.any((m) => !s.hasMgr(m.id) && s.money >= s.mgrCost(m)) || researchList.any(s.canResearch);
+    final fleet = planeModels.any((m) => s.canLevelModel(m.id)) || routes.any((r) => !s.routesOwned.contains(r.id) && s.routeReqOk(r) && s.money >= s.routeCost(r));
+    final cl = s.claimables + (s.dailyReady ? 1 : 0);
     return Positioned(
-      left: 6, right: 6, bottom: pad.bottom + 6,
+      left: 4, right: 4, bottom: pad.bottom + 6,
       child: Center(child: Container(
-        constraints: const BoxConstraints(maxWidth: 460),
-        padding: const EdgeInsets.fromLTRB(4, 7, 4, 5),
+        constraints: const BoxConstraints(maxWidth: 480),
+        padding: const EdgeInsets.fromLTRB(2, 7, 2, 5),
         decoration: BoxDecoration(gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF41588F), K.navy]), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF0E1628), width: 3)),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
           _NavBtn(icon: 'up', label: 'Melhorar', badge: anyUp ? '!' : null, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
-          _NavBtn(icon: 'pax', label: 'Gerentes', badge: mgrAv ? '!' : null, active: panel == 'managers', onTap: () => openPanel('managers')),
-          _NavBtn(icon: 'mission', label: 'Missões', badge: s.missionReady || s.dailyReady ? '!' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
-          _NavBtn(icon: 'bag', label: 'Loja', badge: s.freeReady ? '!' : null, active: panel == 'shop', onTap: () => openPanel('shop')),
-          _NavBtn(icon: 'globe', label: 'Cidades', badge: s.canPrestige ? '!' : null, active: panel == 'cities', onTap: () => openPanel('cities')),
+          _NavBtn(icon: 'star', label: 'Estrelas', badge: s.starReady ? '!' : null, active: panel == 'stars', onTap: () => openPanel('stars')),
+          _NavBtn(icon: 'mission', label: 'Missões', badge: cl > 0 ? '$cl' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
+          _NavBtn(icon: 'plane', label: 'Frota', badge: fleet ? '!' : null, active: panel == 'fleet', onTap: () => openPanel('fleet')),
+          _NavBtn(icon: 'pax', label: 'Equipe', badge: team ? '!' : null, active: panel == 'team', onTap: () => openPanel('team')),
+          _NavBtn(icon: 'bag', label: 'Loja', badge: s.freeReady || s.chestReady || s.spinReady ? '!' : null, active: panel == 'shop', onTap: () => openPanel('shop')),
         ]),
       )),
     );
@@ -426,6 +564,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 }
 
 // ================= widgets do HUD =================
+class _TipCard extends StatelessWidget {
+  final String text;
+  const _TipCard({required this.text});
+  @override
+  Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(16), border: Border.all(color: K.gold, width: 3)), child: Text(text, textAlign: TextAlign.center, style: display(16)));
+}
+
 class _Res extends StatefulWidget {
   final String icon, value;
   final String? sub;
@@ -464,20 +609,20 @@ class _ResState extends State<_Res> with SingleTickerProviderStateMixin {
 
 class _RoundBtn extends StatelessWidget {
   final String icon, label;
-  final bool glow, dim, active;
+  final bool glow, dim;
   final VoidCallback onTap;
-  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.glow = false, this.dim = false, this.active = false});
+  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.glow = false, this.dim = false});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: _Pulse(active: glow, child: SizedBox(width: 64, child: Column(children: [
+        child: _Pulse(active: glow, child: SizedBox(width: 58, child: Column(children: [
           Container(
-            width: 58, height: 58,
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: glow || active ? K.gold : K.navy, width: 3), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: dim ? [const Color(0xFF8A93A6), const Color(0xFF5D6578)] : active ? [const Color(0xFFFFE27A), K.goldD] : [const Color(0xFF6FA8FF), const Color(0xFF2F5FD0)]), boxShadow: const [BoxShadow(color: Color(0x55000000), offset: Offset(0, 4))]),
-            child: Padding(padding: const EdgeInsets.all(7), child: Opacity(opacity: dim ? 0.7 : 1, child: Ico(icon, size: 40))),
+            width: 50, height: 50,
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: glow ? K.gold : K.navy, width: 3), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: dim ? [const Color(0xFF8A93A6), const Color(0xFF5D6578)] : [const Color(0xFF6FA8FF), const Color(0xFF2F5FD0)]), boxShadow: const [BoxShadow(color: Color(0x55000000), offset: Offset(0, 4))]),
+            child: Padding(padding: const EdgeInsets.all(6), child: Opacity(opacity: dim ? 0.7 : 1, child: Ico(icon, size: 36))),
           ),
-          const SizedBox(height: 2),
-          FittedBox(child: Text(label, style: display(12))),
+          const SizedBox(height: 1),
+          FittedBox(child: Text(label, style: display(11))),
         ]))),
       );
 }
@@ -495,17 +640,17 @@ class _NavBtn extends StatelessWidget {
         child: Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.symmetric(horizontal: 2), padding: const EdgeInsets.symmetric(vertical: 3),
+            margin: const EdgeInsets.symmetric(horizontal: 1), padding: const EdgeInsets.symmetric(vertical: 3),
             decoration: BoxDecoration(color: active ? const Color(0x55FFFFFF) : Colors.transparent, borderRadius: BorderRadius.circular(16)),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Transform.translate(offset: Offset(0, active ? -4 : 0), child: Ico(icon, size: 38)),
-              FittedBox(child: Text(label, style: display(12))),
+              Transform.translate(offset: Offset(0, active ? -4 : 0), child: Ico(icon, size: 34)),
+              FittedBox(child: Text(label, style: display(11))),
             ]),
           ),
-          if (badge != null) Positioned(top: -4, right: 6, child: Container(
-            width: 22, height: 22, alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: K.red, border: Border.all(color: Colors.white, width: 2)),
-            child: Text(badge!, style: display(12, outline: false)),
+          if (badge != null) Positioned(top: -4, right: 4, child: Container(
+            constraints: const BoxConstraints(minWidth: 20), height: 20, alignment: Alignment.center, padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: K.red, border: Border.all(color: Colors.white, width: 2)),
+            child: Text(badge!, style: display(11, outline: false)),
           )),
         ]),
       ));

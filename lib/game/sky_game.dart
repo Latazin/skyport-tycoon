@@ -66,6 +66,8 @@ class SkyGame extends FlameGame {
     _camTarget = Vector2(o.dx, o.dy + (sheet ? size.y * 0.2 / z : 0));
   }
   void focusWorld(double x, double z, {double? zoomTo}) { final o = iso(x, z); _camTarget = Vector2(o.dx, o.dy); _zoomTarget = zoomTo; }
+  /// Visão geral (dois toques).
+  void overview() { if (zoom < 0.36) { focusWorld(-24, 6, zoomTo: 0.6); } else { focusWorld(-8, -6, zoomTo: (size.x / 1700).clamp(0.2, 0.4).toDouble()); } }
 
   /// Toque no mundo: presentes, aviões, estações.
   void tapAt(Offset screen) {

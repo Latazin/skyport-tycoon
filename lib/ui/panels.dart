@@ -18,15 +18,21 @@ abstract class PanelHost {
   void resetGame();
   void claimDaily();
   void claimMission();
+  void claimStar();
   void flyCash(double amount);
+  void flyGemsCenter(int n);
+  void openWheel();
+  void showChests();
 }
 
 Widget buildPanel(String p, GameState s, PanelHost h) {
   if (p.startsWith('st:')) return StationPanel(s: s, h: h, id: p.substring(3));
   switch (p) {
     case 'upgrades': return UpgradesPanel(s: s, h: h);
-    case 'managers': return ManagersPanel(s: s, h: h);
+    case 'stars': return StarsPanel(s: s, h: h);
     case 'missions': return MissionsPanel(s: s, h: h);
+    case 'fleet': return FleetPanel(s: s, h: h);
+    case 'team': return TeamPanel(s: s, h: h);
     case 'shop': return ShopPanel(s: s, h: h);
     case 'cities': return CitiesPanel(s: s, h: h);
     case 'settings': return SettingsPanel(s: s, h: h);
@@ -44,8 +50,38 @@ Color stColor(St st) {
 }
 
 String perMin(double v) => '${fmt(v * 60)}/min';
+String bottleneckName(String b) => b == 'gates' ? 'Portões' : stationById(b).name;
 
-/// Botões x1 / x10 / MÁX.
+/// Abas dentro de um painel.
+class Tabs extends StatelessWidget {
+  final List<String> labels;
+  final int index;
+  final void Function(int) onTap;
+  final List<bool> dots;
+  const Tabs({super.key, required this.labels, required this.index, required this.onTap, this.dots = const []});
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(14)),
+        child: Row(children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(child: GestureDetector(
+              onTap: () { Sfx.click(); onTap(i); },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                decoration: BoxDecoration(color: index == i ? K.gold : Colors.transparent, borderRadius: BorderRadius.circular(11)),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Flexible(child: Text(labels[i], textAlign: TextAlign.center, style: display(14, color: index == i ? K.navy : Colors.white, outline: false), overflow: TextOverflow.ellipsis)),
+                  if (i < dots.length && dots[i]) Container(margin: const EdgeInsets.only(left: 4), width: 8, height: 8, decoration: const BoxDecoration(color: K.red, shape: BoxShape.circle)),
+                ]),
+              ),
+            )),
+        ]),
+      );
+}
+
+/// Botões x1 / x10 / x50 / MÁX.
 class BuyMode extends StatelessWidget {
   final GameState s;
   final VoidCallback onChange;
@@ -55,14 +91,14 @@ class BuyMode extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(14)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final m in [1, 10, -1])
+          for (final m in [1, 10, 50, -1])
             GestureDetector(
               onTap: () { Sfx.click(); s.buyMode = m; onChange(); },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(color: s.buyMode == m ? K.gold : Colors.transparent, borderRadius: BorderRadius.circular(11)),
-                child: Text(m == -1 ? 'MÁX' : 'x$m', style: display(14, color: s.buyMode == m ? K.navy : Colors.white, outline: false)),
+                child: Text(m == -1 ? 'MÁX' : 'x$m', style: display(13, color: s.buyMode == m ? K.navy : Colors.white, outline: false)),
               ),
             ),
         ]),
@@ -78,7 +114,7 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
   }
   switch (id) {
     case 'entrada':
-      return [('Chegada de passageiros', perMin(s.lambda), nx(() => perMin(s.lambda))), ('Estacionamento', '${[5, 10, 16, 24][parkTier(l) - 1]} vagas', null)];
+      return [('Chegada de passageiros', perMin(s.lambda), nx(() => perMin(s.lambda))), ('Carros no estacionamento', '${parkCars(l)}', nx(() => '${parkCars(s.lvl(id))}'))];
     case 'checkin':
       return [('Atendimento', perMin(s.muC), nx(() => perMin(s.muC))), ('Balcões abertos', '${desksFor(l)}', nx(() => '${desksFor(s.lvl(id))}'))];
     case 'seguranca':
@@ -103,9 +139,21 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
   return [];
 }
 
-String bottleneckName(String b) => b == 'gates' ? 'Portões' : stationById(b).name;
+/// Próxima novidade visual da estação.
+String? nextVisual(St st, int l) {
+  int? nx(List<int> m) { for (final x in m) { if (l < x) return x; } return null; }
+  switch (st.id) {
+    case 'checkin': final n = nx([2, 4, 6, 8, 10, 15, 20]); final p = props.where((p) => p.st == 'checkin' && p.lvl > l).map((p) => p.lvl).fold<int?>(null, (a, b) => a == null || b < a ? b : a); final m = [n, p].whereType<int>().fold<int?>(null, (a, b) => a == null || b < a ? b : a); return m == null ? null : m == n ? 'Novo balcão no nível $n' : 'Decoração nova no nível $m';
+    case 'seguranca': final n = nx([3, 6, 10, 15, 20, 25]); return n == null ? null : n == 20 ? 'Scanner corporal no nível 20' : 'Nova faixa no nível $n';
+    case 'entrada': return l < 23 ? 'Mais um carro a cada nível · ônibus mais frequentes' : null;
+    case 'lojas': final n = nx([5, 10, 15]); return n == null ? null : 'Novo quiosque no nível $n';
+    case 'pista': final n = nx([10, 30]); return n == null ? null : 'Pista maior e luzes novas no nível $n';
+    case 'torre': final n = nx([15, 30]); return n == null ? null : 'Torre mais alta no nível $n';
+  }
+  if (st.kind == Kind.gate) { final n = nx([5, 10, 20, 25, 40, 75]); return n == null ? null : n == 25 || n == 75 ? 'Avião maior no nível $n' : 'Sala de embarque nova no nível $n'; }
+  return null;
+}
 
-/// Painel de uma estação: nível, números e botão de melhorar.
 class StationPanel extends StatefulWidget {
   final GameState s;
   final PanelHost h;
@@ -120,25 +168,26 @@ class _StationPanelState extends State<StationPanel> {
   @override
   Widget build(BuildContext context) {
     final st = stationById(widget.id), l = s.lvl(st.id);
-    final title = st.name;
     if (l <= 0) {
-      final orderOk = s.unlockOk(st);
-      return Sheet(title: title, icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: Column(children: [
+      final starOk = s.starOk(st), orderOk = s.unlockOk(st);
+      return Sheet(title: st.name, icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: Column(children: [
         GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(st.desc, style: body(15)),
           const SizedBox(height: 10),
-          if (!orderOk) Text('Abra o ${stationById('g${st.gate - 1}').name} primeiro.', style: body(14, color: K.red)),
+          if (!starOk) Row(children: [const Ico('star', size: 26), const SizedBox(width: 6), Expanded(child: Text('Libera com ${st.star} estrela${st.star > 1 ? 's' : ''} do aeroporto (você tem ${s.star}).', style: body(14, color: K.purple)))])
+          else if (!orderOk) Text('Abra o ${stationById('g${st.gate - 1}').name} primeiro.', style: body(14, color: K.red)),
         ])),
-        GBtn(
+        if (!starOk) GBtn(color: K.purple, onTap: () => widget.h.openPanel('stars'), child: Text('VER ESTRELAS', style: display(18)))
+        else GBtn(
           color: K.green, enabled: s.canUnlock(st), pulse: s.canUnlock(st),
-          onTap: () { if (s.unlock(st.id)) { widget.h.refresh(); } },
+          onTap: () { if (s.unlock(st.id)) widget.h.refresh(); },
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
           child: Row(mainAxisSize: MainAxisSize.min, children: [Text('CONSTRUIR  ', style: display(20)), Price(fmt(st.unlock), size: 20)]),
         ),
       ]));
     }
     if (st.oneTime) {
-      return Sheet(title: title, icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      return Sheet(title: st.name, icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(st.desc, style: body(15)), const SizedBox(height: 8), Text('Construído', style: body(16, color: K.greenD, w: FontWeight.w900)),
       ])));
     }
@@ -149,12 +198,13 @@ class _StationPanelState extends State<StationPanel> {
     final stats = stationStats(s, st, b.$1);
     final isBott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate);
     final G = st.kind == Kind.gate ? s.gates[st.gate] : null;
-    return Sheet(title: '$title  ·  Nv $l', icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: Column(children: [
-      if (isBott && s.bottleneck != 'none')
+    final vis = nextVisual(st, l);
+    return Sheet(title: '${st.name}  ·  Nv $l', icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: Column(children: [
+      if (isBott)
         Container(
           width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(color: const Color(0xFFFFE1E1), borderRadius: BorderRadius.circular(14), border: Border.all(color: K.red, width: 2)),
-          child: Text(st.kind == Kind.gate ? 'Os portões são o gargalo: mais portões ou aviões maiores aumentam a vazão.' : 'Esta é a etapa mais lenta do aeroporto agora. Melhorar aqui aumenta seu lucro!', style: body(14, color: const Color(0xFFB3261E))),
+          child: Text(st.kind == Kind.gate ? 'Os portões são o gargalo: abra mais portões ou suba o nível para aviões maiores.' : 'GARGALO! Esta é a etapa mais lenta agora. Melhorar aqui aumenta o lucro.', style: body(14, color: const Color(0xFFB3261E))),
         )
       else if (st.kind == Kind.flow && st.id != 'lojas')
         Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Gargalo atual: ${bottleneckName(s.bottleneck)}', style: body(13, color: K.muted))),
@@ -163,24 +213,19 @@ class _StationPanelState extends State<StationPanel> {
         if (G != null) InfoRow('Agora', G.phase == Ph.empty ? 'Aguardando avião' : '${Ph.names[G.phase]} · ${G.flight}${G.dest.isNotEmpty && G.phase >= Ph.boarding ? ' → ${G.dest}' : ''}'),
         if (nm != null) ...[
           const SizedBox(height: 8),
-          Row(children: [
-            Text('Bônus x2 no nível $nm', style: body(13, color: K.muted)),
-            const Spacer(),
-            Text('$l/$nm', style: body(13, w: FontWeight.w900)),
-          ]),
+          Row(children: [Text('Bônus x2 no nível $nm', style: body(13, color: K.muted)), const Spacer(), Text('$l/$nm', style: body(13, w: FontWeight.w900))]),
           const SizedBox(height: 4),
           GBar(value: (l - prev) / (nm - prev), color: K.gold, height: 14),
         ],
       ])),
-      Text(st.desc, style: body(13, color: K.muted, w: FontWeight.w600), textAlign: TextAlign.center),
-      const SizedBox(height: 10),
+      if (vis != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Ico('star', size: 20), const SizedBox(width: 4), Flexible(child: Text(vis, style: body(14, color: K.purple, w: FontWeight.w900)))])),
       Row(children: [
         BuyMode(s: s, onChange: () => setState(() {})),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: GBtn(
           color: K.green, enabled: can, pulse: can && s.tut == 2,
           onTap: () { if (s.upgrade(st.id)) { if (s.tut == 2) s.tut = 3; widget.h.refresh(); setState(() {}); } },
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(l >= GameState.maxL ? 'NÍVEL MÁXIMO' : 'MELHORAR +${b.$1}', style: display(17)),
             if (l < GameState.maxL) Price(fmt(b.$2), size: 16),
@@ -191,7 +236,6 @@ class _StationPanelState extends State<StationPanel> {
   }
 }
 
-/// Lista com todas as estações para melhorar rápido.
 class UpgradesPanel extends StatefulWidget {
   final GameState s;
   final PanelHost h;
@@ -204,14 +248,30 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
   GameState get s => widget.s;
   @override
   Widget build(BuildContext context) {
-    final list = stations.where((st) => s.built(st.id) || (s.unlockOk(st))).toList();
-    return Sheet(title: 'Melhorias', icon: 'up', color: K.green, onClose: widget.h.closePanel, child: Column(children: [
+    final list = stations.where((st) => s.built(st.id) || s.unlockOk(st)).toList();
+    final next = stations.where((st) => !s.built(st.id)).take(4).toList();
+    return Sheet(title: 'Melhorias', icon: 'up', color: K.green, onClose: widget.h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [
         Expanded(child: Text('Gargalo: ${bottleneckName(s.bottleneck)}', style: body(14, color: K.red, w: FontWeight.w900))),
         BuyMode(s: s, onChange: () => setState(() {})),
       ]),
-      const SizedBox(height: 10),
+      if (s.has('auto')) Padding(padding: const EdgeInsets.only(top: 6), child: GCard(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2), child: SwitchListTile(dense: true, value: s.autoUp, onChanged: (v) { s.autoUp = v; setState(() {}); }, title: Text('Melhoria automática', style: body(15)), subtitle: Text('Compra sozinho a melhor opção', style: body(12, color: K.muted)), activeThumbColor: K.green))),
+      const SizedBox(height: 8),
       for (final st in list) _row(st),
+      if (next.isNotEmpty) ...[
+        const SectionTitle('Próximos desbloqueios'),
+        SizedBox(height: 98, child: ListView(scrollDirection: Axis.horizontal, children: [
+          for (final st in next) Container(
+            width: 112, margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE8D9B8), width: 2)),
+            child: Column(children: [
+              Opacity(opacity: s.starOk(st) ? 1 : 0.45, child: Ico(st.icon, size: 40)),
+              Text(st.name, style: body(12, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
+              s.starOk(st) ? Price(fmt(st.unlock), size: 12) : Row(mainAxisSize: MainAxisSize.min, children: [const Ico('star', size: 16), Text(' ${st.star} estrelas', style: body(11, color: K.purple))]),
+            ]),
+          ),
+        ])),
+      ],
     ]));
   }
   Widget _row(St st) {
@@ -220,7 +280,8 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
     final b = locked ? (1, st.unlock) : s.buyInfo(st);
     final can = !locked ? (b.$1 > 0 && s.money >= b.$2 && !st.oneTime) : s.canUnlock(st);
     final bott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate);
-    return GCard(padding: const EdgeInsets.fromLTRB(8, 8, 8, 8), child: Row(children: [
+    final best = s.bestBuy()?.$1 == st.id;
+    return GCard(color: best ? const Color(0xFFE8FBEA) : null, padding: const EdgeInsets.fromLTRB(8, 8, 8, 8), child: Row(children: [
       GestureDetector(onTap: () => widget.h.focusStation(st.id), child: Ico(st.icon, size: 44)),
       const SizedBox(width: 8),
       Expanded(child: GestureDetector(
@@ -228,7 +289,8 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Flexible(child: Text(st.name, style: body(16, w: FontWeight.w900), overflow: TextOverflow.ellipsis)),
-            if (bott) Container(margin: const EdgeInsets.only(left: 6), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: K.red, borderRadius: BorderRadius.circular(8)), child: Text('GARGALO', style: display(10, outline: false))),
+            if (bott) _chip('GARGALO', K.red),
+            if (best && !bott) _chip('MELHOR', K.greenD),
           ]),
           Text(locked ? 'Não construído' : st.oneTime ? 'Construído' : 'Nível $l${nextMilestone(l) != null ? '  ·  x2 no ${nextMilestone(l)}' : ''}', style: body(12, color: K.muted)),
         ]),
@@ -238,49 +300,52 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
           color: locked ? K.blue : K.green, enabled: can, radius: 14,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           onTap: () { final ok = locked ? s.unlock(st.id) : s.upgrade(st.id); if (ok) { widget.h.refresh(); setState(() {}); } },
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(locked ? 'CONSTRUIR' : '+${b.$1}', style: display(13)),
-            Price(fmt(b.$2), size: 13),
-          ]),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [Text(locked ? 'CONSTRUIR' : '+${b.$1}', style: display(13)), Price(fmt(b.$2), size: 13)]),
         ),
     ]));
   }
+  Widget _chip(String t, Color c) => Container(margin: const EdgeInsets.only(left: 6), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(8)), child: Text(t, style: display(10, outline: false)));
 }
 
-class ManagersPanel extends StatefulWidget {
+/// Estrelas do aeroporto.
+class StarsPanel extends StatelessWidget {
   final GameState s;
   final PanelHost h;
-  const ManagersPanel({super.key, required this.s, required this.h});
-  @override
-  State<ManagersPanel> createState() => _ManagersPanelState();
-}
-
-class _ManagersPanelState extends State<ManagersPanel> {
+  const StarsPanel({super.key, required this.s, required this.h});
   @override
   Widget build(BuildContext context) {
-    final s = widget.s;
-    return Sheet(title: 'Gerentes', icon: 'cap', color: K.navy2, onClose: widget.h.closePanel, child: Column(children: [
-      Text('Gerentes trabalham no aeroporto atual e dão bônus permanentes.', style: body(13, color: K.muted), textAlign: TextAlign.center),
+    final tasks = s.starNow;
+    return Sheet(title: 'Estrelas', icon: 'star', color: K.purple, onClose: h.closePanel, child: Column(children: [
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < 5; i++) Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Opacity(opacity: i < s.star ? 1 : 0.22, child: Ico('star', size: i == 2 ? 50 : 42)))]),
+      Text(starNames[math.min(s.star, 5)], style: display(22, color: K.purple)),
+      Text('Cada estrela dobra toda a receita (agora x${fmt(s.starMult)}) e libera novas áreas.', textAlign: TextAlign.center, style: body(13, color: K.muted)),
       const SizedBox(height: 10),
-      for (final m in managers) GCard(color: s.hasMgr(m.id) ? const Color(0xFFE6F8EA) : null, child: Row(children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFDDE8FF), border: Border.all(color: K.navy, width: 2.5)),
-          child: Stack(alignment: Alignment.center, children: [const Ico('pax', size: 40), Positioned(top: 0, child: Ico('cap', size: 22))]),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${m.name} · ${m.role}', style: body(15, w: FontWeight.w900)),
-          Text(m.effect, style: body(13, color: K.greenD)),
-        ])),
-        if (s.hasMgr(m.id)) Text('NA EQUIPE', style: body(12, color: K.greenD, w: FontWeight.w900))
-        else GBtn(
-          color: K.purple, radius: 14, enabled: s.money >= s.mgrCost(m),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          onTap: () { if (s.hire(m)) { Sfx.play('level'); widget.h.refresh(); setState(() {}); } },
-          child: Column(mainAxisSize: MainAxisSize.min, children: [Text('CONTRATAR', style: display(12)), Price(fmt(s.mgrCost(m)), size: 13)]),
-        ),
+      if (s.star >= 5) GCard(child: Column(children: [
+        Text('Aeroporto 5 estrelas! Hora de abrir a próxima cidade.', textAlign: TextAlign.center, style: body(15)),
+        const SizedBox(height: 8),
+        GBtn(color: K.green, pulse: true, onTap: () => h.openPanel('cities'), child: Text('VER CIDADES', style: display(17))),
+      ]))
+      else ...[
+        SectionTitle('Para a ${s.star + 1}ª estrela'),
+        for (final m in tasks) _task(m),
+        const SizedBox(height: 6),
+        GBtn(color: K.gold, enabled: s.starReady, pulse: s.starReady, onTap: h.claimStar, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12), child: Text(s.starReady ? 'GANHAR ESTRELA!' : 'COMPLETE AS TAREFAS', style: display(18))),
+        const SizedBox(height: 8),
+        Text('Libera: ${stations.where((st) => st.star == s.star + 1).map((st) => st.name).join(', ')}', textAlign: TextAlign.center, style: body(13, color: K.purple)),
+      ],
+    ]));
+  }
+  Widget _task(Mission m) {
+    final p = s.progress(m), done = p.$1 >= p.$2;
+    return GCard(color: done ? const Color(0xFFE8FBEA) : null, padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Row(children: [
+      Ico(done ? 'up' : (m.type == 'lvl' || m.type == 'unlock') ? stationById(m.target).icon : m.type == 'flights' ? 'plane' : 'pax', size: 34),
+      const SizedBox(width: 8),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(s.missionText(m), style: body(15, w: FontWeight.w900)),
+        const SizedBox(height: 3),
+        GBar(value: p.$1 / p.$2, height: 12, color: done ? K.green : K.gold, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
       ])),
+      if (!done && (m.type == 'lvl' || m.type == 'unlock')) ...[const SizedBox(width: 6), GBtn(color: K.blue, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), onTap: () => h.focusStation(m.target), child: Text('IR', style: display(13)))],
     ]));
   }
 }
@@ -294,57 +359,270 @@ class MissionsPanel extends StatefulWidget {
 }
 
 class _MissionsPanelState extends State<MissionsPanel> {
+  int tab = 0;
+  GameState get s => widget.s;
   @override
   Widget build(BuildContext context) {
-    final s = widget.s;
+    final dDots = s.dailyReady || s.missionReady || List.generate(s.dTasks.length, (i) => !s.dClaimed[i] && s.dailyDone(i)).any((x) => x) || List.generate(s.wTasks.length, (i) => !s.wClaimed[i] && s.weeklyDone(i)).any((x) => x);
+    final aDots = achievements.any(s.achReady);
+    final pDots = List.generate(s.seasonTier, (t) => !s.sClaimed.contains(t)).any((x) => x);
     return Sheet(title: 'Missões', icon: 'mission', color: K.orange, onClose: widget.h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const SectionTitle('Prêmio diário'),
-      GCard(child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          for (var i = 0; i < 7; i++) _day(s, i),
-        ]),
-        const SizedBox(height: 10),
-        GBtn(color: K.gold, enabled: s.dailyReady, pulse: s.dailyReady, onTap: () { widget.h.claimDaily(); setState(() {}); }, child: Text(s.dailyReady ? 'PEGAR PRÊMIO DO DIA' : 'VOLTE AMANHÃ', style: display(17))),
-      ])),
-      const SectionTitle('Missão atual'),
-      if (s.missionsDone)
-        GCard(child: Text('Você completou todas as missões desta cidade! Vá em Cidades para abrir um aeroporto novo.', style: body(15)))
-      else ...[
-        _mission(s, s.curMission, current: true),
-        const SectionTitle('Próximas'),
-        for (var i = s.mission + 1; i < math.min(missionList.length, s.mission + 4); i++) _mission(s, missionList[i]),
-      ],
+      Tabs(labels: const ['Tarefas', 'Passe', 'Conquistas'], index: tab, dots: [dDots, pDots, aDots], onTap: (i) => setState(() => tab = i)),
+      if (tab == 0) ..._tasks(),
+      if (tab == 1) ..._pass(),
+      if (tab == 2) ..._ach(),
     ]));
   }
-  Widget _day(GameState s, int i) {
+  List<Widget> _tasks() => [
+        const SectionTitle('Prêmio diário'),
+        GCard(child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [for (var i = 0; i < 7; i++) _day(i)]),
+          const SizedBox(height: 10),
+          GBtn(color: K.gold, enabled: s.dailyReady, pulse: s.dailyReady, onTap: () { widget.h.claimDaily(); setState(() {}); }, child: Text(s.dailyReady ? 'PEGAR PRÊMIO DO DIA' : 'VOLTE AMANHÃ', style: display(17))),
+        ])),
+        if (!s.missionsDone) ...[const SectionTitle('Missão atual'), _mission(s.curMission)],
+        SectionTitle('Diárias  ·  ${s.dClaimed.where((x) => x).length}/5 (todas = baú)'),
+        for (var i = 0; i < s.dTasks.length; i++) _period(s.dailyTask(i), s.dClaimed[i], s.dailyDone(i), 3, () { s.claimDailyTask(i); widget.h.flyGemsCenter(3); widget.h.showChests(); setState(() {}); }),
+        const SectionTitle('Semanais (baú + 15 gemas)'),
+        for (var i = 0; i < s.wTasks.length; i++) _period(s.weeklyTask(i), s.wClaimed[i], s.weeklyDone(i), 15, () { s.claimWeeklyTask(i); widget.h.flyGemsCenter(15); widget.h.showChests(); setState(() {}); }),
+      ];
+  Widget _period((String, double, double) t, bool claimed, bool done, int gems, VoidCallback onClaim) => GCard(color: claimed ? const Color(0xFFF1F1EC) : null, padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(t.$1, style: body(14, w: FontWeight.w900, color: claimed ? K.muted : K.ink)),
+          const SizedBox(height: 3),
+          GBar(value: t.$2 / t.$3, height: 11, color: K.green, label: '${fmt(math.min(t.$2, t.$3))}/${fmt(t.$3)}'),
+        ])),
+        const SizedBox(width: 8),
+        claimed ? Text('FEITO', style: body(13, color: K.greenD, w: FontWeight.w900))
+            : GBtn(color: K.green, enabled: done, pulse: done, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), onTap: onClaim, child: Price('$gems', icon: 'gem', size: 13)),
+      ]));
+  Widget _day(int i) {
     final r = dailyRewards[i];
-    final cur = i == s.dailyDay % 7;
-    final done = i < s.dailyDay % 7;
+    final cur = i == s.dailyDay % 7, done = i < s.dailyDay % 7;
     return Container(
       width: 40, padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(color: cur ? const Color(0xFFFFF0A8) : done ? const Color(0xFFDFF5E3) : const Color(0xFFF3EEDF), borderRadius: BorderRadius.circular(10), border: Border.all(color: cur ? K.goldD : const Color(0xFFE0D3B0), width: 2)),
       child: Column(children: [
         Text('D${i + 1}', style: body(10, color: K.muted)),
-        Ico(r.$1 == 'gems' ? 'gem' : r.$1 == 'boost' ? 'bolt' : 'coin', size: 22),
-        Text(r.$1 == 'gems' ? '${r.$2.toInt()}' : r.$1 == 'boost' ? '30m' : '\$', style: body(10, w: FontWeight.w900)),
+        Ico(r.$1 == 'gems' ? 'gem' : r.$1 == 'boost' ? 'bolt' : r.$1 == 'chest' ? 'chest_gold' : 'coin', size: 22),
+        Text(r.$1 == 'gems' ? '${r.$2.toInt()}' : r.$1 == 'boost' ? '30m' : r.$1 == 'chest' ? 'baú' : '\$', style: body(10, w: FontWeight.w900)),
       ]),
     );
   }
-  Widget _mission(GameState s, Mission m, {bool current = false}) {
-    final p = s.missionProgress(m);
-    final ready = current && s.missionReady;
-    return GCard(color: current ? null : const Color(0xFFF6F1E4), child: Row(children: [
-      Ico(m.type == 'lvl' || m.type == 'unlock' ? stationById(m.target).icon : m.type == 'flights' ? 'plane' : 'cap', size: 38),
+  Widget _mission(Mission m) {
+    final p = s.missionProgress(m), ready = s.missionReady;
+    return GCard(child: Row(children: [
+      Ico(m.type == 'lvl' || m.type == 'unlock' ? stationById(m.target).icon : m.type == 'flights' ? 'plane' : m.type == 'star' ? 'star' : m.type == 'collect' ? 'cash' : 'cap', size: 38),
       const SizedBox(width: 8),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(s.missionText(m), style: body(15, w: FontWeight.w900, color: current ? K.ink : K.muted)),
-        if (current) ...[const SizedBox(height: 4), GBar(value: p.$1 / p.$2, height: 14, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}')],
+        Text(s.missionText(m), style: body(15, w: FontWeight.w900)),
+        const SizedBox(height: 4), GBar(value: p.$1 / p.$2, height: 14, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
       ])),
-      if (current) ...[
-        const SizedBox(width: 8),
-        ready
-            ? GBtn(color: K.green, pulse: true, radius: 14, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), onTap: () { widget.h.claimMission(); setState(() {}); }, child: Row(mainAxisSize: MainAxisSize.min, children: [Text('PEGAR ', style: display(13)), Price('${s.missionGems}', icon: 'gem', size: 13)]))
-            : GBtn(color: K.blue, radius: 14, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), onTap: () { if (m.type == 'lvl' || m.type == 'unlock') { widget.h.focusStation(m.target); } else if (m.type == 'manager') { widget.h.openPanel('managers'); } else { widget.h.closePanel(); } }, child: Text('IR', style: display(14))),
+      const SizedBox(width: 8),
+      ready ? GBtn(color: K.green, pulse: true, radius: 14, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), onTap: () { widget.h.claimMission(); setState(() {}); }, child: Row(mainAxisSize: MainAxisSize.min, children: [Text('PEGAR ', style: display(13)), Price('${s.missionGems}', icon: 'gem', size: 13)]))
+          : GBtn(color: K.blue, radius: 14, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), onTap: () { if (m.type == 'lvl' || m.type == 'unlock') { widget.h.focusStation(m.target); } else if (m.type == 'manager') { widget.h.openPanel('team'); } else if (m.type == 'star') { widget.h.openPanel('stars'); } else { widget.h.closePanel(); } }, child: Text('IR', style: display(14))),
+    ]));
+  }
+  List<Widget> _pass() {
+    final tier = s.seasonTier, theme = seasonThemes[s.sId % seasonThemes.length];
+    final inTier = (s.sPts % seasonPts) / seasonPts;
+    return [
+      GCard(color: const Color(0xFFF1EAFF), child: Column(children: [
+        Row(children: [const Ico('pass', size: 44), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Passe: $theme', style: body(16, w: FontWeight.w900)), Text('Nível $tier/30 · ganhe pontos com missões, estrelas e níveis', style: body(12, color: K.muted))]))]),
+        const SizedBox(height: 6),
+        GBar(value: tier >= 30 ? 1 : inTier, height: 14, color: K.purple, label: tier >= 30 ? 'COMPLETO' : '${s.sPts % seasonPts}/$seasonPts'),
+      ])),
+      for (var t = 0; t < 30; t++) _passRow(t),
+    ];
+  }
+  Widget _passRow(int t) {
+    final r = seasonReward(t), got = s.sClaimed.contains(t), ok = s.seasonReady(t);
+    final ic = r.$1 == 'gems' ? 'gem' : r.$1 == 'coins' ? 'coin' : r.$1 == 'miles' ? 'miles' : r.$1;
+    final label = r.$1 == 'gems' ? '${r.$2.toInt()} gemas' : r.$1 == 'coins' ? 'Dinheiro' : r.$1 == 'miles' ? '${r.$2.toInt()} milhas' : r.$1 == 'chest_gold' ? 'Baú de ouro' : 'Baú';
+    return Opacity(opacity: t < s.seasonTier || t == s.seasonTier ? 1 : 0.55, child: GCard(color: got ? const Color(0xFFF1F1EC) : null, padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), child: Row(children: [
+      Container(width: 34, alignment: Alignment.center, child: Text('${t + 1}', style: display(18, color: K.purple, outline: false))),
+      Ico(ic, size: 32), const SizedBox(width: 8),
+      Expanded(child: Text(label, style: body(14, w: FontWeight.w900))),
+      got ? Text('PEGO', style: body(12, color: K.greenD, w: FontWeight.w900))
+          : GBtn(color: K.purple, enabled: ok, pulse: ok, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), onTap: () { final res = s.claimSeason(t); if (res.$1 == 'coins') widget.h.flyCash(res.$2); if (res.$1 == 'gems') widget.h.flyGemsCenter(res.$2.toInt()); widget.h.showChests(); Sfx.play('gift'); setState(() {}); }, child: Text('PEGAR', style: display(12))),
+    ])));
+  }
+  List<Widget> _ach() => [
+        for (final a in achievements) () {
+          final cur = a.key == 'city' ? s.city.toDouble() : s.c(a.key), done = s.achDone(a), got = s.achClaimed.contains(a.id);
+          return GCard(color: got ? const Color(0xFFF1F1EC) : null, padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Row(children: [
+            Opacity(opacity: done ? 1 : 0.45, child: const Ico('medal', size: 36)), const SizedBox(width: 8),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(a.name, style: body(15, w: FontWeight.w900)),
+              const SizedBox(height: 3),
+              GBar(value: cur / a.n, height: 11, color: K.gold, label: '${fmt(math.min(cur, a.n))}/${fmt(a.n)}'),
+            ])),
+            const SizedBox(width: 8),
+            got ? Text('PEGO', style: body(12, color: K.greenD, w: FontWeight.w900))
+                : GBtn(color: K.green, enabled: done, pulse: done, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), onTap: () { s.claimAch(a); widget.h.flyGemsCenter(a.gems); Sfx.play('level'); setState(() {}); }, child: Price('${a.gems}', icon: 'gem', size: 13)),
+          ]));
+        }(),
+      ];
+}
+
+/// Frota (cartas de avião) e rotas.
+class FleetPanel extends StatefulWidget {
+  final GameState s;
+  final PanelHost h;
+  const FleetPanel({super.key, required this.s, required this.h});
+  @override
+  State<FleetPanel> createState() => _FleetPanelState();
+}
+
+class _FleetPanelState extends State<FleetPanel> {
+  int tab = 0;
+  GameState get s => widget.s;
+  static const rarCol = [Color(0xFF8A93A6), Color(0xFF3E8BFF), Color(0xFF8F62F8), Color(0xFFFFB020)];
+  @override
+  Widget build(BuildContext context) {
+    final canLvl = planeModels.any((m) => s.canLevelModel(m.id));
+    final canRoute = routes.any((r) => !s.routesOwned.contains(r.id) && s.routeReqOk(r) && s.money >= s.routeCost(r));
+    return Sheet(title: 'Frota', icon: 'plane', color: K.blue, onClose: widget.h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Tabs(labels: const ['Aviões', 'Rotas'], index: tab, dots: [canLvl, canRoute], onTap: (i) => setState(() => tab = i)),
+      if (tab == 0) ..._planes() else ..._routes(),
+    ]));
+  }
+  List<Widget> _planes() => [
+        Text('Cada avião da coleção aumenta o preço das passagens dos voos do seu tamanho. Cartas repetidas sobem o nível. Ganhe cartas em baús.', style: body(13, color: K.muted), textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        for (var t = 0; t < 3; t++) ...[
+          SectionTitle('${planeTypes[t].name}  ·  bônus +${(s.fleetBonus(t) * 100).round()}%'),
+          Wrap(spacing: 8, runSpacing: 8, children: [for (final m in planeModels.where((m) => m.tier == t)) _card(m)]),
+          const SizedBox(height: 8),
+        ],
+      ];
+  Widget _card(PlaneModel m) {
+    final l = s.mlv[m.id] ?? 0, owned = l > 0, cards = s.cards[m.id] ?? 0;
+    final need = l < cardsToLevel.length ? cardsToLevel[l] : 0;
+    final can = s.canLevelModel(m.id);
+    return GestureDetector(
+      onTap: () { if (can && s.levelModel(m.id)) { Sfx.play('level'); widget.h.refresh(); setState(() {}); } },
+      child: Container(
+        width: 104, padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(color: owned ? Colors.white : const Color(0xFFE9E4D6), borderRadius: BorderRadius.circular(14), border: Border.all(color: rarCol[m.rarity], width: 3)),
+        child: Column(children: [
+          Text(rarityNames[m.rarity].toUpperCase(), style: body(9, color: rarCol[m.rarity], w: FontWeight.w900)),
+          Opacity(opacity: owned ? 1 : 0.3, child: Ico('pm_${m.tier}_${m.liv}', size: 62)),
+          Text(m.name, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(11, w: FontWeight.w900)),
+          Text(owned ? 'Nv $l · +${(rarityBonus[m.rarity] * (1 + 0.5 * (l - 1)) * 100).round()}%' : 'Não tem', style: body(10, color: K.muted)),
+          if (owned && l < cardsToLevel.length) Padding(padding: const EdgeInsets.only(top: 3), child: GBar(value: need == 0 ? 1 : cards / need, height: 12, color: can ? K.green : K.blue, label: can ? 'SUBIR!' : '$cards/$need')),
+        ]),
+      ),
+    );
+  }
+  List<Widget> _routes() => [
+        _RouteMap(s: s),
+        const SizedBox(height: 8),
+        Text('Cada rota aumenta o preço de todas as passagens e manda voos para novos destinos. Rotas valem para todas as cidades.', style: body(13, color: K.muted), textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        for (final r in routes) () {
+          final own = s.routesOwned.contains(r.id), ok = s.routeReqOk(r);
+          return GCard(color: own ? const Color(0xFFE8FBEA) : null, padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), child: Row(children: [
+            Ico(r.intl ? 'globe' : 'route', size: 32), const SizedBox(width: 8),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(r.name, style: body(15, w: FontWeight.w900)),
+              Text('+${(r.bonus * 100).round()}% nas passagens${r.intl ? ' · internacional' : ''}', style: body(12, color: K.muted)),
+            ])),
+            own ? Text('ATIVA', style: body(12, color: K.greenD, w: FontWeight.w900))
+                : !ok ? Row(mainAxisSize: MainAxisSize.min, children: [const Ico('star', size: 18), Text(' ${r.star}', style: body(13, color: K.purple, w: FontWeight.w900))])
+                : GBtn(color: K.green, enabled: s.money >= s.routeCost(r), radius: 12, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), onTap: () { if (s.buyRoute(r)) { Sfx.play('level'); widget.h.refresh(); setState(() {}); } }, child: Price(fmt(s.routeCost(r)), size: 13)),
+          ]));
+        }(),
+      ];
+}
+
+class _RouteMap extends StatefulWidget {
+  final GameState s;
+  const _RouteMap({required this.s});
+  @override
+  State<_RouteMap> createState() => _RouteMapState();
+}
+
+class _RouteMapState extends State<_RouteMap> with SingleTickerProviderStateMixin {
+  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+  @override
+  void dispose() { a.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(18), child: SizedBox(height: 190, child: AnimatedBuilder(animation: a, builder: (_, __) => CustomPaint(painter: _MapPainter(widget.s, a.value), size: Size.infinite))));
+}
+
+class _MapPainter extends CustomPainter {
+  final GameState s;
+  final double t;
+  _MapPainter(this.s, this.t);
+  @override
+  void paint(Canvas c, Size z) {
+    c.drawRect(Offset.zero & z, Paint()..color = const Color(0xFF5FB4F0));
+    final land = Paint()..color = const Color(0xFF8CCF6A);
+    // continentes estilizados
+    c.drawOval(Rect.fromLTWH(z.width * 0.08, z.height * 0.28, z.width * 0.52, z.height * 0.7), land);
+    c.drawOval(Rect.fromLTWH(z.width * 0.0, z.height * 0.0, z.width * 0.3, z.height * 0.3), land);
+    c.drawOval(Rect.fromLTWH(z.width * 0.72, z.height * 0.0, z.width * 0.3, z.height * 0.45), land);
+    final home = Offset(z.width * 0.4, z.height * 0.66);
+    for (final r in routes) {
+      final p = Offset(r.mx * z.width, r.my * z.height);
+      final own = s.routesOwned.contains(r.id);
+      final ctrl = Offset((home.dx + p.dx) / 2, math.min(home.dy, p.dy) - 30);
+      final path = Path()..moveTo(home.dx, home.dy)..quadraticBezierTo(ctrl.dx, ctrl.dy, p.dx, p.dy);
+      c.drawPath(path, Paint()..style = PaintingStyle.stroke..strokeWidth = own ? 2.5 : 1.2..color = own ? const Color(0xFFFFC531) : const Color(0x66FFFFFF));
+      c.drawCircle(p, own ? 5 : 3.5, Paint()..color = own ? Colors.white : const Color(0x99FFFFFF));
+      if (own) {
+        final k = (t + r.mx) % 1;
+        final q = Offset.lerp(Offset.lerp(home, ctrl, k)!, Offset.lerp(ctrl, p, k)!, k)!;
+        c.drawCircle(q, 4, Paint()..color = const Color(0xFF1E2A47));
+        c.drawCircle(q, 2.5, Paint()..color = Colors.white);
+      }
+    }
+    c.drawCircle(home, 8, Paint()..color = const Color(0xFFE8343B));
+    c.drawCircle(home, 4, Paint()..color = Colors.white);
+  }
+  @override
+  bool shouldRepaint(covariant _MapPainter old) => true;
+}
+
+/// Equipe: gerentes e pesquisa.
+class TeamPanel extends StatefulWidget {
+  final GameState s;
+  final PanelHost h;
+  const TeamPanel({super.key, required this.s, required this.h});
+  @override
+  State<TeamPanel> createState() => _TeamPanelState();
+}
+
+class _TeamPanelState extends State<TeamPanel> {
+  int tab = 0;
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final mAv = managers.any((m) => !s.hasMgr(m.id) && s.money >= s.mgrCost(m));
+    final rAv = researchList.any(s.canResearch);
+    return Sheet(title: 'Equipe', icon: 'cap', color: K.navy2, onClose: widget.h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Tabs(labels: const ['Gerentes', 'Pesquisa'], index: tab, dots: [mAv, rAv], onTap: (i) => setState(() => tab = i)),
+      if (tab == 0) ...[
+        Text('Gerentes trabalham no aeroporto atual.', style: body(13, color: K.muted), textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        for (final m in managers) GCard(color: s.hasMgr(m.id) ? const Color(0xFFE6F8EA) : null, child: Row(children: [
+          Container(width: 52, height: 52, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFDDE8FF), border: Border.all(color: K.navy, width: 2.5)), child: const Padding(padding: EdgeInsets.all(4), child: Ico('pax', size: 40))),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${m.name} · ${m.role}', style: body(15, w: FontWeight.w900)), Text(m.effect, style: body(13, color: K.greenD))])),
+          if (s.hasMgr(m.id)) Text('NA EQUIPE', style: body(12, color: K.greenD, w: FontWeight.w900))
+          else GBtn(color: K.purple, radius: 14, enabled: s.money >= s.mgrCost(m), pulse: s.tut == 6 && s.money >= s.mgrCost(m), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), onTap: () { if (s.hire(m)) { Sfx.play('level'); widget.h.refresh(); setState(() {}); } }, child: Column(mainAxisSize: MainAxisSize.min, children: [Text('CONTRATAR', style: display(12)), Price(fmt(s.mgrCost(m)), size: 13)])),
+        ])),
+      ] else ...[
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Você tem ', style: body(15)), Price(fmt(s.miles), icon: 'miles', size: 18), Text(' milhas', style: body(15))]),
+        Text('Ganhe milhas a cada voo. A pesquisa vale para sempre, em todas as cidades.', style: body(12, color: K.muted), textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        for (final r in researchList) GCard(color: s.has(r.id) ? const Color(0xFFE6F8EA) : null, padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Row(children: [
+          Ico(r.icon, size: 38), const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(r.name, style: body(15, w: FontWeight.w900)), Text(r.desc, style: body(12, color: K.greenD))])),
+          s.has(r.id) ? Text('PRONTO', style: body(12, color: K.greenD, w: FontWeight.w900))
+              : GBtn(color: K.blue, radius: 12, enabled: s.canResearch(r), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), onTap: () { if (s.doResearch(r)) { Sfx.play('level'); widget.h.refresh(); setState(() {}); } }, child: Price(fmt(r.cost), icon: 'miles', size: 13)),
+        ])),
       ],
     ]));
   }
@@ -362,18 +640,29 @@ class _ShopPanelState extends State<ShopPanel> {
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
-    final freeIn = (s.freeAt - nowMs()) / 1000;
+    String left(int at) => fmtTime(math.max(0, (at - nowMs()) / 1000));
     Widget item(String ico, String title, String sub, Widget btn) => GCard(child: Row(children: [
           Ico(ico, size: 46), const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: body(16, w: FontWeight.w900)), Text(sub, style: body(12, color: K.muted))])),
           btn,
         ]));
     Widget gemBtn(int cost, VoidCallback onBuy) => GBtn(color: K.purple, radius: 14, enabled: s.gems >= cost, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: onBuy, child: Price('$cost', icon: 'gem', size: 16));
+    Widget free(bool ready, VoidCallback onTap) => GBtn(color: K.green, radius: 14, enabled: ready, pulse: ready, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: onTap, child: Text('GRÁTIS', style: display(15)));
     return Sheet(title: 'Loja', icon: 'bag', color: K.purple, onClose: widget.h.closePanel, child: Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Você tem ', style: body(15)), Price('${s.gems}', icon: 'gem', size: 18), Text('  · ganhe gemas em missões, prêmios e minijogos', style: body(12, color: K.muted))]),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Você tem ', style: body(15)), Price('${s.gems}', icon: 'gem', size: 18)]),
+      Text('Gemas vêm de missões, estrelas, baús, eventos e minijogos.', style: body(12, color: K.muted)),
       const SizedBox(height: 10),
-      item('bolt', 'Lucro x2 por 10 min', s.freeReady ? 'Grátis agora!' : 'Grátis de novo em ${fmtTime(freeIn)}', GBtn(color: K.green, radius: 14, enabled: s.freeReady, pulse: s.freeReady, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: () { s.claimFree(); Sfx.play('boost'); widget.h.refresh(); setState(() {}); }, child: Text('GRÁTIS', style: display(15)))),
-      item('bolt', 'Lucro x2 por 30 min', s.boostOn ? 'Ativo: soma ao tempo restante' : 'Dobra tudo que o aeroporto fatura', gemBtn(20, () { if (s.buyBoost(20, 30)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
+      const SectionTitle('Grátis'),
+      item('wheel', 'Roleta do dia', s.spinReady ? 'Gire agora!' : 'Volte amanhã', free(s.spinReady, widget.h.openWheel)),
+      item('chest', 'Baú grátis', s.chestReady ? 'Pronto para abrir!' : 'De novo em ${left(s.chestAt)}', free(s.chestReady, () { s.takeFreeChest(); widget.h.showChests(); setState(() {}); })),
+      item('bolt', 'Lucro x2 por 10 min', s.freeReady ? 'Grátis agora!' : 'De novo em ${left(s.freeAt)}', free(s.freeReady, () { s.claimFree(); Sfx.play('boost'); widget.h.refresh(); setState(() {}); })),
+      const SectionTitle('Turbinas'),
+      item('bolt', 'Lucro x2 por 30 min', s.boostOn ? 'Ativo: ${left(s.boostUntil)}' : 'Dobra tudo que o aeroporto fatura', gemBtn(20, () { if (s.buyBoost(20, 30)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
+      item('rush', 'Hora do rush (5 min)', s.rushOn ? 'Ativo: ${left(s.rushUntil)}' : 'Chegam 3x mais passageiros', gemBtn(12, () { if (s.buyRush(12)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
+      item('turbo', 'Turbo pista (5 min)', s.turboOn ? 'Ativo: ${left(s.turboUntil)}' : 'Voos 2x mais rápidos', gemBtn(12, () { if (s.buyTurbo(12)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
+      const SectionTitle('Baús e dinheiro'),
+      item('chest', 'Baú de cartas', '3 cartas de avião + prêmios', gemBtn(25, () { if (s.buyChest(25, 'chest')) { widget.h.showChests(); setState(() {}); } })),
+      item('chest_gold', 'Baú de ouro', '6 cartas com mais chance de lendários', gemBtn(80, () { if (s.buyChest(80, 'chest_gold')) { widget.h.showChests(); setState(() {}); } })),
       item('cash', 'Maleta de dinheiro', '\$${fmt(s.cashPack(2))} (2 horas de lucro)', gemBtn(30, () { final v = s.cashPack(2); if (s.buyCash(30, 2)) { widget.h.flyCash(v); setState(() {}); } })),
       item('cash', 'Cofre de dinheiro', '\$${fmt(s.cashPack(8))} (8 horas de lucro)', gemBtn(90, () { final v = s.cashPack(8); if (s.buyCash(90, 8)) { widget.h.flyCash(v); setState(() {}); } })),
     ]));
@@ -391,15 +680,13 @@ class CitiesPanel extends StatelessWidget {
       GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Você está em ${cur.name}', style: body(17, w: FontWeight.w900)),
         Text(cur.sub, style: body(13, color: K.muted)),
-        const SizedBox(height: 10),
-        Text('Fature \$${fmt(cityTarget(s.city))} aqui para abrir ${next.name}', style: body(14)),
-        const SizedBox(height: 6),
-        GBar(value: s.prestigeProgress, height: 18, color: K.green, label: '\$${fmt(s.earnedCity)} / \$${fmt(cityTarget(s.city))}'),
+        const SizedBox(height: 8),
+        Row(children: [for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.22, child: const Ico('star', size: 30)), const SizedBox(width: 6), Expanded(child: Text('Complete 5 estrelas para abrir ${next.name}', style: body(13)))]),
       ])),
       GCard(color: const Color(0xFFEAF6FF), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [const Ico('plane', size: 34), const SizedBox(width: 8), Expanded(child: Text('Próximo: ${next.name}', style: body(16, w: FontWeight.w900)))]),
         const SizedBox(height: 4),
-        Text('Começa do zero, mas tudo rende ${cityMult(s.city + 1) ~/ cityMult(s.city)}x mais. Você ganha ${25 + (s.city + 1) * 10} gemas e mantém as gemas que já tem.', style: body(13)),
+        Text('Começa do zero, mas tudo rende ${cityMult(s.city + 1) ~/ cityMult(s.city)}x mais. Pesquisa, rotas, frota, gemas e milhas vão com você. Ganhe ${25 + (s.city + 1) * 10} gemas e um baú de ouro.', style: body(13)),
         const SizedBox(height: 10),
         Center(child: GBtn(color: K.green, enabled: s.canPrestige, pulse: s.canPrestige, onTap: h.doPrestige, child: Text('VOAR PARA ${next.name.toUpperCase()}', style: display(16)))),
       ])),
@@ -428,6 +715,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
   Widget build(BuildContext context) {
     final s = widget.s;
     Widget sw(String label, bool v, void Function(bool) f) => SwitchListTile(value: v, onChanged: (x) { f(x); setState(() {}); widget.h.refresh(); }, title: Text(label, style: body(16)), activeThumbColor: K.green, dense: true);
+    final hist = s.history;
+    final mx = hist.isEmpty ? 1.0 : hist.reduce(math.max);
     return Sheet(title: 'Ajustes', icon: 'gear', color: K.grey, onClose: widget.h.closePanel, child: Column(children: [
       GCard(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [
         sw('Música', s.music, (x) { s.music = Sfx.music = x; x ? Sfx.startMusic() : Sfx.stopMusic(); }),
@@ -435,10 +724,23 @@ class _SettingsPanelState extends State<SettingsPanel> {
         sw('Vibração', s.vibration, (x) => s.vibration = Sfx.vibration = x),
       ])),
       GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Estatísticas', style: body(15, w: FontWeight.w900)),
+        Row(children: [const Ico('stats', size: 28), const SizedBox(width: 6), Text('Estatísticas', style: body(16, w: FontWeight.w900))]),
+        const SizedBox(height: 6),
+        InfoRow('Chegada', perMin(s.lambda)), InfoRow('Check-in', perMin(s.muC)), InfoRow('Raio-X', perMin(s.muS)), InfoRow('Portões', perMin(s.gatesCap)),
+        InfoRow('Gargalo', bottleneckName(s.bottleneck)),
+        InfoRow('Satisfação', '${s.sat.round()}%  (gorjeta x${s.tipMult.toStringAsFixed(2)})'),
+        InfoRow('Lucro', '\$${fmt(s.rate * 60)}/min'),
+        const SizedBox(height: 8),
+        Text('Faturamento (últimos 10 min)', style: body(12, color: K.muted)),
+        const SizedBox(height: 4),
+        SizedBox(height: 60, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          for (final v in hist) Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), height: 4 + 56 * (mx <= 0 ? 0 : v / mx), decoration: BoxDecoration(color: K.green, borderRadius: BorderRadius.circular(3)))),
+          if (hist.isEmpty) Expanded(child: Center(child: Text('Coletando dados...', style: body(12, color: K.muted)))),
+        ])),
+        const SizedBox(height: 8),
         InfoRow('Voos realizados', fmt(s.flightsAll)),
         InfoRow('Faturamento total', '\$${fmt(s.earnedAll)}'),
-        InfoRow('Cidade', '${s.city + 1}: ${cityAt(s.city).name}'),
+        InfoRow('Nível do aeroporto', '${s.alv}'),
       ])),
       if (!confirm) GBtn(color: K.red, onTap: () => setState(() => confirm = true), child: Text('RECOMEÇAR DO ZERO', style: display(15)))
       else GCard(color: const Color(0xFFFFE1E1), child: Column(children: [
@@ -451,7 +753,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v1.0', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v2.0', style: body(12, color: K.muted)),
     ]));
   }
 }

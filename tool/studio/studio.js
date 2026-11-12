@@ -144,9 +144,9 @@ const L = {
   term: { x0: -48, x1: 36, z0: -5, z1: 16 },
   gates: [-38, -26, -14, -2, 10, 22],
   standNose: -6.4,
-  checkin: { x0: -43, z: 8, dx: 3.0 },        // balcões de check-in
-  security: { x0: -21.5, z: 5, dx: 3.4 },     // faixas do raio-X
-  shops: [{ x: -3, z: 8 }, { x: 3.5, z: 8 }, { x: 10, z: 8 }, { x: 16, z: 8 }],
+  checkin: { x0: -44, z: 8, dx: 2.6 },        // balcões de check-in
+  security: { x0: -21.5, z: 5, dx: 3.0 },     // faixas do raio-X
+  shops: [{ x: -1.5, z: 8 }, { x: 4.5, z: 8 }, { x: 10.5, z: 8 }, { x: 16.5, z: 8 }],
   vip: { x: 28, z: 9 },
   door: { x: -35, z: 16 },
   road: { z: 20, x0: -92, x1: 82 },
@@ -165,6 +165,9 @@ const LIVERY = [
   { body: 0xf7f9fc, tail: 0x2f6bff, stripe: 0xffc928, belly: 0xdfe6f0 },
   { body: 0xf7f9fc, tail: 0xff7a1a, stripe: 0xff7a1a, belly: 0x2b3245 },
   { body: 0xf7f9fc, tail: 0x18b48d, stripe: 0x6c4cf5, belly: 0xdfe6f0 },
+  { body: 0xffd84a, tail: 0xffffff, stripe: 0xff9f1c, belly: 0xffb300 },
+  { body: 0xf7f9fc, tail: 0x8b5cf6, stripe: 0xff7ab6, belly: 0x6c4cf5 },
+  { body: 0xf7f9fc, tail: 0xe8343b, stripe: 0x253154, belly: 0xe8343b },
 ];
 
 /* ===================================================================
@@ -440,7 +443,7 @@ function jetBridge(type) {
 /* estacionamento: carros conforme o nível */
 function parking(t) {
   const g = new THREE.Group();
-  const n = [5, 10, 16, 24][t - 1];
+  const n = 0;
   const colors = [0xff4e4e, 0x2f7bff, 0xffffff, 0x2b3245, 0x2ec27e, 0xffc928, 0x8b5cf6, 0xff8a1f];
   let k = 0;
   for (let row = 0; row < 3 && k < n; row++) for (let c = 0; c < 8 && k < n; c++, k++) {
@@ -448,7 +451,13 @@ function parking(t) {
     car.position.set(-10.5 + c * 3.0, 0, -4 + row * 4.2 + (row === 1 ? -0.4 : 0)); car.rotation.y = row % 2 ? 0 : Math.PI; g.add(car);
   }
   if (t >= 3) { sign(g, 'P', 1.2, 1.2, '#2f7bff', '#ffffff', 13.5, 3.2, -6); C(g, 0.07, 0.07, 2.4, 0x7a8395, 13.5, 0, -6, 6); }
+  if (t >= 2) { for (let k = 0; k < 6; k++) C(g, 0.06, 0.06, 2.4, 0x7a8395, -12 + k * 5, 0, 7.6, 6); }
   if (t >= 4) {
+    // prédio-garagem
+    const gg = grp(g, 0, 0, 0); B(gg, 6, 0.4, 11, 0x9aa3b4, 18.5, 0, 0);
+    for (let f = 1; f < 4; f++) { B(gg, 6, 0.3, 11, 0xc5cbd5, 18.5, f * 2.2, 0); B(gg, 0.1, 0.8, 11, 0x2f7bff, 21.5, f * 2.2 - 0.6, 0); for (let k = 0; k < 5; k++) C(gg, 0.2, 0.2, 2.2, 0x8a93a6, 15.7, (f - 1) * 2.2, -4.5 + k * 2.25, 6); }
+    for (let k = 0; k < 6; k++) { const car = vehicle('car', [0xff4e4e, 0x2f7bff, 0xffffff, 0x2ec27e, 0xffc928, 0x2b3245][k]); car.position.set(17.5 + (k % 2) * 2.2, 2.5 + Math.floor(k / 2) * 2.2, -3 + (k % 3) * 2.6); g.add(car); }
+    sign(g, 'GARAGEM', 4, 0.8, '#2f7bff', '#ffffff', 21.6, 8.4, 0, Math.PI / 2);
     // abrigo de táxis
     B(g, 4, 0.12, 1.6, 0xffc928, -9, 2.4, -7.2); C(g, 0.06, 0.06, 2.4, 0x7a8395, -10.8, 0, -7.6, 6); C(g, 0.06, 0.06, 2.4, 0x7a8395, -7.2, 0, -7.6, 6);
   }
@@ -630,9 +639,9 @@ function background(city) {
   // piso quadriculado
   for (let x = tm.x0 + 2; x < tm.x1; x += 2) for (let z = tm.z0 + 2; z < tm.z1; z += 2) if (Math.abs(Math.round((x + z) / 2)) % 2 === 0) flat(g, 2, 2, P.floor2, x - 1, z - 1, 0.36);
   // zonas
-  flat(g, 20, 13, 0xcfe2ff, -36.5, 9, 0.375); // check-in
-  flat(g, 15, 12, 0xe4dcff, -15, 6.5, 0.375);  // segurança
-  flat(g, 24, 9, 0xffe9c7, 7, 7, 0.375);  // praça
+  flat(g, 23, 13, 0xcfe2ff, -35, 9, 0.375); // check-in
+  flat(g, 19, 12, 0xe4dcff, -13.5, 6.5, 0.375);  // segurança
+  flat(g, 23, 9, 0xffe9c7, 7.5, 7, 0.375);  // praça
   flat(g, tw0 - 2, 3.2, 0x5b8cff, tcx, -2.6, 0.38); // corredor de embarque
   flat(g, tw0 - 2, 0.2, 0xffc928, tcx, -1.0, 0.4);
   // setas no chão
@@ -714,6 +723,26 @@ const ICONS = {
   bus: () => vehicle('bus'),
   map: () => { const g = new THREE.Group(); B(g, 2.2, 0.1, 1.6, 0x9fdc7a, 0, 0, 0); B(g, 1.8, 0.12, 0.25, 0x4c5160, 0, 0.01, -0.3); Sp(g, 0.25, 0xff4e4e, 0.4, 0.6, 0.2, 10); mesh(G.cone(0.2, 0.4, 10), M(0xff4e4e), g, 0.4, 0.3, 0.2).rotation.x = Math.PI; return g; },
   mission: () => { const g = new THREE.Group(); B(g, 1.6, 2.0, 0.15, 0xf7f9fc, 0, -1, 0); B(g, 0.8, 0.3, 0.17, 0x8a5a34, 0, 0.9, 0); for (let i = 0; i < 3; i++) { B(g, 0.25, 0.25, 0.17, i < 2 ? 0x3fd46b : 0xd0d6e0, -0.45, 0.4 - i * 0.55, 0.02); B(g, 0.75, 0.12, 0.17, 0xaab3c2, 0.2, 0.47 - i * 0.55, 0.02); } return g; },
+
+  chest: () => { const g = new THREE.Group(); B(g, 2, 1.1, 1.3, 0x8a5a34, 0, -0.9, 0); const lid = mesh(new THREE.CylinderGeometry(0.65, 0.65, 2, 14, 1, false, 0, Math.PI), M(0xa86a3c), g, 0, 0.2, 0); lid.rotation.z = Math.PI / 2; lid.rotation.y = Math.PI / 2; lid.rotation.set(0, 0, Math.PI / 2); B(g, 2.05, 0.18, 1.35, 0xffc531, 0, -0.25, 0); B(g, 0.25, 1.9, 1.36, 0xffc531, -0.7, -0.9, 0); B(g, 0.25, 1.9, 1.36, 0xffc531, 0.7, -0.9, 0); B(g, 0.35, 0.45, 0.1, 0xffe27a, 0, -0.55, 0.68); return g; },
+  chest_gold: () => { const g = ICONS.chest(); g.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() === 0x8a5a34) o.material = M(0xffb300); if (o.isMesh && o.material.color && o.material.color.getHex() === 0xa86a3c) o.material = M(0xffd84a); }); return g; },
+  card: () => { const g = new THREE.Group(); B(g, 1.6, 2.2, 0.12, 0x2f7bff, 0, -1.1, 0); B(g, 1.4, 2.0, 0.14, 0xf7f9fc, 0, -1.0, 0); const p = plane(1, 0); p.scale.setScalar(0.17); p.rotation.set(0.6, Math.PI * 0.75, 0); p.position.set(0, 0.1, 0.3); g.add(p); return g; },
+  medal: () => { const g = new THREE.Group(); B(g, 0.4, 1.2, 0.08, 0xe8343b, -0.25, 0.1, 0).rotation.z = 0.3; B(g, 0.4, 1.2, 0.08, 0x2f7bff, 0.25, 0.1, 0).rotation.z = -0.3; const c = mesh(G.cyl(0.75, 0.75, 0.2, 24), M(0xffc531), g, 0, -0.5, 0.1); c.rotation.x = Math.PI / 2; const st = mesh(G.cyl(0.5, 0.5, 0.22, 5), M(0xffe27a), g, 0, -0.5, 0.12); st.rotation.x = Math.PI / 2; return g; },
+  wheel: () => { const g = new THREE.Group(); const cols = [0xff4e4e, 0xffc928, 0x2f7bff, 0x3fd46b, 0x8b5cf6, 0xff8a1f]; for (let i = 0; i < 6; i++) { const m = mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 8, 1, false, i * Math.PI / 3, Math.PI / 3), M(cols[i]), g); m.rotation.x = Math.PI / 2; } const c = mesh(G.cyl(0.25, 0.25, 0.3, 12), M(0xffffff), g); c.rotation.x = Math.PI / 2; mesh(G.cone(0.2, 0.4, 3), M(0x253154), g, 0, 1.35, 0.15).rotation.z = Math.PI; return g; },
+  research: () => { const g = new THREE.Group(); const b = mesh(new THREE.SphereGeometry(0.75, 16, 12), M(0x9fe0ff, { opacity: 0.85 }), g, 0, -0.5, 0); C(g, 0.25, 0.25, 0.9, 0x9fe0ff, 0, 0, 0, 10); Sp(g, 0.55, 0x3fd46b, 0, -0.65, 0, 12); C(g, 0.3, 0.3, 0.2, 0x8a5a34, 0, 0.9, 0, 10); return g; },
+  route: () => { const g = new THREE.Group(); Sp(g, 1, 0x3fa8ff, 0, 0, 0, 20); for (let i = 0; i < 4; i++) Sp(g, 0.35, 0x48c76a, Math.cos(i * 1.6) * 0.75, Math.sin(i * 2.3) * 0.5, Math.sin(i * 1.6) * 0.5 + 0.45, 8); const t = mesh(new THREE.TorusGeometry(1.25, 0.05, 6, 30, Math.PI * 1.3), M(0xffc928), g); t.rotation.x = 1.2; const p = plane(1, 0); p.scale.setScalar(0.12); p.position.set(1.0, 0.4, 0.6); p.rotation.y = 2.4; g.add(p); return g; },
+  miles: () => { const g = new THREE.Group(); const c = mesh(G.cyl(1, 1, 0.3, 28), M(0x2f7bff), g); c.rotation.x = Math.PI / 2; const i = mesh(G.cyl(0.78, 0.78, 0.34, 28), M(0x6fb4ff), g); i.rotation.x = Math.PI / 2; const p = plane(0, 0); p.scale.setScalar(0.15); p.rotation.set(Math.PI / 2, 0, -0.6); p.position.z = 0.25; g.add(p); return g; },
+  pass: () => { const g = new THREE.Group(); B(g, 2.2, 1.4, 0.12, 0x8b5cf6, 0, -0.7, 0); B(g, 2.0, 0.3, 0.14, 0xffc531, 0, -0.1, 0); for (let i = 0; i < 4; i++) { const s = mesh(G.cyl(0.18, 0.18, 0.16, 5), M(0xffffff), g, -0.6 + i * 0.4, -0.75, 0.05); s.rotation.x = Math.PI / 2; } return g; },
+  stats: () => { const g = new THREE.Group(); B(g, 2.2, 0.1, 0.4, 0x8a93a6, 0, -1, 0); [0.6, 1.0, 0.8, 1.5].forEach((h, i) => B(g, 0.38, h, 0.4, [0x2f7bff, 0x3fd46b, 0xffc928, 0xff4e4e][i], -0.75 + i * 0.5, -0.95, 0)); return g; },
+  cloud: () => { const g = new THREE.Group(); [[0, 0, 0.7], [0.7, -0.1, 0.55], [-0.7, -0.15, 0.5], [0.3, 0.35, 0.5]].forEach(([x, y, r]) => Sp(g, r, 0xffffff, x, y, 0, 12)); return g; },
+  rain: () => { const g = ICONS.cloud(); for (let i = 0; i < 4; i++) { const d = mesh(G.cone(0.1, 0.35, 6), M(0x3fa8ff), g, -0.6 + i * 0.4, -0.85, 0.2); d.rotation.z = Math.PI; } return g; },
+  fire: () => { const g = new THREE.Group(); const a = mesh(G.cone(0.7, 1.8, 10), M(0xff8a1f), g, 0, 0, 0); const b = mesh(G.cone(0.4, 1.1, 10), M(0xffc928), g, 0, -0.3, 0.2); return g; },
+  auto: () => { const g = ICONS.gear(); const u = ICONS.up(); u.scale.setScalar(0.55); u.position.set(0.55, 0.35, 0.4); g.add(u); return g; },
+  celeb: () => { const g = new THREE.Group(); const p = person({ shirt: 0xff7ab6, pants: 0x253154, skin: P.skin[0], hair: 0xe0a040 }); p.rotation.y = 0.3; g.add(p); B(g, 0.5, 0.1, 0.05, 0x111111, 0, 1.15, 0.27); return g; },
+  rush: () => { const g = new THREE.Group(); for (let i = 0; i < 3; i++) { const p = person({ shirt: [0xff4e4e, 0x2f7bff, 0xffc928][i], bag: true }); p.position.set(-0.6 + i * 0.6, 0, -i * 0.3); p.rotation.y = 0.5; g.add(p); } return g; },
+  turbo: () => { const g = new THREE.Group(); const p = plane(1, 3); p.rotation.y = Math.PI / 2; p.rotation.z = 0.2; g.add(p); for (let i = 0; i < 3; i++) B(g, 2.5, 0.1, 0.1, 0xffc928, -6 - i * 0.5, 1.2 + i * 0.5, 0); return g; },
+  bags: () => { const g = new THREE.Group(); [[0xff4e4e, -0.8], [0x2f7bff, 0], [0x3fd46b, 0.8]].forEach(([c, x], i) => { B(g, 0.7, 1.0, 0.4, c, x, -0.6 + (i % 2) * 0.3, 0); }); return g; },
+  vip: () => { const p = plane(1, 3); p.rotation.y = Math.PI * 0.75; p.rotation.x = -0.2; const g = new THREE.Group(); g.add(p); return g; },
   landing: () => { const g = new THREE.Group(); const p = plane(1, 1); p.rotation.y = Math.PI / 2; p.rotation.z = 0.15; g.add(p); B(g, 9, 0.2, 2, 0x4c5160, 0, -0.5, 0); return g; },
 };
 
@@ -780,6 +809,26 @@ function appIcon(size, fg = false) {
   return { png: c.toDataURL('image/png') };
 }
 
+
+/* ===================== ADIÇÕES v2: enfeites por nível, pilhas, faxineiro ===================== */
+function totem() { const g = new THREE.Group(); B(g, 0.7, 1.5, 0.45, 0xf7f9fc, 0, 0, 0); B(g, 0.6, 0.55, 0.05, M(0x7fd8ff, { emissive: 0x204870 }), 0, 0.8, 0.24); B(g, 0.72, 0.15, 0.47, 0x2f7bff, 0, 1.5, 0); sign(g, 'AUTO', 0.7, 0.22, '#2f7bff', '#ffffff', 0, 1.9, 0.1); return g; }
+function ledboard(w = 4.2) { const g = new THREE.Group(); [-w / 2 + 0.2, w / 2 - 0.2].forEach(x => C(g, 0.07, 0.07, 3.0, 0x7a8395, x, 0, 0, 6)); B(g, w, 1.3, 0.2, 0x1a2038, 0, 2.6, 0); const t = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.94, 1.15), textMat('PARTIDAS  ✈  BOARDING', '#1a2038', '#ffc928', 1024, 280, 'bold 120px Arial')); t.position.set(0, 3.25, 0.11); g.add(t); for (let r = 0; r < 3; r++) B(g, w * 0.86, 0.1, 0.02, r === 1 ? 0x3fd46b : 0xffc928, 0, 2.75 + r * 0.25, 0.12); return g; }
+function plant(big = false) { const g = new THREE.Group(); C(g, 0.32, 0.26, 0.5, 0xc98a52, 0, 0, 0, 10); Sp(g, big ? 0.62 : 0.45, 0x3fae5a, 0, big ? 1.0 : 0.85, 0, 8); Sp(g, big ? 0.42 : 0.3, 0x52c463, 0.2, big ? 1.4 : 1.1, 0.1, 8); return g; }
+function bench() { const g = new THREE.Group(); for (let k = 0; k < 3; k++) { B(g, 0.6, 0.1, 0.5, 0xff8a1f, -0.65 + k * 0.65, 0.42, 0); B(g, 0.6, 0.45, 0.08, 0xff8a1f, -0.65 + k * 0.65, 0.5, -0.22); } B(g, 2.0, 0.06, 0.3, 0x9aa3b4, 0, 0.36, 0); [-0.9, 0.9].forEach(x => B(g, 0.08, 0.36, 0.4, 0x9aa3b4, x, 0, 0)); return g; }
+function bodyscan() { const g = new THREE.Group(); C(g, 0.75, 0.75, 0.1, 0xd7dde8, 0, 0, 0, 16); const s = mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 16, 1, true, 0.6, 2.0), M(0xbfe8ff, { opacity: 0.55 }), g, 0, 1.15, 0); C(g, 0.82, 0.82, 0.2, 0x8b5cf6, 0, 2.2, 0, 16); return g; }
+function dogUnit() { const g = new THREE.Group(); const p = person({ shirt: 0x253154, pants: 0x1a2038, skin: P.skin[1], hair: 0x1a1210, cap: 0x253154 }); g.add(p); const d = grp(g, 0.7, 0, 0.4); B(d, 0.3, 0.32, 0.75, 0x8a5a34, 0, 0.22, 0); B(d, 0.24, 0.24, 0.3, 0x8a5a34, 0, 0.5, 0.42); B(d, 0.1, 0.12, 0.12, 0x222222, 0, 0.5, 0.6); B(d, 0.08, 0.16, 0.08, 0x6b4a2b, 0.08, 0.66, 0.36); B(d, 0.08, 0.16, 0.08, 0x6b4a2b, -0.08, 0.66, 0.36); [-0.1, 0.1].forEach(x => [-0.25, 0.25].forEach(z => B(d, 0.07, 0.22, 0.07, 0x6b4a2b, x, 0, z))); return g; }
+function vending() { const g = new THREE.Group(); B(g, 0.9, 1.9, 0.7, 0xe8343b, 0, 0, 0); B(g, 0.6, 1.2, 0.05, M(0x9fe0ff, { opacity: 0.8 }), -0.1, 0.5, 0.36); for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) B(g, 0.14, 0.18, 0.05, [0xffc928, 0x3fd46b, 0x2f7bff][k], -0.28 + k * 0.18, 0.6 + r * 0.28, 0.33); return g; }
+function atm() { const g = new THREE.Group(); B(g, 0.8, 1.6, 0.6, 0x2ec27e, 0, 0, 0); B(g, 0.5, 0.35, 0.05, M(0x7fd8ff, { emissive: 0x204870 }), 0, 1.05, 0.31); B(g, 0.6, 0.06, 0.3, 0x253154, 0, 0.8, 0.35); sign(g, '24H', 0.7, 0.25, '#2ec27e', '#ffffff', 0, 1.95, 0.05); return g; }
+function fountain() { const g = new THREE.Group(); C(g, 1.4, 1.5, 0.45, 0xd7dde8, 0, 0, 0, 20); C(g, 1.2, 1.2, 0.05, M(0x5fc8ff), 0, 0.42, 0, 20); C(g, 0.18, 0.25, 1.1, 0xd7dde8, 0, 0.4, 0, 10); C(g, 0.6, 0.5, 0.15, 0xd7dde8, 0, 1.45, 0, 14); Sp(g, 0.3, M(0x9fe0ff, { opacity: 0.7 }), 0, 1.8, 0, 10); return g; }
+function infodesk() { const g = new THREE.Group(); C(g, 1.1, 1.1, 0.95, 0x2f7bff, 0, 0, 0, 16); C(g, 1.15, 1.15, 0.08, 0xf7f9fc, 0, 0.95, 0, 16); const a = person({ shirt: 0xffc928, pants: 0x253154, skin: P.skin[0], hair: 0xe0a040 }); a.position.set(0, 0, 0); a.scale.setScalar(0.95); g.add(a); C(g, 0.04, 0.04, 1.8, 0x7a8395, 0.9, 0, -0.6, 6); sign(g, 'INFO', 1.0, 0.4, '#2f7bff', '#ffffff', 0.9, 2.3, -0.6); return g; }
+function cashPile(n) {
+  const g = new THREE.Group();
+  const stacks = [[0, 0], [0.45, 0.1], [-0.4, 0.15], [0.1, -0.4], [0.3, 0.45], [-0.3, -0.35]];
+  for (let i = 0; i < Math.min(stacks.length, n * 2); i++) { const h = 3 + ((i * 7) % 4); for (let k = 0; k < h; k++) { const b = B(g, 0.6, 0.09, 0.32, k % 2 ? 0x3fbf6b : 0x46cc75, stacks[i][0], k * 0.09, stacks[i][1]); b.rotation.y = (i * 0.7 + k * 0.05); } }
+  for (let i = 0; i < n * 3; i++) { const c = mesh(G.cyl(0.16, 0.16, 0.05, 12), M(0xffc531), g, Math.sin(i * 2.1) * 0.6, 0.03 + (i % 3) * 0.05, Math.cos(i * 1.7) * 0.6); }
+  return g;
+}
+function cleaner(frame) { const g = new THREE.Group(); const p = person({ shirt: 0x18b48d, pants: 0x253154, skin: P.skin[2], hair: 0x1a1210, frame }); g.add(p); const c = grp(g, 0, 0, 0.75); B(c, 0.55, 0.55, 0.45, 0xffc928, 0, 0.12, 0); C(c, 0.15, 0.15, 0.45, 0x2f7bff, 0.12, 0.67, 0, 8); C(c, 0.02, 0.02, 1.0, 0x8a93a6, -0.2, 0.67, -0.1, 4); return g; }
 /* ===================================================================
    API para o render.js
    =================================================================== */
@@ -803,8 +852,8 @@ window.STUDIO = {
     R.setSize(W, H); R.setClearColor(0x86d35e, 1); R.render(scene, cam);
     const r = crop(W, H, W / 2, H * oy, 'jpg'); r.k = k; return r;
   },
-  icon(name) { return iconShot(ICONS[name]); },
-  iconNames: () => Object.keys(ICONS),
+  icon(name) { if (name.startsWith('pm_')) { const [, t, l] = name.split('_'); return iconShot(() => { const p = plane(+t, +l); p.rotation.y = Math.PI * 0.72; p.rotation.x = -0.15; const g = new THREE.Group(); g.add(p); return g; }); } return iconShot(ICONS[name]); },
+  iconNames: () => [...Object.keys(ICONS), ...[0, 1, 2].flatMap(t => [0, 1, 2, 3, 4, 5].map(l => `pm_${t}_${l}`))],
   keyart, appIcon,
 };
 /* catálogo de sprites */
@@ -816,10 +865,16 @@ const BAGS = [0xff4e4e, 0x2f7bff, 0x2ec27e, 0xffc928, 0x8b5cf6, 0x253154, 0xff8a
 for (let c = 0; c < SHIRTS.length; c++) for (const dir of ['d', 'u']) for (const f of ['0', '1', '2', '3', 'i']) for (const b of ['', 'b']) {
   def(`p${c}_${dir}_${f}${b}`, () => { const g = new THREE.Group(); const p = person({ shirt: SHIRTS[c][0], pants: SHIRTS[c][1], skin: P.skin[c % 4], hair: HAIR[c], frame: f === 'i' ? -1 : +f, bag: b ? BAGS[c] : false }); p.rotation.y = dir === 'd' ? Math.PI / 2 : Math.PI; g.add(p); return g; }, { k: 2, W: 96, H: 96, oy: 0.8, catcher: 0.18 });
 }
-for (let t = 0; t < 3; t++) for (let l = 0; l < 3; l++) for (let h = 0; h < 8; h++) {
+for (let t = 0; t < 3; t++) for (let l = 0; l < LIVERY.length; l++) for (let h = 0; h < 8; h++) {
   def(`pl${t}_${l}_${h}`, () => { const g = new THREE.Group(); const p = plane(t, l); p.rotation.y = h * Math.PI / 4; g.add(p); return g; }, { k: 1.5, W: 560, H: 420, oy: 0.6, shadow: false });
 }
 for (const v of ['bus', 'car', 'taxi', 'fuel', 'tug', 'stairs']) for (let h = 0; h < 4; h++) def(`v_${v}_${h}`, () => { const g = new THREE.Group(); const o = vehicle(v, 0x2f7bff); o.rotation.y = h * Math.PI / 2; g.add(o); return g; }, { k: 1.5, W: 300, H: 240, oy: 0.65 });
+
+for (const [n, f, o] of [['totem', totem, { W: 160, H: 220, oy: 0.8 }], ['ledboard', () => ledboard(), { W: 300, H: 300, oy: 0.75 }], ['plant', () => plant(), { W: 120, H: 140, oy: 0.75 }], ['plant_big', () => plant(true), { W: 140, H: 170, oy: 0.75 }], ['bench', bench, { W: 160, H: 140, oy: 0.65 }], ['bodyscan', bodyscan, { W: 180, H: 220, oy: 0.75 }], ['dog', dogUnit, { W: 140, H: 150, oy: 0.75 }], ['vending', vending, { W: 120, H: 180, oy: 0.8 }], ['atm', atm, { W: 120, H: 180, oy: 0.8 }], ['fountain', fountain, { W: 220, H: 200, oy: 0.65 }], ['infodesk', infodesk, { W: 200, H: 220, oy: 0.72 }]]) def(n, f, Object.assign({ k: 1.5 }, o));
+for (let n = 1; n <= 3; n++) def('cash' + n, () => cashPile(n), { k: 2, W: 160, H: 140, oy: 0.68 });
+for (const dir of ['d', 'u']) for (const f of ['0', '1', '2', '3']) def(`cl_${dir}_${f}`, () => { const g = new THREE.Group(); const p = cleaner(+f); p.rotation.y = dir === 'd' ? Math.PI / 2 : Math.PI; g.add(p); return g; }, { k: 2, W: 120, H: 110, oy: 0.75, catcher: 0.18 });
+const CARC = [0xff4e4e, 0x2f7bff, 0xffffff, 0x2b3245, 0x2ec27e, 0xffc928];
+for (let c = 0; c < CARC.length; c++) for (let h = 0; h < 4; h++) def(`car${c}_${h}`, () => { const g = new THREE.Group(); const o = vehicle('car', CARC[c]); o.rotation.y = h * Math.PI / 2; g.add(o); return g; }, { k: 1.5, W: 140, H: 120, oy: 0.65 });
 def('checkin', checkinDesk, { W: 300, H: 300, oy: 0.68 });
 def('security', securityLane, { W: 320, H: 320, oy: 0.62 });
 for (let i = 0; i < 4; i++) def('shop' + i, () => shop(i), { W: 380, H: 380, oy: 0.66 });

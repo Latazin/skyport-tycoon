@@ -50,7 +50,8 @@ class _ResultCard extends StatelessWidget {
 // =====================================================================
 class LandingGame extends StatefulWidget {
   final String Function(int stars) rewardText;
-  const LandingGame({super.key, required this.rewardText});
+  final int level;
+  const LandingGame({super.key, required this.rewardText, this.level = 0});
   @override
   State<LandingGame> createState() => _LandingGameState();
 }
@@ -78,7 +79,7 @@ class _LandingGameState extends State<LandingGame> with SingleTickerProviderStat
 
   void _step(double dt) {
     t += dt;
-    gust = math.sin(t * 1.3) * 3 + math.sin(t * 3.7) * 1.5;
+    gust = (math.sin(t * 1.3) * 3 + math.sin(t * 3.7) * 1.5) * (1 + widget.level * 0.6);
     vy += (hold ? 26 : -16) * dt + gust * dt;
     vy = vy.clamp(-28.0, 10.0).toDouble();
     x += vx * dt; y += vy * dt * 3;
@@ -107,7 +108,8 @@ class _LandingGameState extends State<LandingGame> with SingleTickerProviderStat
         child: Stack(children: [
           Positioned.fill(child: CustomPaint(painter: _LandPainter(this))),
           Positioned(top: pad.top + 12, left: 16, right: 16, child: Column(children: [
-            Text('POUSO PERFEITO', style: display(30)),
+            Text(widget.level == 0 ? 'POUSO PERFEITO' : 'POUSO PERFEITO · NÍVEL ${widget.level + 1}', style: display(widget.level == 0 ? 30 : 24)),
+            if (widget.level > 0) Text(widget.level >= 2 ? 'Noite e vento forte!' : 'Vento lateral!', style: display(16, color: K.gold)),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -132,8 +134,9 @@ class _LandPainter extends CustomPainter {
     final groundY = s.height * 0.78;
     final camX = g.x - s.width * 0.3;
     // céu e sol
-    c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, groundY), [const Color(0xFF5FB7FF), const Color(0xFFCDEBFF)]));
-    c.drawCircle(Offset(s.width * 0.8, s.height * 0.16), 40, Paint()..color = const Color(0xFFFFF1A8));
+    final night = g.widget.level >= 2;
+    c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, groundY), night ? [const Color(0xFF0E1A40), const Color(0xFF3A4C8A)] : [const Color(0xFF5FB7FF), const Color(0xFFCDEBFF)]));
+    c.drawCircle(Offset(s.width * 0.8, s.height * 0.16), 40, Paint()..color = night ? const Color(0xFFF4F1D0) : const Color(0xFFFFF1A8));
     // nuvens com paralaxe
     final cp = Paint()..color = const Color(0xDDFFFFFF);
     for (var i = 0; i < 9; i++) {
@@ -330,4 +333,88 @@ class _XrayPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+// =====================================================================
+// ESTEIRA DE BAGAGEM: arraste cada mala para o carrinho da mesma cor
+// =====================================================================
+class BagGame extends StatefulWidget {
+  final String Function(int stars) rewardText;
+  const BagGame({super.key, required this.rewardText});
+  @override
+  State<BagGame> createState() => _BagGameState();
+}
+
+class _BagGameState extends State<BagGame> with SingleTickerProviderStateMixin {
+  late final Ticker tk;
+  Duration last = Duration.zero;
+  final r = math.Random();
+  static const cols = [Color(0xFFFF4E4E), Color(0xFF2F7BFF), Color(0xFF3FD46B)];
+  static const dur = 30.0;
+  double t = 0, bx = 0, by = 0, fall = 0;
+  int color = 0, score = 0, streak = 0;
+  bool started = false, drag = false;
+  String flash = '';
+  double flashT = 0;
+  GameResult? res;
+  @override
+  void initState() { super.initState(); _next(); tk = createTicker((d) { final dt = ((d - last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble(); last = d; if (started && res == null) _step(dt); setState(() {}); })..start(); }
+  @override
+  void dispose() { tk.dispose(); super.dispose(); }
+  void _next() { color = r.nextInt(3); fall = 0; drag = false; }
+  void _step(double dt) {
+    t += dt; flashT -= dt;
+    if (!drag) fall += dt * (60 + t * 6);
+    final h = MediaQuery.of(context).size.height;
+    if (!drag && fall > h * 0.5) { streak = 0; flash = 'Caiu!'; flashT = 0.8; Sfx.play('nope'); _next(); }
+    if (t >= dur) { final st = score >= 22 ? 3 : score >= 14 ? 2 : score >= 6 ? 1 : 0; res = GameResult(st, st == 3 ? 'BAGAGEM PERFEITA!' : '$score malas no lugar certo'); Sfx.play(st >= 2 ? 'level' : 'pop'); }
+  }
+  void _drop(Size sz) {
+    final lane = (bx / sz.width * 3).floor().clamp(0, 2);
+    if (by > sz.height * 0.62) {
+      if (lane == color) { score++; streak++; flash = streak >= 3 ? 'COMBO x$streak!' : 'Certo!'; Sfx.play('coin', rate: 1 + math.min(streak, 10) * 0.05); Sfx.haptic(); }
+      else { streak = 0; flash = 'Carrinho errado!'; Sfx.play('nope'); Sfx.haptic(30); }
+      flashT = 0.7; _next();
+    } else { drag = false; }
+  }
+  @override
+  Widget build(BuildContext context) {
+    final pad = MediaQuery.of(context).padding, sz = MediaQuery.of(context).size;
+    final restX = sz.width / 2, restY = sz.height * 0.18 + fall;
+    final x = drag ? bx : restX, y = drag ? by : restY;
+    return Scaffold(
+      backgroundColor: const Color(0xFF2B3245),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) { if (!started) started = true; },
+        onPanStart: (d) { if (!started) { started = true; return; } if (res != null) return; if ((d.localPosition - Offset(restX, restY)).distance < 90) { drag = true; bx = d.localPosition.dx; by = d.localPosition.dy; } },
+        onPanUpdate: (d) { if (drag) { bx = d.localPosition.dx; by = d.localPosition.dy; } },
+        onPanEnd: (_) { if (drag) _drop(sz); },
+        child: Stack(children: [
+          for (var i = 0; i < 3; i++) Positioned(left: i * sz.width / 3 + 8, width: sz.width / 3 - 16, bottom: pad.bottom + 30, height: sz.height * 0.28, child: Container(
+            decoration: BoxDecoration(color: cols[i].withValues(alpha: 0.25), borderRadius: BorderRadius.circular(22), border: Border.all(color: cols[i], width: 5)),
+            alignment: Alignment.bottomCenter, padding: const EdgeInsets.only(bottom: 10),
+            child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [const Ico('plane', size: 54), Text(['VOO VERMELHO', 'VOO AZUL', 'VOO VERDE'][i], textAlign: TextAlign.center, style: display(13))]),
+          )),
+          Positioned(left: x - 46, top: y - 40, child: Container(
+            width: 92, height: 80,
+            decoration: BoxDecoration(color: cols[color], borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFF1E2A47), width: 4), boxShadow: const [BoxShadow(color: Color(0x66000000), offset: Offset(0, 6), blurRadius: 6)]),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 36, height: 10, decoration: BoxDecoration(color: const Color(0xFF1E2A47), borderRadius: BorderRadius.circular(5))), const SizedBox(height: 8), Text('MALA', style: display(16))]),
+          )),
+          Positioned(top: pad.top + 12, left: 16, right: 16, child: Column(children: [
+            Text('ESTEIRA DE BAGAGEM', style: display(28)),
+            const SizedBox(height: 6),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: const Color(0xCC1E2A47), borderRadius: BorderRadius.circular(16)), child: Text('Arraste cada mala para o avião da mesma cor antes que ela caia!', textAlign: TextAlign.center, style: body(15, color: Colors.white))),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Malas: $score', style: display(20)), const SizedBox(width: 18), Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white))]),
+            if (flashT > 0) Text(flash, style: display(26, color: flash.startsWith('C') && !flash.startsWith('Car') ? K.gold : flash == 'Certo!' ? K.green : K.red)),
+          ])),
+          if (!started) Center(child: Text('TOQUE PARA COMEÇAR', style: display(28))),
+          if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
+          Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
+        ]),
+      ),
+    );
+  }
 }

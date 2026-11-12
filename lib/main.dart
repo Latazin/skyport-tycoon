@@ -59,12 +59,18 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     await Sfx.init();
     final q = Uri.base.queryParameters;
     if (q['demo'] == '1') {
-      st..money = 2e9..gems = 120..tut = 5..flightsAll = 300..flightsCity = 300..mission = 18..earnedCity = 1.2e9;
-      const lv = {'entrada': 80, 'checkin': 76, 'seguranca': 70, 'g0': 82, 'g1': 64, 'g2': 40, 'g3': 26, 'g4': 0, 'g5': 0, 'lojas': 62, 'pista': 45, 'torre': 40, 'vip': 30, 'hangar': 1, 'combustivel': 0};
+      st..money = 2e9..gems = 120..tut = 7..flightsAll = 300..flightsCity = 300..mission = 18..earnedCity = 1.2e9..star = 3..alv = 14..miles = 420;
+      const lv = {'entrada': 80, 'checkin': 46, 'seguranca': 70, 'g0': 82, 'g1': 64, 'g2': 40, 'g3': 26, 'g4': 0, 'g5': 0, 'lojas': 62, 'pista': 45, 'torre': 40, 'vip': 30, 'hangar': 1, 'combustivel': 0};
       st.lv.addAll(lv);
-      st.mgr.addAll(['ana', 'bruno', 'carla', 'diego']);
+      st.mgr.addAll(['lia', 'ana', 'bruno', 'carla', 'diego']);
+      st.research.addAll(['online', 'scan', 'expresso']);
+      st.routesOwned.addAll(['sp', 'rj', 'bh']);
+      st.mlv.addAll({'arara': 2, 'sol': 1, 'violeta': 1});
+      st.cards.addAll({'brisa': 3, 'ceu': 1});
+      st.cnt.addAll({'flights': 300, 'upgrades': 900, 'collects': 60});
       st.estimate();
     }
+    if (q['chest'] == '1') st.chestsQ.add('chest_gold');
     if (q['tut'] != null) st.tut = int.parse(q['tut']!);
     if (mounted) setState(() => s = st);
     panel0 = q['panel'];
