@@ -11,7 +11,7 @@ import '../core/save.dart';
 import '../core/state.dart';
 import '../game/art.dart';
 import '../game/sky_game.dart';
-import '../game/world.dart' show iso, Floater;
+import '../game/world.dart' show iso, Floater, Puff;
 import 'effects.dart';
 import 'kit.dart';
 import 'minigames.dart';
@@ -40,11 +40,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   Widget? _modal;
   double _startZoom = 1, pending = 0, shownMoney = 0;
   Offset _lastFocal = Offset.zero;
-  int _pausedAt = 0, _lastTapMs = 0;
+  int _pausedAt = 0, _lastTapMs = 0, _multiUntil = 0;
   Offset _lastTapPos = Offset.zero;
   Timer? _hud;
   double _tut3 = 0;
-  int _comboShow = 0;
+  int _comboShow = 0, _holdUntil = 0;
 
   @override
   void initState() {
@@ -79,7 +79,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     if (s.tut == 3) { _tut3 += 0.1; if (_tut3 > 6) { s.tut = 4; toast('Quando um avião decolar, toque no dinheiro!'); } }
     if (s.tut == 4 && s.pile[0] <= 0 && s.pilesTotal <= 0 && s.flightsAll > 2) s.tut = 5;
     game.scene.hint = _hint();
-    if (_modal == null && s.chestsQ.isNotEmpty && panel == null && s.tut >= 7) showChests();
+    if (_modal == null && s.chestsQ.isNotEmpty && panel == null && s.tut >= 7 && nowMs() > _holdUntil) showChests();
     s.ensurePeriods();
     setState(() {});
   }
@@ -132,7 +132,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     game.w.flightFx(g, vip ? 'VIP! +\$${fmt(amount)}' : '+\$${fmt(amount)}', vip);
     Sfx.play('jet', volume: 0.22);
     if (vip) { banner('VOO VIP!', 'Passagens x10: \$${fmt(amount)}'); Sfx.play('level'); confetti(50); }
-    if (s.flightsAll == 1) banner('PRIMEIRO VOO!', 'Toque no dinheiro no portão para coletar');
+    if (s.flightsAll == 1) banner('Primeiro voo!', 'Toque no dinheiro no portão para coletar');
   }
 
   @override
@@ -180,6 +180,38 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     game.w.floaters.add(Floater(c.$1, c.$2, c.$3 + 2.5, 'LIBEROU! $name', const Color(0xFF3FD46B), 1.2));
   }
 
+  @override
+  void phaseUp(int ph) {
+    final P = phases[ph];
+    _holdUntil = nowMs() + 2200;
+    Art.loadBg(Art.bgKey(cityAt(s.city).bg, ph));
+    if (ph < 3) Art.loadBg(Art.bgKey(cityAt(s.city).bg, ph + 1));
+    // a obra: poeira por todo o terminal novo e câmera mostrando o crescimento
+    for (var i = 0; i < 40; i++) {
+      final x = -46 + game.w.r.nextDouble() * (P.termX1 + 46), z = -4 + game.w.r.nextDouble() * 20;
+      Future.delayed(Duration(milliseconds: 60 * i), () { game.w.puffs.add(Puff(x, z, 1.2 + game.w.r.nextDouble())); });
+    }
+    game.focusWorld((P.camX0 + P.camX1) / 2, -4, zoomTo: 0.32);
+    Sfx.play('build');
+    Future.delayed(const Duration(milliseconds: 1600), () {
+      if (!mounted) return;
+      _showModal(GameModal(title: P.name, icon: 'hangar', color: K.blue, actions: [GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); showChests(); }, child: Text('Ver o aeroporto', style: display(18)))],
+          child: Text('O aeroporto cresceu! ${P.desc}.\n\nA pista e o terminal ficaram maiores e novas áreas apareceram no mapa.', textAlign: TextAlign.center, style: body(15, w: FontWeight.w700))));
+      confetti(120);
+    });
+  }
+  @override
+  void arrivals(int gate, int pax) => game.w.arrivals(gate, pax);
+  @override
+  void decorBought(Decor d) {
+    game.w.bump[d.id] = game.w.t;
+    game.w.burst(d.x, d.z, 1.5, 24, const [Color(0xFFFFE27A), Color(0xFF3FD46B), Color(0xFFFFFFFF)]);
+    game.focusWorld(d.x, d.z, zoomTo: 0.6);
+    closePanel();
+    banner('Decoração nova!', '${d.name} · +3% de receita');
+    confetti(40);
+  }
+
   // ================= PanelHost =================
   @override
   void refresh() { if (mounted) setState(() {}); }
@@ -223,11 +255,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     s.claimStar();
     closePanel();
     final n = s.star;
-    _showModal(GameModal(title: '$n ESTRELA${n > 1 ? 'S' : ''}!', color: K.purple, actions: [GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); showChests(); }, child: Text('INCRÍVEL!', style: display(22)))],
+    if (phaseFor(s.city, n) != phaseFor(s.city, n - 1)) { Sfx.play('level'); confetti(80); return; }
+    _showModal(GameModal(title: '$n estrela${n > 1 ? 's' : ''}!', color: K.purple, actions: [GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); showChests(); }, child: Text('Incrível!', style: display(20)))],
         child: Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < 5; i++) TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 500 + i * 180), curve: Curves.elasticOut, builder: (_, v, c) => Transform.scale(scale: i < n ? v : 1, child: c), child: Opacity(opacity: i < n ? 1 : 0.2, child: const Ico('star', size: 52)))]),
           const SizedBox(height: 8),
-          Text(starNames[math.min(n, 5)], style: display(24, color: K.purple, outline: false)),
+          Text(starNames[math.min(n, 5)], style: body(22, color: K.purple, w: FontWeight.w900)),
           const SizedBox(height: 6),
           Text('Toda a receita agora rende x${fmt(s.starMult)}!${n < 5 ? '\nNovas áreas liberadas: ${stations.where((st) => st.star == n).map((st) => st.name).join(', ')}.' : '\nPróxima cidade liberada!'}', textAlign: TextAlign.center, style: body(15)),
         ])));
@@ -264,7 +297,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       GBtn(color: K.green, pulse: true, onTap: () async {
         _closeModal(); closePanel();
         s.prestige();
-        await Art.loadBg(cityAt(s.city).bg);
+        await Art.loadBg(Art.bgKey(cityAt(s.city).bg, s.phase));
         game.w.agents.clear(); for (final q in game.w.deskQ) { q.clear(); } for (final q in game.w.laneQ) { q.clear(); }
         game.focusWorld(-20, 6, zoomTo: 0.6);
         Save.save(s);
@@ -324,8 +357,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 
   void _welcome() {
     _showModal(GameModal(title: 'Bem-vindo ao SkyPort!', icon: 'plane', color: K.blue, actions: [
-      GBtn(color: K.green, pulse: true, onTap: () { s.tut = 1; _closeModal(); Sfx.startMusic(); }, padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 12), child: Text('VAMOS LÁ!', style: display(22))),
-    ], child: Text('Você assumiu o pequeno aeroporto de Vale Verde.\n\nPassageiros chegam, fazem check-in, passam no raio-X e embarcam. Cada voo que decola deixa dinheiro no portão.\n\nMelhore as etapas, conquiste 5 estrelas e transforme Vale Verde num hub mundial!', textAlign: TextAlign.center, style: body(15))));
+      GBtn(color: K.green, pulse: true, onTap: () { s.tut = 1; _closeModal(); Sfx.startMusic(); }, padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 12), child: Text('Vamos lá!', style: display(20))),
+    ], child: Text('Você herdou o Aeroclube de Vale Verde: uma pista de terra e um barracão de madeira.\n\nPassageiros fazem check-in, passam na revista e embarcam. Cada voo deixa dinheiro no portão.\n\nConquiste estrelas para transformar o barracão em terminal, depois em aeroporto e, um dia, num hub internacional!', textAlign: TextAlign.center, style: body(15, w: FontWeight.w700))));
   }
   void _offerOffline(double secs) {
     final v = s.offlineFor(secs); if (v < 1) return;
@@ -339,14 +372,26 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
 
   Future<void> _playGame(String which) async {
-    final ready = which == 'land' ? s.landReady : which == 'xray' ? s.xrayReady : s.bagReady;
-    if (!ready) { toast('Disponível em ${fmtTime(math.max(0, ((which == 'land' ? s.landAt : which == 'xray' ? s.xrayAt : s.bagAt) - nowMs()) / 1000))}'); return; }
+    final at0 = {'land': s.landAt, 'xray': s.xrayAt, 'bag': s.bagAt, 'atc': s.atcAt, 'yard': s.yardAt}[which]!;
+    if (nowMs() < at0) { toast('Disponível em ${fmtTime(math.max(0, (at0 - nowMs()) / 1000))}'); return; }
     Sfx.click();
-    final page = which == 'land' ? LandingGame(rewardText: _rewardText, level: s.landingLevel) : which == 'xray' ? XrayGame(rewardText: _rewardText) : BagGame(rewardText: _rewardText) as Widget;
+    final page = switch (which) {
+      'land' => LandingGame(rewardText: _rewardText, level: s.landingLevel) as Widget,
+      'xray' => XrayGame(rewardText: _rewardText),
+      'atc' => AtcGame(rewardText: _rewardText),
+      'yard' => YardGame(rewardText: _rewardText),
+      _ => BagGame(rewardText: _rewardText),
+    };
     final res = await Navigator.of(context).push<GameResult>(MaterialPageRoute(builder: (_) => page));
     if (res == null || !mounted) return;
     final at = nowMs() + GameState.gameCd;
-    if (which == 'land') { s.landAt = at; if (res.stars > 0) s.inc('landings'); } else if (which == 'xray') { s.xrayAt = at; } else { s.bagAt = at; }
+    switch (which) {
+      case 'land': s.landAt = at; if (res.stars > 0) s.inc('landings'); break;
+      case 'xray': s.xrayAt = at; break;
+      case 'atc': s.atcAt = at; break;
+      case 'yard': s.yardAt = at; break;
+      default: s.bagAt = at;
+    }
     s.inc('minigames'); s.sPts += 5;
     if (res.stars > 0) {
       final v = s.gameReward(const [0.0, 60.0, 150.0, 300.0][res.stars]);
@@ -365,19 +410,25 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   Widget build(BuildContext context) {
     final pad = MediaQuery.of(context).padding;
     return Scaffold(
-      backgroundColor: const Color(0xFF6FB352),
+      backgroundColor: const Color(0xFF86C963),
       body: Stack(children: [
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onScaleStart: (d) { _startZoom = game.zoom; _lastFocal = d.localFocalPoint; game.dragging = true; game.vel.setZero(); },
+            onScaleStart: (d) { _startZoom = game.zoom; _lastFocal = d.localFocalPoint; game.dragging = true; game.vel.setZero(); if (d.pointerCount > 1) _multiUntil = nowMs() + 350; },
             onScaleUpdate: (d) {
-              if (d.pointerCount > 1) game.zoomAt(d.localFocalPoint, _startZoom * d.scale / game.zoom);
-              final delta = d.localFocalPoint - _lastFocal; game.panBy(delta); _lastFocal = d.localFocalPoint;
-              if (d.pointerCount == 1) game.vel.setValues(delta.dx * 60, delta.dy * 60);
+              if (d.pointerCount > 1) { _multiUntil = nowMs() + 350; game.zoomAt(d.localFocalPoint, _startZoom * d.scale / game.zoom); }
+              final delta = d.localFocalPoint - _lastFocal; _lastFocal = d.localFocalPoint;
+              // ao tirar um dedo o ponto focal pula: ignora esse salto
+              if (delta.distance < 120) game.panBy(delta);
             },
-            onScaleEnd: (d) { game.dragging = false; final v = d.velocity.pixelsPerSecond; game.vel.setValues(v.dx.clamp(-2500.0, 2500.0), v.dy.clamp(-2500.0, 2500.0)); },
-            onTapUp: (d) { game.tapAt(d.localPosition); _doubleTapCheck(d.localPosition); },
+            onScaleEnd: (d) {
+              game.dragging = false;
+              final v = d.velocity.pixelsPerSecond;
+              if (nowMs() < _multiUntil || d.pointerCount > 0 || v.distance < 150) { game.vel.setZero(); return; }
+              game.vel.setValues(v.dx.clamp(-2200.0, 2200.0), v.dy.clamp(-2200.0, 2200.0));
+            },
+            onTapUp: (d) { final id = game.tapAt(d.localPosition); if (id == 'none') { _doubleTapCheck(d.localPosition); } else { _lastTapMs = 0; } },
             child: RepaintBoundary(child: GameWidget(game: game)),
           ),
         ),
@@ -389,11 +440,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Positioned.fill(child: RepaintBoundary(child: Stack(children: [
           _topBar(pad),
           _sideButtons(pad),
+          if (panel == null) _abilities(pad),
           if (panel == null) _goal(pad),
           if (panel == null) _bestButton(pad),
           _bottomNav(pad),
         ]))),
-        if (nowMs() - _comboShow < 1200 && s.combo >= 2) Positioned(top: MediaQuery.of(context).size.height * 0.3, left: 0, right: 0, child: IgnorePointer(child: Center(child: TweenAnimationBuilder<double>(key: ValueKey(s.combo), tween: Tween(begin: 1.6, end: 1), duration: const Duration(milliseconds: 300), curve: Curves.easeOutBack, builder: (_, v, c) => Transform.scale(scale: v, child: c), child: Text('COMBO x${s.combo}', style: display(44, color: K.gold)))))),
+        if (nowMs() - _comboShow < 1200 && s.combo >= 2) Positioned(top: MediaQuery.of(context).size.height * 0.3, left: 0, right: 0, child: IgnorePointer(child: Center(child: TweenAnimationBuilder<double>(key: ValueKey(s.combo), tween: Tween(begin: 1.6, end: 1), duration: const Duration(milliseconds: 300), curve: Curves.easeOutBack, builder: (_, v, c) => Transform.scale(scale: v, child: c), child: Container(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), decoration: BoxDecoration(color: K.gold, borderRadius: BorderRadius.circular(18), boxShadow: K.shadow), child: Text('Combo x${s.combo}', style: display(30))))))),
         Positioned(left: 0, right: 0, bottom: 0, child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           transitionBuilder: (c, a) => SlideTransition(position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutBack)), child: c),
@@ -403,7 +455,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Positioned.fill(child: RepaintBoundary(child: FlyLayer(c: fly))),
         Positioned.fill(child: RepaintBoundary(child: ConfettiLayer(c: conf))),
         if (_banner != null) Positioned.fill(child: BannerView(key: ValueKey(_banner), title: _banner!.$1, sub: _banner!.$2, onDone: _nextBanner)),
-        if (_modal != null) Positioned.fill(child: Container(color: const Color(0x99101828), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: _modal)),
+        if (_modal != null) Positioned.fill(child: Container(color: const Color(0x8C1F2A44), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: _modal)),
       ]),
     );
   }
@@ -411,71 +463,90 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   Widget _topBar(EdgeInsets pad) {
     final city = cityAt(s.city);
     return Positioned(
-      top: pad.top + 6, left: 8, right: 8,
+      top: pad.top + 8, left: 10, right: 10,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(flex: 6, child: _Res(key: moneyKey, icon: 'coin', value: '\$${fmt(shownMoney)}', sub: '+\$${fmt(s.rate)}/s', bump: _bump == 'money' ? _bumpN : 0, onTap: () => openPanel('upgrades'))),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Expanded(flex: 3, child: _Res(key: gemKey, icon: 'gem', value: '${s.gems}', bump: _bump == 'gem' ? _bumpN : 0, onTap: () => openPanel('shop'))),
-          const SizedBox(width: 6),
-          GestureDetector(onTap: () => openPanel('settings'), child: Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xE6182240), border: Border.all(color: const Color(0xFF0E1628), width: 2.5)),
-            child: const Padding(padding: EdgeInsets.all(6), child: Ico('gear', size: 30)),
-          )),
+          const SizedBox(width: 8),
+          _Circle(onTap: () => openPanel('settings'), child: const Icon(Icons.settings_rounded, color: K.navy2, size: 24)),
         ]),
-        const SizedBox(height: 6),
-        Row(children: [
+        const SizedBox(height: 8),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           GestureDetector(
             onTap: () => openPanel('stars'),
             child: Container(
-              width: 196, padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-              decoration: BoxDecoration(color: const Color(0xE6182240), borderRadius: BorderRadius.circular(14), border: Border.all(color: s.starReady ? K.gold : const Color(0xFF0E1628), width: 2.5)),
+              width: 186, padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: K.shadow, border: s.starReady ? Border.all(color: K.purple, width: 2) : null),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.25, child: const Ico('star', size: 18)),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text(city.name, style: display(12), overflow: TextOverflow.ellipsis)),
+                  for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: const Ico('star', size: 16)),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(city.name, style: body(12.5, w: FontWeight.w900), overflow: TextOverflow.ellipsis)),
                 ]),
-                const SizedBox(height: 3),
+                const SizedBox(height: 5),
                 Row(children: [
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 5), decoration: BoxDecoration(color: K.purple, borderRadius: BorderRadius.circular(6)), child: Text('Nv ${s.alv}', style: display(11, outline: false))),
-                  const SizedBox(width: 4),
-                  Expanded(child: GBar(value: s.xp / s.needXp(), height: 9, color: K.purple)),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: K.purple, borderRadius: BorderRadius.circular(7)), child: Text('Nv ${s.alv}', style: body(11, color: Colors.white, w: FontWeight.w900))),
+                  const SizedBox(width: 6),
+                  Expanded(child: GBar(value: s.xp / s.needXp(), height: 7, color: K.purple)),
                 ]),
               ]),
             ),
           ),
-          if (s.boostOn || s.rushOn || s.turboOn) ...[
-            const SizedBox(width: 6),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (s.boostOn) _chip('bolt', 'x2 ${fmtTime((s.boostUntil - nowMs()) / 1000)}', K.gold),
-              if (s.rushOn) _chip('rush', 'RUSH ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
-              if (s.turboOn) _chip('turbo', 'TURBO ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
-            ]),
-          ],
+          const SizedBox(width: 6),
+          Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: [
+            if (s.boostOn) _chip('bolt', 'x2 ${fmtTime((s.boostUntil - nowMs()) / 1000)}', K.gold),
+            if (s.rushOn) _chip('rush', 'Rush ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
+            if (s.turboOn) _chip('turbo', 'Turbo ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
+            for (final a in abilities) if (s.abilOn(a.mgr)) _chip(a.icon, '${a.name} ${fmtTime(((s.abilUntil[a.mgr] ?? 0) - nowMs()) / 1000)}', K.purple),
+            if (s.weekend) _chip('gift', 'Fim de semana +25%', K.orange),
+            if (s.ctAir >= 0) GestureDetector(onTap: () => openPanel('fleet'), child: _chip('contract', '${airlines[s.ctAir].$1} ${math.min(s.ctDone, s.ctNeed)}/${s.ctNeed}', s.ctReady ? K.green : K.teal)),
+          ])),
         ]),
       ]),
     );
   }
-  Widget _chip(String ic, String t, Color c) => Container(margin: const EdgeInsets.only(bottom: 2), padding: const EdgeInsets.fromLTRB(2, 1, 8, 1), decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(10), border: Border.all(color: K.navy, width: 2)), child: Row(mainAxisSize: MainAxisSize.min, children: [Ico(ic, size: 18), Text(t, style: display(11))]));
+  Widget _chip(String ic, String t, Color c) => Container(
+        padding: const EdgeInsets.fromLTRB(3, 2, 9, 2),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: K.shadowS),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Ico(ic, size: 20), const SizedBox(width: 2), Text(t, style: body(11.5, color: c, w: FontWeight.w900))]),
+      );
 
   Widget _sideButtons(EdgeInsets pad) {
     final now = nowMs();
     String cd(int at) => fmtTime(math.max(0, (at - now) / 1000));
     return Positioned(
-      right: 8, top: pad.top + 62,
+      right: 10, top: pad.top + 74,
       child: Column(children: [
-        _RoundBtn(icon: 'bolt', label: s.freeReady ? 'x2 GRÁTIS' : 'TURBINAS', glow: s.freeReady, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('LUCRO x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
-        const SizedBox(height: 8),
-        if (s.spinReady) ...[_RoundBtn(icon: 'wheel', label: 'ROLETA', glow: true, onTap: openWheel), const SizedBox(height: 8)],
-        _RoundBtn(icon: 'chest', label: s.chestReady ? 'BAÚ' : cd(s.chestAt), glow: s.chestReady, dim: !s.chestReady, onTap: () { if (s.chestReady) { s.takeFreeChest(); showChests(); } else { toast('Baú grátis em ${cd(s.chestAt)}'); } }),
-        const SizedBox(height: 8),
-        _RoundBtn(icon: 'landing', label: s.landReady ? 'POUSO' : cd(s.landAt), glow: s.landReady, dim: !s.landReady, onTap: () => _playGame('land')),
-        const SizedBox(height: 8),
-        _RoundBtn(icon: 'xray', label: s.xrayReady ? 'RAIO-X' : cd(s.xrayAt), glow: s.xrayReady, dim: !s.xrayReady, onTap: () => _playGame('xray')),
-        const SizedBox(height: 8),
-        _RoundBtn(icon: 'bags', label: s.bagReady ? 'MALAS' : cd(s.bagAt), glow: s.bagReady, dim: !s.bagReady, onTap: () => _playGame('bag')),
+        _RoundBtn(icon: 'bolt', label: s.freeReady ? 'x2 grátis' : 'Turbinas', ready: s.freeReady, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('Lucro x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
+        if (s.spinReady) _RoundBtn(icon: 'wheel', label: 'Roleta', ready: true, onTap: openWheel),
+        _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, dim: !s.chestReady, onTap: () { if (s.chestReady) { s.takeFreeChest(); showChests(); } else { toast('Baú grátis em ${cd(s.chestAt)}'); } }),
+        _RoundBtn(icon: 'landing', label: s.landReady ? 'Pouso' : cd(s.landAt), ready: s.landReady, dim: !s.landReady, onTap: () => _playGame('land')),
+        _RoundBtn(icon: 'xray', label: s.xrayReady ? 'Raio-X' : cd(s.xrayAt), ready: s.xrayReady, dim: !s.xrayReady, onTap: () => _playGame('xray')),
+        _RoundBtn(icon: 'bags', label: s.bagReady ? 'Malas' : cd(s.bagAt), ready: s.bagReady, dim: !s.bagReady, onTap: () => _playGame('bag')),
+        if (s.phase >= 1) _RoundBtn(icon: 'tower', label: s.atcReady ? 'Torre' : cd(s.atcAt), ready: s.atcReady, dim: !s.atcReady, onTap: () => _playGame('atc')),
+        if (s.phase >= 2) _RoundBtn(icon: 'route', label: s.yardReady ? 'Pátio' : cd(s.yardAt), ready: s.yardReady, dim: !s.yardReady, onTap: () => _playGame('yard')),
+      ]),
+    );
+  }
+
+  /// Habilidades dos gerentes contratados (lado esquerdo).
+  Widget _abilities(EdgeInsets pad) {
+    final list = s.myAbilities;
+    if (list.isEmpty || s.tut < 7) return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
+    return Positioned(
+      left: 10, top: pad.top + 132,
+      child: Column(children: [
+        for (final a in list) _AbilityBtn(a: a, s: s, onTap: () {
+          if (!s.abilReady(a)) { toast('${a.name} recarrega em ${fmtTime(s.abilLeft(a) / 1000)}'); return; }
+          final t = s.useAbility(a);
+          Sfx.play('boost'); Sfx.haptic(20);
+          if (a.mgr == 'carla') game.w.spawnGroup(14);
+          if (a.mgr == 'lia') { final sz = MediaQuery.of(context).size; _flyFrom(Offset(sz.width / 2, sz.height * 0.45), 0, 10); }
+          banner(a.name, t);
+          setState(() {});
+        }),
       ]),
     );
   }
@@ -486,16 +557,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     final can = s.money >= b.$2;
     final st = stationById(b.$1);
     return Positioned(
-      right: 10, bottom: pad.bottom + 162,
+      right: 12, bottom: pad.bottom + 158,
       child: GBtn(
-        color: can ? K.green : K.grey, enabled: true, pulse: can, radius: 16,
-        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+        color: can ? K.green : const Color(0xFF9AA4B8), enabled: true, pulse: can, radius: 18,
+        padding: const EdgeInsets.fromLTRB(6, 5, 12, 6),
         onTap: () { if (!can) { toast('Falta \$${fmt(b.$2 - s.money)} para ${st.name}'); return; } s.buyBest(); setState(() {}); },
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Ico(st.icon, size: 36),
-          const SizedBox(width: 4),
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.all(3), child: Ico(st.icon, size: 32)),
+          const SizedBox(width: 6),
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text(b.$3 ? 'CONSTRUIR' : 'MELHOR COMPRA', style: display(11)),
+            Text(b.$3 ? 'Construir' : 'Melhor compra', style: display(10.5).copyWith(color: Colors.white.withValues(alpha: 0.85))),
             Text(st.name, style: display(14)),
             Price(fmt(b.$2), size: 12),
           ]),
@@ -509,32 +580,34 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     final p = s.missionProgress();
     final ready = s.missionReady || (done && s.canPrestige) || s.starReady;
     final m = s.curMission;
-    final starTxt = s.starReady ? 'Estrela ${s.star + 1} pronta! Toque para ganhar' : null;
+    final starTxt = s.starReady ? 'Estrela ${s.star + 1} pronta!' : null;
+    void go() {
+      if (s.starReady) { claimStar(); return; }
+      if (done) { openPanel(s.canPrestige ? 'cities' : 'stars'); return; }
+      if (s.missionReady) { claimMission(); return; }
+      if (m.type == 'lvl' || m.type == 'unlock') { focusStation(m.target); } else if (m.type == 'manager') { openPanel('team'); } else if (m.type == 'star') { openPanel('stars'); } else { openPanel('missions'); }
+    }
     return Positioned(
-      left: 10, right: 10, bottom: pad.bottom + 90,
+      left: 12, right: 12, bottom: pad.bottom + 92,
       child: Center(child: GestureDetector(
-        onTap: () {
-          if (s.starReady) { claimStar(); return; }
-          if (done) { openPanel(s.canPrestige ? 'cities' : 'stars'); return; }
-          if (s.missionReady) { claimMission(); return; }
-          if (m.type == 'lvl' || m.type == 'unlock') { focusStation(m.target); } else if (m.type == 'manager') { openPanel('team'); } else if (m.type == 'star') { openPanel('stars'); } else { openPanel('missions'); }
-        },
-        child: _Pulse(active: ready, child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.fromLTRB(8, 6, 10, 8),
-          decoration: BoxDecoration(color: ready ? const Color(0xFFFFF4C4) : K.cream, borderRadius: BorderRadius.circular(18), border: Border.all(color: ready ? K.goldD : K.navy, width: 3), boxShadow: const [BoxShadow(color: Color(0x44000000), offset: Offset(0, 4))]),
+        onTap: go,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), boxShadow: K.shadow),
           child: Row(children: [
-            Ico(s.starReady ? 'star' : done ? 'globe' : ready ? 'gift' : 'mission', size: 38),
-            const SizedBox(width: 8),
+            IcoBox(s.starReady ? 'star' : done ? 'globe' : ready ? 'gift' : 'mission', color: s.starReady ? K.purple : ready ? K.green : K.orange, size: 42),
+            const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(starTxt ?? (done ? 'Complete as estrelas do aeroporto' : s.missionText()), style: body(15, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 3),
-              done || starTxt != null ? GBar(value: s.star / 5, height: 12, color: K.purple, label: '${s.star}/5 estrelas') : GBar(value: p.$1 / p.$2, height: 12, color: K.green, label: ready ? 'PRONTO!' : '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
+              Text(starTxt ?? (done ? 'Complete as estrelas do aeroporto' : s.missionText()), style: body(14, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 5),
+              done || starTxt != null ? GBar(value: s.star / 5, height: 7, color: K.purple, label: '${s.star}/5') : GBar(value: p.$1 / p.$2, height: 7, color: K.green, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
             ])),
             const SizedBox(width: 8),
-            if (!done && starTxt == null) Price('${s.missionGems}', icon: 'gem', size: 15),
+            if (ready) GBtn(color: s.starReady ? K.purple : K.green, pulse: true, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: go, child: Text(s.starReady ? 'Ganhar' : done ? 'Ver' : 'Pegar', style: display(14)))
+            else if (!done) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: K.purpleL, borderRadius: BorderRadius.circular(10)), child: Price('${s.missionGems}', icon: 'gem', size: 13, color: K.purple)),
           ]),
-        )),
+        ),
       )),
     );
   }
@@ -542,21 +615,21 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   Widget _bottomNav(EdgeInsets pad) {
     final anyUp = stations.any((st) => (s.built(st.id) && !st.oneTime && s.canUp(st)) || s.canUnlock(st));
     final team = managers.any((m) => !s.hasMgr(m.id) && s.money >= s.mgrCost(m)) || researchList.any(s.canResearch);
-    final fleet = planeModels.any((m) => s.canLevelModel(m.id)) || routes.any((r) => !s.routesOwned.contains(r.id) && s.routeReqOk(r) && s.money >= s.routeCost(r));
-    final cl = s.claimables + (s.dailyReady ? 1 : 0);
+    final fleet = planeModels.any((m) => s.canLevelModel(m.id)) || routes.any((r) => !s.routesOwned.contains(r.id) && s.routeReqOk(r) && s.money >= s.routeCost(r)) || s.ctReady || s.ctOfferReady;
+    final cl = s.claimables + (s.dailyReady ? 1 : 0) + (s.wkReady ? 1 : 0);
     return Positioned(
-      left: 4, right: 4, bottom: pad.bottom + 6,
+      left: 10, right: 10, bottom: pad.bottom + 10,
       child: Center(child: Container(
         constraints: const BoxConstraints(maxWidth: 480),
-        padding: const EdgeInsets.fromLTRB(2, 7, 2, 5),
-        decoration: BoxDecoration(gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF41588F), K.navy]), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF0E1628), width: 3)),
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Color(0x261F2A44), blurRadius: 20, offset: Offset(0, 6))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          _NavBtn(icon: 'up', label: 'Melhorar', badge: anyUp ? '!' : null, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
-          _NavBtn(icon: 'star', label: 'Estrelas', badge: s.starReady ? '!' : null, active: panel == 'stars', onTap: () => openPanel('stars')),
+          _NavBtn(icon: 'up', label: 'Melhorar', dot: anyUp, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
+          _NavBtn(icon: 'star', label: 'Estrelas', dot: s.starReady, active: panel == 'stars', onTap: () => openPanel('stars')),
           _NavBtn(icon: 'mission', label: 'Missões', badge: cl > 0 ? '$cl' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
-          _NavBtn(icon: 'plane', label: 'Frota', badge: fleet ? '!' : null, active: panel == 'fleet', onTap: () => openPanel('fleet')),
-          _NavBtn(icon: 'pax', label: 'Equipe', badge: team ? '!' : null, active: panel == 'team', onTap: () => openPanel('team')),
-          _NavBtn(icon: 'bag', label: 'Loja', badge: s.freeReady || s.chestReady || s.spinReady ? '!' : null, active: panel == 'shop', onTap: () => openPanel('shop')),
+          _NavBtn(icon: 'plane', label: 'Frota', dot: fleet, active: panel == 'fleet', onTap: () => openPanel('fleet')),
+          _NavBtn(icon: 'pax', label: 'Equipe', dot: team, active: panel == 'team', onTap: () => openPanel('team')),
+          _NavBtn(icon: 'bag', label: 'Loja', dot: s.freeReady || s.chestReady || s.spinReady, active: panel == 'shop', onTap: () => openPanel('shop')),
         ]),
       )),
     );
@@ -568,7 +641,23 @@ class _TipCard extends StatelessWidget {
   final String text;
   const _TipCard({required this.text});
   @override
-  Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(16), border: Border.all(color: K.gold, width: 3)), child: Text(text, textAlign: TextAlign.center, style: display(16)));
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), boxShadow: K.shadow),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 30, height: 30, decoration: const BoxDecoration(color: K.orange, shape: BoxShape.circle), child: const Icon(Icons.lightbulb_rounded, color: Colors.white, size: 18)),
+          const SizedBox(width: 10),
+          Flexible(child: Text(text, style: body(15, w: FontWeight.w900))),
+        ]),
+      );
+}
+
+class _Circle extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _Circle({required this.child, required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(onTap: () { Sfx.click(); onTap(); }, child: Container(width: 46, height: 46, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white, boxShadow: K.shadow), child: Center(child: child)));
 }
 
 class _Res extends StatefulWidget {
@@ -582,7 +671,7 @@ class _Res extends StatefulWidget {
 }
 
 class _ResState extends State<_Res> with SingleTickerProviderStateMixin {
-  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
   int _last = 0;
   @override
   void dispose() { a.dispose(); super.dispose(); }
@@ -591,85 +680,100 @@ class _ResState extends State<_Res> with SingleTickerProviderStateMixin {
     if (widget.bump != _last) { _last = widget.bump; a.forward(from: 0); }
     return GestureDetector(
       onTap: widget.onTap,
-      child: AnimatedBuilder(animation: a, builder: (_, c) => Transform.scale(scale: 1 + math.sin(a.value * math.pi) * 0.08, child: c), child: Container(
-        height: 48, padding: const EdgeInsets.only(left: 2, right: 10),
-        decoration: BoxDecoration(color: const Color(0xE6182240), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF0E1628), width: 2.5)),
+      child: Container(
+        height: 46, padding: const EdgeInsets.only(left: 4, right: 12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(23), boxShadow: K.shadow),
         child: Row(children: [
-          Ico(widget.icon, size: 40),
-          const SizedBox(width: 2),
+          AnimatedBuilder(animation: a, builder: (_, c) => Transform.scale(scale: 1 + math.sin(a.value * math.pi) * 0.18, child: c), child: Ico(widget.icon, size: 38)),
+          const SizedBox(width: 4),
           Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(widget.value, style: display(20))),
-            if (widget.sub != null) FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(widget.sub!, style: body(11, color: const Color(0xFF8FF0A4)))),
+            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(widget.value, style: body(19, w: FontWeight.w900))),
+            if (widget.sub != null) FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(widget.sub!, style: body(11, color: K.green, w: FontWeight.w900))),
           ])),
         ]),
-      )),
+      ),
     );
   }
 }
 
 class _RoundBtn extends StatelessWidget {
   final String icon, label;
-  final bool glow, dim;
+  final bool ready, dim;
   final VoidCallback onTap;
-  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.glow = false, this.dim = false});
+  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.ready = false, this.dim = false});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: _Pulse(active: glow, child: SizedBox(width: 58, child: Column(children: [
+        child: Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: 56, child: Column(children: [
+          Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white, boxShadow: K.shadow, border: ready ? Border.all(color: K.green, width: 2.2) : null),
+              padding: const EdgeInsets.all(6),
+              child: Opacity(opacity: dim ? 0.45 : 1, child: Ico(icon, size: 34)),
+            ),
+            if (ready) Positioned(right: -1, top: -1, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: K.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+          ]),
+          const SizedBox(height: 3),
           Container(
-            width: 50, height: 50,
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: glow ? K.gold : K.navy, width: 3), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: dim ? [const Color(0xFF8A93A6), const Color(0xFF5D6578)] : [const Color(0xFF6FA8FF), const Color(0xFF2F5FD0)]), boxShadow: const [BoxShadow(color: Color(0x55000000), offset: Offset(0, 4))]),
-            child: Padding(padding: const EdgeInsets.all(6), child: Opacity(opacity: dim ? 0.7 : 1, child: Ico(icon, size: 36))),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(8)),
+            child: FittedBox(child: Text(label, style: body(10.5, color: ready ? K.greenD : K.navy2, w: FontWeight.w900))),
           ),
-          const SizedBox(height: 1),
-          FittedBox(child: Text(label, style: display(11))),
         ]))),
       );
+}
+
+class _AbilityBtn extends StatelessWidget {
+  final Ability a;
+  final GameState s;
+  final VoidCallback onTap;
+  const _AbilityBtn({required this.a, required this.s, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final ready = s.abilReady(a);
+    final k = ready ? 1.0 : 1 - s.abilLeft(a) / (abilityCooldown * 1000);
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: 50, height: 50, child: Stack(alignment: Alignment.center, children: [
+        Container(width: 48, height: 48, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white, boxShadow: K.shadow)),
+        SizedBox(width: 46, height: 46, child: CircularProgressIndicator(value: k, strokeWidth: 3.5, color: ready ? K.purple : K.grey, backgroundColor: K.track)),
+        Opacity(opacity: ready ? 1 : 0.45, child: Ico(a.icon, size: 30)),
+        if (ready) Positioned(right: 0, top: 0, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: K.purple, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+      ]))),
+    );
+  }
 }
 
 class _NavBtn extends StatelessWidget {
   final String icon, label;
   final String? badge;
-  final bool active;
+  final bool active, dot;
   final VoidCallback onTap;
-  const _NavBtn({required this.icon, required this.label, required this.onTap, this.badge, this.active = false});
+  const _NavBtn({required this.icon, required this.label, required this.onTap, this.badge, this.active = false, this.dot = false});
   @override
   Widget build(BuildContext context) => Expanded(child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.symmetric(horizontal: 1), padding: const EdgeInsets.symmetric(vertical: 3),
-            decoration: BoxDecoration(color: active ? const Color(0x55FFFFFF) : Colors.transparent, borderRadius: BorderRadius.circular(16)),
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.symmetric(horizontal: 2), padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(color: active ? K.blueL : Colors.transparent, borderRadius: BorderRadius.circular(16)),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Transform.translate(offset: Offset(0, active ? -4 : 0), child: Ico(icon, size: 34)),
-              FittedBox(child: Text(label, style: display(11))),
+              AnimatedScale(scale: active ? 1.08 : 1, duration: const Duration(milliseconds: 180), child: Ico(icon, size: 32)),
+              const SizedBox(height: 1),
+              FittedBox(child: Text(label, style: body(11, color: active ? K.blue : K.muted, w: FontWeight.w900))),
             ]),
           ),
-          if (badge != null) Positioned(top: -4, right: 4, child: Container(
-            constraints: const BoxConstraints(minWidth: 20), height: 20, alignment: Alignment.center, padding: const EdgeInsets.symmetric(horizontal: 4),
+          if (badge != null) Positioned(top: -3, right: 6, child: Container(
+            constraints: const BoxConstraints(minWidth: 19), height: 19, alignment: Alignment.center, padding: const EdgeInsets.symmetric(horizontal: 5),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: K.red, border: Border.all(color: Colors.white, width: 2)),
-            child: Text(badge!, style: display(11, outline: false)),
-          )),
+            child: Text(badge!, style: body(10, color: Colors.white, w: FontWeight.w900)),
+          ))
+          else if (dot) Positioned(top: 0, right: 12, child: Container(width: 11, height: 11, decoration: BoxDecoration(color: K.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
         ]),
       ));
-}
-
-class _Pulse extends StatefulWidget {
-  final bool active;
-  final Widget child;
-  const _Pulse({required this.active, required this.child});
-  @override
-  State<_Pulse> createState() => _PulseState();
-}
-
-class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
-  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 750))..repeat(reverse: true);
-  @override
-  void dispose() { a.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) => !widget.active ? widget.child : AnimatedBuilder(animation: a, builder: (_, c) => Transform.scale(scale: 1 + a.value * 0.06, child: c), child: widget.child);
 }
 
 class _Toast extends StatelessWidget {
@@ -677,12 +781,12 @@ class _Toast extends StatelessWidget {
   const _Toast({super.key, required this.text});
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1), duration: const Duration(milliseconds: 250),
-        builder: (_, v, c) => Opacity(opacity: v, child: Transform.translate(offset: Offset(0, (1 - v) * -10), child: c)),
+        tween: Tween(begin: 0, end: 1), duration: const Duration(milliseconds: 240), curve: Curves.easeOutCubic,
+        builder: (_, v, c) => Opacity(opacity: v, child: Transform.translate(offset: Offset(0, (1 - v) * -8), child: c)),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: const Color(0xEE1E2A47), borderRadius: BorderRadius.circular(16), border: Border.all(color: K.gold, width: 2)),
-          child: Text(text, style: display(15)),
+          margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(color: const Color(0xF21F2A44), borderRadius: BorderRadius.circular(14)),
+          child: Text(text, style: body(14, color: Colors.white, w: FontWeight.w900)),
         ),
       );
 }
@@ -691,5 +795,5 @@ class _Vignette extends StatelessWidget {
   final Color color;
   const _Vignette({required this.color});
   @override
-  Widget build(BuildContext context) => Container(decoration: BoxDecoration(gradient: RadialGradient(radius: 1.1, colors: [Colors.transparent, Colors.transparent, color.withValues(alpha: 0.28)], stops: const [0, 0.72, 1])));
+  Widget build(BuildContext context) => Container(decoration: BoxDecoration(gradient: RadialGradient(radius: 1.15, colors: [Colors.transparent, Colors.transparent, color.withValues(alpha: 0.18)], stops: const [0, 0.78, 1])));
 }

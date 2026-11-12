@@ -93,26 +93,34 @@ class _BannerViewState extends State<BannerView> with TickerProviderStateMixin {
         child: AnimatedBuilder(
           animation: a,
           builder: (_, __) {
-            final t = a.value, inK = Curves.elasticOut.transform((t / 0.25).clamp(0.0, 1.0)), out = t > 0.82 ? 1 - (t - 0.82) / 0.18 : 1.0;
-            return Opacity(
-              opacity: out.clamp(0.0, 1.0),
-              child: Center(
-                child: Transform.scale(
-                  scale: 0.4 + 0.6 * inK,
-                  child: Stack(alignment: Alignment.center, children: [
-                    RotationTransition(turns: spin, child: CustomPaint(size: const Size(460, 460), painter: _Rays())),
-                    Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(widget.title, textAlign: TextAlign.center, style: display(46, color: const Color(0xFFFFE27A))),
-                      if (widget.sub.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-                          decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFFFE27A), width: 2.5)),
-                          child: Text(widget.sub, textAlign: TextAlign.center, style: display(18)),
-                        ),
-                      ],
-                    ]),
-                  ]),
+            final t = a.value;
+            final inK = Curves.easeOutBack.transform((t / 0.16).clamp(0.0, 1.0)), out = t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1.0;
+            final pad = MediaQuery.of(context).padding;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: EdgeInsets.only(top: pad.top + 120),
+                child: Opacity(
+                  opacity: out.clamp(0.0, 1.0),
+                  child: Transform.translate(
+                    offset: Offset(0, -40 * (1 - inK)),
+                    child: Transform.scale(
+                      scale: 0.9 + 0.1 * inK,
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 360),
+                        padding: const EdgeInsets.fromLTRB(10, 10, 18, 10),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x331F2A44), blurRadius: 24, offset: Offset(0, 8))]),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          RotationTransition(turns: spin, child: Container(width: 44, height: 44, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: SweepGradient(colors: [Color(0xFFFFD35C), Color(0xFFFFB627), Color(0xFFFFE9A8), Color(0xFFFFB627), Color(0xFFFFD35C)])))),
+                          const SizedBox(width: 12),
+                          Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                            Text(widget.title, style: body(19, w: FontWeight.w900)),
+                            if (widget.sub.isNotEmpty) Text(widget.sub, style: body(13.5, color: K.muted, w: FontWeight.w700)),
+                          ])),
+                        ]),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             );

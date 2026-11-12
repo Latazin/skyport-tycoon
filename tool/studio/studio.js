@@ -137,10 +137,10 @@ function shot(build, { k = 1.5, W = 512, H = 512, oy = 0.72, shadow = true, catc
 const L = {
   map: { x0: -92, x1: 82, z0: -62, z1: 52 },
   runway: { x0: -74, x1: 54, z: -37, w: 8 },
-  taxiway: { x0: -68, x1: 48, z: -28, w: 3.5 },
-  lane: { x0: -46, x1: 38, z: -20 },
+  lane: { x0: -46, x1: 38, z: -23.5 },
+  holdZ: -29.5,
   connectors: [-46, 38],
-  apron: { x0: -50, x1: 40, z0: -24, z1: -5 },
+  apron: { x0: -50, x1: 40, z0: -27, z1: -5 },
   term: { x0: -48, x1: 36, z0: -5, z1: 16 },
   gates: [-38, -26, -14, -2, 10, 22],
   standNose: -6.4,
@@ -152,10 +152,19 @@ const L = {
   road: { z: 20, x0: -92, x1: 82 },
   parking: { x: -24, z: 30 },
   busStop: { x: -40, z: 18.4 },
-  tower: { x: 46, z: -3 },
+  tower: { x: -56, z: 5 },
+  cargo: { x: 48, z: 3 },
+  carousel: { x: -45, z: 2.6 },
   fuel: { x: 50, z: -15 },
   hangar: { x: -60, z: -13 },
 };
+// fases: barracão, terminal pequeno, terminal grande, hub
+const PH = [
+  { rx1: 10, rw: 6, conn: [-46, 2], tx1: -6, apx1: -18 },
+  { rx1: 26, rw: 7, conn: [-46, 14], tx1: 20, apx1: 18 },
+  { rx1: 54, rw: 8, conn: [-46, 38], tx1: 36, apx1: 40 },
+  { rx1: 54, rw: 8, conn: [-46, 38], tx1: 36, apx1: 40 },
+];
 const PLANES = [
   { len: 5.6, span: 7.2, r: 0.46, prop: true, door: 0.2 },
   { len: 8.4, span: 8.0, r: 0.62, door: 0.17 },
@@ -547,7 +556,7 @@ function runwayNumber(p, txt, x, z, ry) {
   const m = textMat(txt, null, '#ffffff', 256, 256, 'bold 190px Arial');
   const f = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.6), m); f.rotation.x = -Math.PI / 2; f.rotation.z = ry; f.position.set(x, 0.07, z); p.add(f);
 }
-function background(city) {
+function background(city, phase = 2) {
   const g = new THREE.Group(), cfg = CITY[city], r = rnd(1234 + city * 77);
   const m = L.map;
   flat(g, 400, 400, cfg.grass, 0, 0, -0.1);
@@ -586,93 +595,221 @@ function background(city) {
     for (let i = 0; i < 26; i++) { const x = -105 + i * 8.5 + r() * 2, z = 40 + r() * 20; if (x > -40 && x < -6 && z < 42) continue; const h = 4 + r() * 12; B(g, 5, h, 4, hc[i % 4], x, 0, z); for (let k = 1; k < h - 0.6; k += 1.3) B(g, 5.02, 0.4, 3.2, 0x6ac0ff, x, k, z); }
     for (let i = 0; i < 70; i++) { const x = -100 + r() * 200, z = 22 + r() * 40; if (x > -40 && x < -6 && z < 40) continue; tree(g, x, z, 0.9 + r() * 0.4, 2); }
   }
+  // ===== fase do aeroporto =====
+  const ph = PH[phase], tx1 = ph.tx1, rx1 = ph.rx1;
+  const wild = (x, z) => (x > tx1 + 4 && x < 80 && z > -29 && z < 16.5 && !(x > 40 && x < 56 && z > -20 && z < -9 && phase >= 3)) || (x > rx1 + 6 && x < 80 && z > -45 && z <= -29);
+  // mato onde o aeroporto ainda vai crescer
+  if (phase < 2) { const r2 = rnd(99 + phase); for (let i = 0; i < (phase === 0 ? 150 : 70); i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (!wild(x, z)) continue; if (Math.abs(x - L.tower.x) < 4 && Math.abs(z - L.tower.z) < 4) continue; tree(g, x, z, 0.7 + r2() * 0.8, city === 2 ? 2 : r2() < 0.4 ? 1 : 0); } for (let i = 0; i < 40; i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (wild(x, z)) flat(g, 1.5 + r2() * 2, 1 + r2() * 1.5, city === 1 ? 0x5e9e4a : 0x5fa244, x, z, -0.03); } }
   // ===== cerca do sítio =====
-  const fence = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0); const f = B(g, x0 === x1 ? 0.06 : len, 0.7, x0 === x1 ? len : 0.06, 0xc0c8d6, (x0 + x1) / 2, 0, (z0 + z1) / 2); f.castShadow = false; };
-  fence(m.x0 + 6, -46, m.x1 - 6, -46); fence(m.x0 + 6, -46, m.x0 + 6, 18); fence(m.x1 - 6, -46, m.x1 - 6, 18);
+  const fx1 = phase < 2 ? rx1 + 12 : m.x1 - 6;
+  const fence = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0); const f = B(g, x0 === x1 ? 0.06 : len, 0.7, x0 === x1 ? len : 0.06, phase === 0 ? 0xa8875a : 0xc0c8d6, (x0 + x1) / 2, 0, (z0 + z1) / 2); f.castShadow = false; };
+  fence(m.x0 + 6, -46, fx1, -46); fence(m.x0 + 6, -46, m.x0 + 6, 18); fence(fx1, -46, fx1, 18);
+  if (phase === 0) for (let x = m.x0 + 6; x < fx1; x += 3) B(g, 0.16, 0.9, 0.16, 0x8a6a40, x, 0, -46);
   // ===== pista =====
-  const rw = L.runway, rl = rw.x1 - rw.x0, rc = (rw.x0 + rw.x1) / 2;
-  flat(g, rl + 6, rw.w + 4, 0xa9d48e, rc, rw.z, -0.02);
-  flat(g, rl, rw.w, P.asph, rc, rw.z, 0.0);
-  dashedX(g, rw.x0 + 10, rw.x1 - 10, rw.z, 3, 2.4, 0.3, 0xffffff);
-  flat(g, rl, 0.18, 0xffffff, rc, rw.z - rw.w / 2 + 0.3, 0.05); flat(g, rl, 0.18, 0xffffff, rc, rw.z + rw.w / 2 - 0.3, 0.05);
-  for (const [x0, sg] of [[rw.x0 + 0.8, 1], [rw.x1 - 0.8, -1]]) {
-    for (let k = 0; k < 8; k++) flat(g, 3, 0.35, 0xffffff, x0 + sg * 1.5, rw.z - rw.w / 2 + 0.9 + k * (rw.w - 1.8) / 7, 0.05);
-    for (let k = 0; k < 3; k++) { flat(g, 2.2, 0.4, 0xffffff, x0 + sg * (12 + k * 6), rw.z - 1.6, 0.05); flat(g, 2.2, 0.4, 0xffffff, x0 + sg * (12 + k * 6), rw.z + 1.6, 0.05); }
+  const rw = L.runway, rl = rx1 - rw.x0, rc = (rw.x0 + rx1) / 2, rwW = ph.rw;
+  if (phase === 0) {
+    flat(g, rl + 4, rwW + 2, 0x9cc472, rc, rw.z, -0.02);
+    flat(g, rl, rwW, 0xc9a46a, rc, rw.z, 0.0);
+    for (const dz of [-1.4, 1.4]) flat(g, rl - 6, 0.7, 0xb08c58, rc, rw.z + dz, 0.02);
+    for (let x = rw.x0 + 1; x < rx1; x += 4) for (const sd of [-1, 1]) B(g, 0.35, 0.18, 0.35, 0xffffff, x, 0, rw.z + sd * (rwW / 2 + 0.3));
+  } else {
+    flat(g, rl + 6, rwW + 4, 0xa9d48e, rc, rw.z, -0.02);
+    flat(g, rl, rwW, P.asph, rc, rw.z, 0.0);
+    dashedX(g, rw.x0 + 10, rx1 - 10, rw.z, 3, 2.4, 0.3, 0xffffff);
+    flat(g, rl, 0.18, 0xffffff, rc, rw.z - rwW / 2 + 0.3, 0.05); flat(g, rl, 0.18, 0xffffff, rc, rw.z + rwW / 2 - 0.3, 0.05);
+    for (const [x0, sg] of [[rw.x0 + 0.8, 1], [rx1 - 0.8, -1]]) {
+      for (let k = 0; k < 8; k++) flat(g, 3, 0.35, 0xffffff, x0 + sg * 1.5, rw.z - rwW / 2 + 0.9 + k * (rwW - 1.8) / 7, 0.05);
+      for (let k = 0; k < (phase >= 2 ? 3 : 2); k++) { flat(g, 2.2, 0.4, 0xffffff, x0 + sg * (12 + k * 6), rw.z - 1.6, 0.05); flat(g, 2.2, 0.4, 0xffffff, x0 + sg * (12 + k * 6), rw.z + 1.6, 0.05); }
+    }
+    runwayNumber(g, '09', rw.x0 + 7, rw.z, Math.PI / 2); runwayNumber(g, '27', rx1 - 7, rw.z, -Math.PI / 2);
   }
-  runwayNumber(g, '09', rw.x0 + 7, rw.z, Math.PI / 2); runwayNumber(g, '27', rw.x1 - 7, rw.z, -Math.PI / 2);
-  // ===== taxiways =====
-  const tw = L.taxiway;
-  flat(g, tw.x1 - tw.x0, tw.w, P.asph2, (tw.x0 + tw.x1) / 2, tw.z, 0.01);
-  flat(g, tw.x1 - tw.x0, 0.14, 0xffc928, (tw.x0 + tw.x1) / 2, tw.z, 0.05);
-  for (const x of [tw.x0, tw.x1, ...L.connectors]) { flat(g, tw.w, Math.abs(rw.z - L.apron.z0) + 2, P.asph2, x, (rw.z + L.apron.z0) / 2, 0.01); flat(g, 0.14, Math.abs(rw.z - L.apron.z0) + 2, 0xffc928, x, (rw.z + L.apron.z0) / 2, 0.05); }
-  // ===== pátio (apron) =====
-  const ap = L.apron;
-  flat(g, ap.x1 - ap.x0, ap.z1 - ap.z0, P.concrete, (ap.x0 + ap.x1) / 2, (ap.z0 + ap.z1) / 2, 0.012);
-  for (let x = ap.x0; x < ap.x1; x += 6) flat(g, 0.05, ap.z1 - ap.z0, P.conc2, x, (ap.z0 + ap.z1) / 2, 0.03);
-  for (let z = ap.z0; z < ap.z1; z += 6) flat(g, ap.x1 - ap.x0, 0.05, P.conc2, (ap.x0 + ap.x1) / 2, z, 0.03);
-  flat(g, L.lane.x1 - L.lane.x0, 0.16, 0xffc928, (L.lane.x0 + L.lane.x1) / 2, L.lane.z, 0.05);
-  for (const gx of L.gates) {
-    flat(g, 0.16, Math.abs(L.lane.z - L.standNose) + 0.5, 0xffc928, gx, (L.lane.z + L.standNose) / 2, 0.05);
-    flat(g, 2.8, 0.16, 0xffc928, gx, L.standNose - 0.5, 0.05);
-    flat(g, 11, 0.12, 0xff4e4e, gx, ap.z0 + 1.8, 0.05);
-    flat(g, 0.12, 13, 0xffffff, gx - 6, -12, 0.05);
+  // ===== taxiways e pátio =====
+  const ap = L.apron, apx1 = ph.apx1, laneX1 = ph.conn[1];
+  const pave = phase === 0 ? 0xc9a46a : P.asph2, line = phase === 0 ? null : 0xffc928;
+  for (const x of ph.conn) { flat(g, 3.6, Math.abs(rw.z - L.lane.z) + 1.5, pave, x, (rw.z + L.lane.z) / 2, 0.01); if (line) flat(g, 0.14, Math.abs(rw.z - L.lane.z), line, x, (rw.z + L.lane.z) / 2, 0.05); }
+  if (phase >= 3) { // taxiway paralela do hub com luzes
+    flat(g, 100, 3.4, P.asph2, -4, -29.5, 0.008); flat(g, 100, 0.14, 0xffc928, -4, -29.5, 0.05);
+    for (let x = -52; x < 46; x += 4) Sp(g, 0.12, M(0x3f8bff, { emissive: 0x2050a0 }), x, 0.1, -27.6, 6);
+  }
+  if (phase === 0) {
+    flat(g, apx1 - ap.x0, ap.z1 - L.lane.z + 2, 0xd2b47e, (ap.x0 + apx1) / 2, (L.lane.z - 2 + ap.z1) / 2, 0.012);
+    flat(g, laneX1 - ap.x0 + 2, 3.6, 0xc9a46a, (ap.x0 + laneX1) / 2, L.lane.z, 0.014);
+    for (const gx of L.gates.slice(0, 2)) { for (let z = L.standNose - 1; z > L.lane.z + 2; z -= 2) B(g, 0.3, 0.12, 0.3, 0xffffff, gx, 0, z); }
+  } else {
+    flat(g, apx1 - ap.x0, ap.z1 - ap.z0, P.concrete, (ap.x0 + apx1) / 2, (ap.z0 + ap.z1) / 2, 0.012);
+    for (let x = ap.x0; x < apx1; x += 6) flat(g, 0.05, ap.z1 - ap.z0, P.conc2, x, (ap.z0 + ap.z1) / 2, 0.03);
+    for (let z = ap.z0; z < ap.z1; z += 6) flat(g, apx1 - ap.x0, 0.05, P.conc2, (ap.x0 + apx1) / 2, z, 0.03);
+    flat(g, laneX1 - L.lane.x0, 0.16, 0xffc928, (L.lane.x0 + laneX1) / 2, L.lane.z, 0.05);
+    for (const gx of L.gates.slice(0, [2, 3, 6, 6][phase])) {
+      flat(g, 0.16, Math.abs(L.lane.z - L.standNose) + 0.5, 0xffc928, gx, (L.lane.z + L.standNose) / 2, 0.05);
+      flat(g, 2.8, 0.16, 0xffc928, gx, L.standNose - 0.5, 0.05);
+      flat(g, 11, 0.12, 0xff4e4e, gx, ap.z0 + 4.2, 0.05);
+      flat(g, 0.12, 13, 0xffffff, gx - 6, -12, 0.05);
+      if (phase < 2) { flat(g, 2.4, 3.2, 0xffffff, gx + 3.2, -7.6, 0.04); flat(g, 2.2, 3.0, P.concrete, gx + 3.2, -7.6, 0.045); for (let k = 0; k < 4; k++) flat(g, 2.2, 0.25, 0x2f7bff, gx + 3.2, -6.5 - k * 0.7, 0.05); }
+    }
+    if (phase >= 3) { flat(g, 16, 18, P.concrete, 48, 2, 0.012); flat(g, 15.6, 0.16, 0xffc928, 48, -6.5, 0.05); }
   }
   // ===== estradas =====
-  const rd = L.road;
-  flat(g, rd.x1 - rd.x0 + 40, 6, P.asph, (rd.x0 + rd.x1) / 2, rd.z, 0.0);
-  dashedX(g, rd.x0 - 20, rd.x1 + 20, rd.z, 2, 2, 0.18, 0xffffff);
-  flat(g, rd.x1 - rd.x0 + 40, 0.5, 0xdfe3ea, (rd.x0 + rd.x1) / 2, rd.z - 3.2, 0.03);
-  flat(g, 8, 70, P.asph, 64, 52, 0.0); // acesso
-  // calçada em frente ao terminal
-  flat(g, L.term.x1 - L.term.x0 + 6, 3.2, 0xdfe3ea, (L.term.x0 + L.term.x1) / 2, 17.5, 0.04);
-  // estacionamento (asfalto e vagas; os carros vêm no sprite)
+  const rd = L.road, dirt = phase === 0;
+  flat(g, rd.x1 - rd.x0 + 40, dirt ? 5 : 6, dirt ? 0xc9a46a : P.asph, (rd.x0 + rd.x1) / 2, rd.z, 0.0);
+  if (!dirt) { dashedX(g, rd.x0 - 20, rd.x1 + 20, rd.z, 2, 2, 0.18, 0xffffff); flat(g, rd.x1 - rd.x0 + 40, 0.5, 0xdfe3ea, (rd.x0 + rd.x1) / 2, rd.z - 3.2, 0.03); }
+  else for (const dz of [-1.2, 1.2]) flat(g, rd.x1 - rd.x0 + 40, 0.6, 0xb08c58, (rd.x0 + rd.x1) / 2, rd.z + dz, 0.02);
+  flat(g, dirt ? 6 : 8, 70, dirt ? 0xc9a46a : P.asph, 64, 52, 0.0);
+  flat(g, tx1 - L.term.x0 + 6, 3.2, dirt ? 0xd8c08f : 0xdfe3ea, (L.term.x0 + tx1) / 2, 17.5, 0.04);
   const pk = L.parking;
-  flat(g, 28, 14, P.asph2, pk.x, pk.z, 0.01);
-  for (let row = 0; row < 3; row++) for (let c = 0; c <= 8; c++) flat(g, 0.1, 2.2, 0xffffff, pk.x - 12 + c * 3.0, pk.z - 4 + row * 4.2, 0.05);
-  flat(g, 3, 70, P.asph2, pk.x + 15.5, pk.z + 20, 0.0);
-  // postes da via
-  for (let x = -86; x < 80; x += 12) lamp(g, x, rd.z + 3.4);
+  flat(g, 28, 14, dirt ? 0xd2b47e : P.asph2, pk.x, pk.z, 0.01);
+  if (!dirt) for (let row = 0; row < 3; row++) for (let c = 0; c <= 8; c++) flat(g, 0.1, 2.2, 0xffffff, pk.x - 12 + c * 3.0, pk.z - 4 + row * 4.2, 0.05);
+  flat(g, 3, 70, dirt ? 0xc9a46a : P.asph2, pk.x + 15.5, pk.z + 20, 0.0);
+  if (!dirt) for (let x = -86; x < (phase >= 2 ? 80 : tx1 + 20); x += 12) lamp(g, x, rd.z + 3.4);
+  else for (let x = -80; x < 10; x += 10) { C(g, 0.09, 0.11, 3.2, 0x8a6a40, x, 0, rd.z + 3.4, 6); B(g, 0.8, 0.06, 0.06, 0x8a6a40, x, 3.0, rd.z + 3.4); }
   // ===== terminal (corte "casa de bonecas") =====
-  const tm = L.term, tw0 = tm.x1 - tm.x0, td = tm.z1 - tm.z0, tcx = (tm.x0 + tm.x1) / 2, tcz = (tm.z0 + tm.z1) / 2;
-  B(g, tw0 + 1, 0.3, td + 1, 0xd7dde8, tcx, 0, tcz).castShadow = false;
-  B(g, tw0, 0.05, td, P.floor, tcx, 0.3, tcz).castShadow = false;
-  // piso quadriculado
-  for (let x = tm.x0 + 2; x < tm.x1; x += 2) for (let z = tm.z0 + 2; z < tm.z1; z += 2) if (Math.abs(Math.round((x + z) / 2)) % 2 === 0) flat(g, 2, 2, P.floor2, x - 1, z - 1, 0.36);
-  // zonas
-  flat(g, 23, 13, 0xcfe2ff, -35, 9, 0.375); // check-in
-  flat(g, 19, 12, 0xe4dcff, -13.5, 6.5, 0.375);  // segurança
-  flat(g, 23, 9, 0xffe9c7, 7.5, 7, 0.375);  // praça
-  flat(g, tw0 - 2, 3.2, 0x5b8cff, tcx, -2.6, 0.38); // corredor de embarque
-  flat(g, tw0 - 2, 0.2, 0xffc928, tcx, -1.0, 0.4);
-  // setas no chão
-  for (let x = -26; x < 30; x += 8) { const a = mesh(G.cone(0.5, 1.1, 3), M(0xffffff), g, x, 0.41, -2.6); a.rotation.set(-Math.PI / 2, 0, -Math.PI / 2); a.scale.y = 0.1; a.castShadow = false; }
-  // colunas
-  for (let x = tm.x0 + 6; x < tm.x1; x += 12) for (const z of [3, 12]) { C(g, 0.3, 0.3, 4.2, 0xe6eaf1, x, 0.3, z, 10); }
-  // parede do fundo esquerda (x0) alta, com vidros
-  B(g, 0.5, 4.5, td, 0xe6eaf1, tm.x0 + 0.25, 0.3, tcz);
-  for (let z = tm.z0 + 1.5; z < tm.z1 - 1; z += 3) B(g, 0.08, 2.6, 2.2, M(0x8fd6ff), tm.x0 + 0.52, 1.3, z);
-  B(g, 0.6, 0.4, td + 0.4, 0x2f7bff, tm.x0 + 0.25, 4.8, tcz);
-  // fachada frontal (z1): mureta + portas de vidro
-  B(g, tw0, 0.5, 0.3, 0xe6eaf1, tcx, 0.3, tm.z1 - 0.15);
-  B(g, 6, 0.08, 1.6, 0x2f7bff, L.door.x, 3.2, tm.z1 + 0.6);
-  for (const x of [L.door.x - 3, L.door.x + 3]) C(g, 0.1, 0.1, 3.0, 0x9aa3b4, x, 0.3, tm.z1 + 1.2, 6);
-  // lado direito (x1): mureta
-  B(g, 0.3, 0.5, td, 0xe6eaf1, tm.x1 - 0.15, 0.3, tcz);
-  // ===== pátio de serviço, gramados e árvores no lado terra =====
-  for (let x = -86; x < 80; x += 7) { if (x > -42 && x < -4) continue; tree(g, x, 24 + (x % 2), 0.9, 0); }
+  const tm = { x0: L.term.x0, x1: tx1, z0: L.term.z0, z1: L.term.z1 };
+  const tw0 = tm.x1 - tm.x0, td = tm.z1 - tm.z0, tcx = (tm.x0 + tm.x1) / 2, tcz = (tm.z0 + tm.z1) / 2;
+  if (phase === 0) {
+    // barracão de madeira
+    B(g, tw0 + 1, 0.3, td + 1, 0x9a7448, tcx, 0, tcz).castShadow = false;
+    B(g, tw0, 0.05, td, 0xd9b483, tcx, 0.3, tcz).castShadow = false;
+    for (let x = tm.x0 + 1; x < tm.x1; x += 1.2) flat(g, 0.06, td, 0xbf9563, x, tcz, 0.36);
+    flat(g, 19, 11, 0xe8d3a8, -36.5, 9.5, 0.37);  // tapete do check-in
+    flat(g, 14, 10, 0xd8c7e8, -15, 6.8, 0.37);     // tapete do raio-X
+    flat(g, tw0 - 2, 3.0, 0xc8a06e, tcx, -2.6, 0.375);
+    // parede do fundo de tábuas com janelas
+    B(g, 0.4, 3.4, td, 0xb88a56, tm.x0 + 0.2, 0.3, tcz);
+    for (let y = 0.6; y < 3.6; y += 0.5) B(g, 0.42, 0.05, td, 0x9a7448, tm.x0 + 0.2, y, tcz);
+    for (let z = tm.z0 + 2.5; z < tm.z1 - 1; z += 5) { B(g, 0.08, 1.2, 1.8, M(0x8fd6ff), tm.x0 + 0.44, 1.5, z); B(g, 0.1, 0.12, 2.0, 0xffffff, tm.x0 + 0.46, 2.7, z); }
+    B(g, 0.6, 0.25, td + 0.6, 0xe8343b, tm.x0 + 0.2, 3.7, tcz);
+    sign(g, 'AEROCLUBE', 6, 1.1, '#e8343b', '#ffffff', tm.x0 + 0.5, 5.4, tcz, Math.PI / 2);
+    // frente: guarda-corpo e porta
+    for (let x = tm.x0 + 0.5; x < tm.x1; x += 2) { if (Math.abs(x - L.door.x) < 2.5) continue; B(g, 0.14, 0.9, 0.14, 0x8a6a40, x, 0.3, tm.z1 - 0.1); }
+    B(g, tw0, 0.1, 0.12, 0x8a6a40, tcx, 1.1, tm.z1 - 0.1);
+    for (const x of [L.door.x - 2.4, L.door.x + 2.4]) B(g, 0.22, 3.2, 0.22, 0x8a6a40, x, 0.3, tm.z1);
+    B(g, 5.4, 0.18, 1.6, 0xe8343b, L.door.x, 3.4, tm.z1 + 0.4);
+    B(g, 0.12, 0.9, td, 0x8a6a40, tm.x1 - 0.06, 0.3, tcz); B(g, 0.12, 0.1, td, 0x8a6a40, tm.x1 - 0.06, 1.15, tcz);
+    // biruta e barris
+    for (let i = 0; i < 3; i++) C(g, 0.4, 0.4, 0.9, [0xe8343b, 0x2f7bff, 0x6b7280][i], -50 + i * 0.9, 0, -8 + (i % 2) * 0.8, 10);
+  } else {
+    B(g, tw0 + 1, 0.3, td + 1, 0xd7dde8, tcx, 0, tcz).castShadow = false;
+    B(g, tw0, 0.05, td, P.floor, tcx, 0.3, tcz).castShadow = false;
+    for (let x = tm.x0 + 2; x < tm.x1; x += 2) for (let z = tm.z0 + 2; z < tm.z1; z += 2) if (Math.abs(Math.round((x + z) / 2)) % 2 === 0) flat(g, 2, 2, P.floor2, x - 1, z - 1, 0.36);
+    flat(g, 23, 13, 0xcfe2ff, -35, 9, 0.375);
+    flat(g, 19, 12, 0xe4dcff, -13.5, 6.5, 0.375);
+    flat(g, Math.min(23, tm.x1 - 0.5 + 4), 9, 0xffe9c7, Math.min(7.5, (tm.x1 - 4) / 2 + 2), 7, 0.375);
+    flat(g, tw0 - 2, 3.2, 0x5b8cff, tcx, -2.6, 0.38);
+    flat(g, tw0 - 2, 0.2, 0xffc928, tcx, -1.0, 0.4);
+    for (let x = -26; x < tm.x1 - 4; x += 8) { const a = mesh(G.cone(0.5, 1.1, 3), M(0xffffff), g, x, 0.41, -2.6); a.rotation.set(-Math.PI / 2, 0, -Math.PI / 2); a.scale.y = 0.1; a.castShadow = false; }
+    for (let x = tm.x0 + 6; x < tm.x1; x += 12) for (const z of [3, 12]) { C(g, 0.3, 0.3, 4.2, 0xe6eaf1, x, 0.3, z, 10); }
+    B(g, 0.5, 4.5, td, 0xe6eaf1, tm.x0 + 0.25, 0.3, tcz);
+    for (let z = tm.z0 + 1.5; z < tm.z1 - 1; z += 3) B(g, 0.08, 2.6, 2.2, M(0x8fd6ff), tm.x0 + 0.52, 1.3, z);
+    B(g, 0.6, 0.4, td + 0.4, phase >= 3 ? 0x1e2a47 : 0x2f7bff, tm.x0 + 0.25, 4.8, tcz);
+    if (phase >= 3) sign(g, 'SKYPORT HUB', 9, 1.2, '#1e2a47', '#ffc928', tm.x0 + 0.6, 6.6, tcz, Math.PI / 2);
+    B(g, tw0, 0.5, 0.3, 0xe6eaf1, tcx, 0.3, tm.z1 - 0.15);
+    B(g, 6, 0.08, 1.6, 0x2f7bff, L.door.x, 3.2, tm.z1 + 0.6);
+    for (const x of [L.door.x - 3, L.door.x + 3]) C(g, 0.1, 0.1, 3.0, 0x9aa3b4, x, 0.3, tm.z1 + 1.2, 6);
+    B(g, 0.3, 0.5, td, 0xe6eaf1, tm.x1 - 0.15, 0.3, tcz);
+  }
+  // ===== lado terra =====
+  for (let x = -86; x < 80; x += 7) { if (x > -42 && x < -4) continue; if (phase >= 3 && x > -4 && x < 30) continue; tree(g, x, 24 + (x % 2), 0.9, city === 2 ? 2 : 0); }
+  if (phase >= 3) {
+    // praça do hub: canteiros, palmeiras e letreiro
+    for (let x = -2; x < 30; x += 4) { flat(g, 3, 1.2, 0x3fae5a, x, 23.6, 0.06); Sp(g, 0.5, 0xff7ab6, x - 0.8, 0.3, 23.6, 8); Sp(g, 0.5, 0xffc928, x + 0.8, 0.3, 23.6, 8); }
+    for (let x = 0; x < 30; x += 8) tree(g, x, 27, 1.1, 2);
+    const lt = 'SKYPORT'; for (let i = 0; i < lt.length; i++) sign(g, lt[i], 1.6, 1.8, '#2f7bff', '#ffffff', 4 + i * 2.2, 2.2, 26, 0);
+  }
   // biruta
-  C(g, 0.06, 0.06, 3, 0xffffff, rw.x1 - 6, 0, rw.z + 7, 6); const ws = mesh(G.cone(0.35, 1.6, 8), M(0xff8a1f), g, rw.x1 - 5.3, 2.8, rw.z + 7); ws.rotation.z = Math.PI / 2;
+  C(g, 0.06, 0.06, 3, 0xffffff, rx1 - 6, 0, rw.z + 7, 6); const ws = mesh(G.cone(0.35, 1.6, 8), M(0xff8a1f), g, rx1 - 5.3, 2.8, rw.z + 7); ws.rotation.z = Math.PI / 2;
   return g;
 }
 /* parede airside: sobreposição desenhada depois dos aviões estacionados */
-function airsideWall() {
-  const g = new THREE.Group(), tm = L.term, tw0 = tm.x1 - tm.x0, tcx = (tm.x0 + tm.x1) / 2;
-  // origem no meio da parede (z = -5)
+function airsideWall(x1 = L.term.x1, kind = 2) {
+  const g = new THREE.Group(), x0 = L.term.x0, tw0 = x1 - x0, tcx = (x0 + x1) / 2;
+  const gs = L.gates.slice(0, kind === 0 ? 2 : 3);
+  const door = x => kind < 2 && gs.some(gx => Math.abs(x - (gx + 3.2)) < 1.3);
+  if (kind === 0) {
+    // cerca de madeira com portinholas
+    B(g, tw0, 0.15, 0.3, 0x8a6a40, 0, 0.3, 0);
+    for (let x = x0 + 0.5; x < x1; x += 1.5) { if (door(x)) continue; B(g, 0.16, 1.3, 0.16, 0x8a6a40, x - tcx, 0.3, 0); }
+    for (const y of [0.8, 1.4]) { let s0 = x0; for (let x = x0; x <= x1; x += 0.25) { const d = door(x) || x >= x1; if (d && x > s0 + 0.3) { B(g, x - s0, 0.1, 0.08, 0xb88a56, (s0 + x) / 2 - tcx, y, 0); } if (d) s0 = x + 0.25; } }
+    for (const gx of gs) { sign(g, 'EMBARQUE', 2.4, 0.5, '#e8343b', '#ffffff', gx + 3.2 - tcx, 2.6, 0); [gx + 2.0, gx + 4.4].forEach(x => B(g, 0.14, 2.6, 0.14, 0x8a6a40, x - tcx, 0.3, 0)); }
+    return g;
+  }
   B(g, tw0, 0.6, 0.4, 0xe6eaf1, 0, 0.3, 0);
-  for (let x = tm.x0 + 1; x < tm.x1 - 0.5; x += 2) { const isGate = L.gates.some(gx => Math.abs(x - tcx - (gx - tcx)) < 1.1 && false); B(g, 1.85, 1.6, 0.12, M(0x9fdcff, { opacity: 0.55 }), x - tcx + 0.5, 0.9, 0); C(g, 0.06, 0.06, 1.6, 0xb8c0cf, x - tcx - 0.45, 0.9, 0, 6); }
+  for (let x = x0 + 1; x < x1 - 0.5; x += 2) { if (door(x + 0.5)) continue; B(g, 1.85, 1.6, 0.12, M(0x9fdcff, { opacity: 0.55 }), x - tcx + 0.5, 0.9, 0); C(g, 0.06, 0.06, 1.6, 0xb8c0cf, x - tcx - 0.45, 0.9, 0, 6); }
+  if (kind < 2) for (const gx of gs) { B(g, 0.2, 2.4, 0.4, 0x2f7bff, gx + 2.0 - tcx, 0.3, 0); B(g, 0.2, 2.4, 0.4, 0x2f7bff, gx + 4.4 - tcx, 0.3, 0); sign(g, 'SAÍDA ' + (L.gates.indexOf(gx) + 1), 2.6, 0.5, '#2f7bff', '#ffffff', gx + 3.2 - tcx, 3.1, 0); }
   B(g, tw0, 0.18, 0.44, 0x2f7bff, 0, 2.5, 0);
   return g;
 }
+/* ===== fase barracão e extras ===== */
+function checkinWood() {
+  const g = new THREE.Group();
+  B(g, 2.0, 0.9, 0.7, 0xb88a56, 0, 0, 0); B(g, 2.1, 0.08, 0.8, 0x8a6a40, 0, 0.9, 0);
+  for (let x = -0.9; x < 1; x += 0.3) B(g, 0.03, 0.8, 0.72, 0x9a7448, x, 0.05, 0);
+  B(g, 0.6, 0.2, 0.6, 0x6b7280, 0.65, 0, 0.75); B(g, 0.5, 0.03, 0.5, 0x2b3245, 0.65, 0.2, 0.75);
+  B(g, 0.5, 0.3, 0.4, 0xf2f2f2, -0.4, 0.98, 0); // livro de registro
+  const a = person({ shirt: 0xe8343b, pants: 0x253154, skin: P.skin[1], hair: 0x2a1a12 }); a.position.set(-0.4, 0, -0.75); g.add(a);
+  B(g, 1.6, 0.6, 0.08, 0x2b3245, 0, 2.0, -0.4); C(g, 0.05, 0.05, 2.0, 0x8a6a40, -0.7, 0, -0.4, 6); C(g, 0.05, 0.05, 2.0, 0x8a6a40, 0.7, 0, -0.4, 6);
+  sign(g, 'CHECK-IN', 1.5, 0.45, '#2b3245', '#ffffff', 0, 2.5, -0.35);
+  for (let i = 0; i < 2; i++) { const z = 1.5 + i * 1.2; [-0.9, 0.9].forEach(x => C(g, 0.06, 0.06, 0.8, 0x8a6a40, x, 0, z, 6)); B(g, 1.8, 0.05, 0.05, 0xc0392b, 0, 0.7, z); }
+  return g;
+}
+function securityWood() {
+  const g = new THREE.Group();
+  B(g, 0.9, 0.75, 3.0, 0xb88a56, -0.75, 0, 0); B(g, 0.8, 0.04, 3.0, 0x8a6a40, -0.75, 0.75, 0);
+  B(g, 0.5, 0.35, 0.45, 0xff8a1f, -0.75, 0.79, 0.6); B(g, 0.45, 0.3, 0.4, 0x2f7bff, -0.75, 0.79, -0.5);
+  B(g, 0.12, 2.1, 0.25, 0x9aa3b4, 0.25, 0, -0.2); B(g, 0.12, 2.1, 0.25, 0x9aa3b4, 1.25, 0, -0.2); B(g, 1.12, 0.2, 0.27, 0x9aa3b4, 0.75, 2.1, -0.2);
+  Sp(g, 0.08, M(0xff3b3b, { emissive: 0xa02020 }), 0.75, 2.25, -0.05, 8);
+  const gd = person({ shirt: 0x6b7f5a, pants: 0x3a4430, skin: P.skin[2], hair: 0x1a1210, cap: 0x3a4430 }); gd.position.set(1.6, 0, -0.8); gd.rotation.y = -Math.PI / 2; g.add(gd);
+  return g;
+}
+function gateWood(n) {
+  const g = new THREE.Group();
+  B(g, 1.3, 0.9, 0.6, 0xb88a56, -2.6, 0, -0.6); B(g, 1.4, 0.06, 0.7, 0x8a6a40, -2.6, 0.9, -0.6);
+  C(g, 0.06, 0.06, 2.6, 0x8a6a40, -2.6, 0, -1.2, 6); sign(g, 'PORTÃO ' + n, 2.0, 0.55, '#2b3245', '#ffffff', -2.6, 3.0, -1.2);
+  for (let r = 0; r < 2; r++) { const z = 0.6 + r * 1.4; B(g, 3.6, 0.12, 0.5, 0xc98a52, 0.8, 0.42, z); B(g, 3.6, 0.5, 0.08, 0xc98a52, 0.8, 0.5, z - 0.25); [-0.9, 2.5].forEach(x => B(g, 0.1, 0.42, 0.4, 0x8a6a40, x, 0, z)); }
+  return g;
+}
+function tower0() {
+  const g = new THREE.Group();
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([x, z]) => C(g, 0.1, 0.13, 5, 0x8a6a40, x, 0, z, 6));
+  for (let y = 1.2; y < 5; y += 1.6) { B(g, 2.1, 0.08, 0.08, 0x8a6a40, 0, y, 1); B(g, 2.1, 0.08, 0.08, 0x8a6a40, 0, y, -1); B(g, 0.08, 0.08, 2.1, 0x8a6a40, 1, y, 0); B(g, 0.08, 0.08, 2.1, 0x8a6a40, -1, y, 0); }
+  B(g, 2.8, 0.15, 2.8, 0xb88a56, 0, 5, 0);
+  B(g, 2.2, 1.4, 2.2, 0xd9b483, 0, 5.15, 0); B(g, 2.24, 0.6, 2.24, M(0x8fd6ff), 0, 5.8, 0);
+  const rf = mesh(G.cone(2.1, 1.0, 4), M(0xe8343b), g, 0, 7.05, 0); rf.rotation.y = Math.PI / 4;
+  C(g, 0.04, 0.04, 2, 0xffffff, 1.2, 7.0, 1.2, 5); const ws = mesh(G.cone(0.25, 1.1, 8), M(0xff8a1f), g, 1.7, 8.7, 1.2); ws.rotation.z = Math.PI / 2;
+  for (let i = 0; i < 6; i++) B(g, 0.6, 0.06, 0.25, 0x8a6a40, 1.25, 0.4 + i * 0.8, -0.2 + i * 0.12);
+  return g;
+}
+function parking0() {
+  const g = new THREE.Group();
+  for (let k = 0; k < 9; k++) B(g, 0.18, 0.7, 0.18, 0x8a6a40, -12 + k * 3, 0, 7);
+  B(g, 24, 0.1, 0.08, 0xb88a56, 0, 0.55, 7);
+  C(g, 0.07, 0.07, 2.2, 0x8a6a40, 13, 0, -6, 6); sign(g, 'P', 1.1, 1.0, '#8a6a40', '#ffffff', 13, 3.0, -6);
+  return g;
+}
+function carousel() {
+  const g = new THREE.Group();
+  B(g, 3.6, 0.5, 2.2, 0x9aa3b4, 0, 0, 0); B(g, 3.3, 0.06, 1.9, 0x2b3245, 0, 0.5, 0); B(g, 2.4, 0.3, 1.0, 0xd7dde8, 0, 0.5, 0);
+  const bags = [0xff4e4e, 0x2f7bff, 0x2ec27e, 0xffc928, 0x8b5cf6];
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; B(g, 0.38, 0.28, 0.3, bags[i % 5], Math.cos(a) * 1.45, 0.56, Math.sin(a) * 0.78); }
+  C(g, 0.05, 0.05, 2.6, 0x9aa3b4, 1.9, 0, -1.0, 6); sign(g, 'BAGAGEM', 2.0, 0.45, '#ffc928', '#253154', 1.9, 2.9, -1.0);
+  return g;
+}
+function cargoTerminal() {
+  const g = new THREE.Group();
+  B(g, 11, 4.2, 9, 0xe6eaf1, 0, 0, 0); B(g, 11.2, 0.4, 9.2, 0xff8a1f, 0, 4.2, 0);
+  for (let i = 0; i < 3; i++) B(g, 2.4, 2.8, 0.1, 0x8a93a6, -3.4 + i * 3.4, 0, 4.55);
+  for (let i = 0; i < 3; i++) for (let y = 0.3; y < 2.8; y += 0.35) B(g, 2.3, 0.04, 0.12, 0x6b7280, -3.4 + i * 3.4, y, 4.56);
+  B(g, 11.05, 0.35, 9.05, 0x2f7bff, 0, 3.3, 0);
+  for (let z = -3; z <= 3; z += 2) B(g, 0.08, 0.8, 1.4, M(0x8fd6ff), 5.52, 2.0, z);
+  sign(g, 'CARGAS', 4.5, 0.9, '#ff8a1f', '#ffffff', 0, 5.6, 4.3);
+  const cols = [0x2f7bff, 0xff4e4e, 0x2ec27e, 0xffc928];
+  for (let i = 0; i < 5; i++) B(g, 1.1, 1.1, 1.1, cols[i % 4], -4.5 + i * 2.1, 0, 6.4 + (i % 2) * 0.6);
+  for (let i = 0; i < 3; i++) B(g, 1.0, 0.9, 1.0, 0xc98a52, 6.3, i * 0.9, 2);
+  return g;
+}
+function statue() { const g = new THREE.Group(); B(g, 1.6, 0.8, 1.6, 0xd7dde8, 0, 0, 0); B(g, 1.3, 0.15, 1.3, 0xffc928, 0, 0.8, 0); const p = plane(0, 3); p.scale.setScalar(0.32); p.position.set(0, 1.6, 0); p.rotation.set(-0.5, Math.PI * 0.75, 0); g.add(p); C(g, 0.08, 0.08, 1.0, 0xffc928, 0, 0.95, 0, 6); return g; }
+function flowerbed() { const g = new THREE.Group(); B(g, 3.2, 0.45, 1.2, 0xc98a52, 0, 0, 0); B(g, 3.0, 0.08, 1.0, 0x5a3a20, 0, 0.42, 0); const fc = [0xff4e4e, 0xffc928, 0xff7ab6, 0xffffff, 0x8b5cf6]; for (let i = 0; i < 10; i++) { Sp(g, 0.18, 0x3fae5a, -1.3 + i * 0.29, 0.6, (i % 2) * 0.35 - 0.17, 6); Sp(g, 0.13, fc[i % 5], -1.3 + i * 0.29, 0.78, (i % 2) * 0.35 - 0.17, 6); } return g; }
+function palmPot() { const g = new THREE.Group(); C(g, 0.45, 0.35, 0.6, 0xf7f9fc, 0, 0, 0, 12); C(g, 0.08, 0.12, 2.2, 0x8a5a34, 0, 0.6, 0, 6); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const l = B(g, 1.3, 0.05, 0.35, 0x3fae5a, Math.cos(a) * 0.55, 2.7, Math.sin(a) * 0.55); l.rotation.y = -a; l.rotation.z = -0.4 * Math.sign(Math.cos(a) || 1); } return g; }
+function artwall() { const g = new THREE.Group(); B(g, 3.6, 2.6, 0.25, 0xf7f9fc, 0, 0, 0); const cs = [0x2f7bff, 0xff8a1f, 0xffc928, 0x2ec27e, 0xff7ab6, 0x8b5cf6]; for (let i = 0; i < 6; i++) B(g, 1.0, 0.7, 0.06, cs[i], -1.15 + (i % 3) * 1.15, 0.5 + Math.floor(i / 3) * 0.95, 0.15); return g; }
 
 /* ===================================================================
    ÍCONES 3D (câmera em perspectiva)
@@ -691,6 +828,9 @@ function iconShot(build, size = 192, rot = { x: 0.35, y: -0.6 }) {
   return { png: cnv.toDataURL('image/png') };
 }
 const ICONS = {
+  cargo: () => { const g = new THREE.Group(); B(g, 1.6, 1.2, 1.2, 0xff8a1f, 0, -0.8, 0); for (let i = 0; i < 4; i++) B(g, 0.06, 1.1, 1.22, 0xd86a10, -0.6 + i * 0.4, -0.75, 0); B(g, 1.0, 0.8, 0.9, 0x2f7bff, 0.2, 0.4, 0); return g; },
+  decor: () => palmPot(),
+  contract: () => { const g = new THREE.Group(); B(g, 1.5, 1.9, 0.1, 0xf7f9fc, 0, -0.95, 0); for (let i = 0; i < 4; i++) B(g, 1.0, 0.08, 0.12, 0x9aa3b4, -0.1, 0.5 - i * 0.3 - 0.95 + 1.0, 0.02); C(g, 0.32, 0.32, 0.12, 0xff4e4e, 0.45, -0.85, 0.08, 16).rotation.x = Math.PI / 2; return g; },
   coin: () => { const g = new THREE.Group(); const c = mesh(G.cyl(1, 1, 0.3, 28), M(0xffc531), g); c.rotation.x = Math.PI / 2; const i = mesh(G.cyl(0.74, 0.74, 0.34, 28), M(0xffdc6a), g); i.rotation.x = Math.PI / 2; const s = sign(g, '$', 0.9, 0.9, null, '#e08a00', 0, 0.45, 0.2); s.children[0].visible = false; return g; },
   gem: () => { const g = new THREE.Group(); const m = mesh(new THREE.OctahedronGeometry(1, 0), M(0x3fd6ff), g); m.scale.set(1, 1.25, 1); const t = mesh(new THREE.CylinderGeometry(0.6, 1, 0.5, 6), M(0x8ff0ff), g, 0, 0.55, 0); return g; },
   cash: () => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = B(g, 2, 0.22, 1, 0x3fbf6b, 0, i * 0.23, 0); b.rotation.y = i * 0.12; B(g, 0.5, 0.24, 1.02, 0xe8f7d6, 0, i * 0.23, 0).rotation.y = i * 0.12; } return g; },
@@ -833,9 +973,9 @@ function cleaner(frame) { const g = new THREE.Group(); const p = person({ shirt:
    API para o render.js
    =================================================================== */
 window.STUDIO = {
-  L, PLANES,
+  L, PLANES, PH,
   sprite(name, opts) { return shot(BUILD[name], opts || OPTS[name] || {}); },
-  bg(city) {
+  bg(city, phase = 2) {
     // quadro do mapa inteiro em k=0.75
     const k = 0.75, u = S * k, m = L.map;
     const cs = [[m.x0, m.z0], [m.x1, m.z0], [m.x0, m.z1], [m.x1, m.z1]].map(([x, z]) => [(x - z) / Math.SQRT2, (x + z) / Math.SQRT2 * 0.5]);
@@ -847,7 +987,7 @@ window.STUDIO = {
     scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa8c0, 0.62));
     const d = new THREE.DirectionalLight(0xfff3df, 0.62); d.position.set(-14, 40, 22); d.castShadow = true; d.shadow.mapSize.set(8192, 8192);
     Object.assign(d.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 1, far: 240 }); d.shadow.bias = -0.0004; scene.add(d, d.target);
-    scene.add(background(city));
+    scene.add(background(city, phase));
     const cam = isoCam(W, H, k, oy);
     R.setSize(W, H); R.setClearColor(0x86d35e, 1); R.render(scene, cam);
     const r = crop(W, H, W / 2, H * oy, 'jpg'); r.k = k; return r;
@@ -865,8 +1005,9 @@ const BAGS = [0xff4e4e, 0x2f7bff, 0x2ec27e, 0xffc928, 0x8b5cf6, 0x253154, 0xff8a
 for (let c = 0; c < SHIRTS.length; c++) for (const dir of ['d', 'u']) for (const f of ['0', '1', '2', '3', 'i']) for (const b of ['', 'b']) {
   def(`p${c}_${dir}_${f}${b}`, () => { const g = new THREE.Group(); const p = person({ shirt: SHIRTS[c][0], pants: SHIRTS[c][1], skin: P.skin[c % 4], hair: HAIR[c], frame: f === 'i' ? -1 : +f, bag: b ? BAGS[c] : false }); p.rotation.y = dir === 'd' ? Math.PI / 2 : Math.PI; g.add(p); return g; }, { k: 2, W: 96, H: 96, oy: 0.8, catcher: 0.18 });
 }
-for (let t = 0; t < 3; t++) for (let l = 0; l < LIVERY.length; l++) for (let h = 0; h < 8; h++) {
-  def(`pl${t}_${l}_${h}`, () => { const g = new THREE.Group(); const p = plane(t, l); p.rotation.y = h * Math.PI / 4; g.add(p); return g; }, { k: 1.5, W: 560, H: 420, oy: 0.6, shadow: false });
+// 16 direções; só 2..10 são renderizadas (as outras são o espelho horizontal)
+for (let t = 0; t < 3; t++) for (let l = 0; l < LIVERY.length; l++) for (let h = 2; h <= 10; h++) {
+  def(`pl${t}_${l}_${h}`, () => { const g = new THREE.Group(); const p = plane(t, l); p.rotation.y = h * Math.PI / 8; g.add(p); return g; }, { k: 1.15, W: 440, H: 330, oy: 0.6, shadow: false });
 }
 for (const v of ['bus', 'car', 'taxi', 'fuel', 'tug', 'stairs']) for (let h = 0; h < 4; h++) def(`v_${v}_${h}`, () => { const g = new THREE.Group(); const o = vehicle(v, 0x2f7bff); o.rotation.y = h * Math.PI / 2; g.add(o); return g; }, { k: 1.5, W: 300, H: 240, oy: 0.65 });
 
@@ -890,5 +1031,18 @@ def('obra_s', () => obra(4, 4), { W: 360, H: 260, oy: 0.55 });
 def('obra_m', () => obra(8, 6), { W: 560, H: 380, oy: 0.55 });
 def('obra_l', () => obra(13, 11), { k: 1.2, W: 800, H: 520, oy: 0.5 });
 for (let t = 1; t <= 3; t++) def('aids' + t, () => runwayAids(t), { k: 0.6, W: 2600, H: 1100, oy: 0.12, catcher: 0.15 });
-def('wall', airsideWall, { k: 1, W: 2600, H: 1400, oy: 0.5 });
+def('wall', () => airsideWall(PH[2].tx1, 2), { k: 1, W: 2600, H: 1400, oy: 0.5 });
+def('wall1', () => airsideWall(PH[1].tx1, 1), { k: 1, W: 2000, H: 1100, oy: 0.5 });
+def('wall0', () => airsideWall(PH[0].tx1, 0), { k: 1, W: 1400, H: 800, oy: 0.5 });
+def('checkin_w', checkinWood, { W: 300, H: 300, oy: 0.68 });
+def('security_w', securityWood, { W: 320, H: 320, oy: 0.62 });
+for (let n = 1; n <= 2; n++) def('gatew' + n, () => gateWood(n), { W: 420, H: 360, oy: 0.6 });
+def('tower0', tower0, { W: 260, H: 420, oy: 0.82 });
+def('parking0', parking0, { k: 1.2, W: 1100, H: 760, oy: 0.5 });
+def('carousel', carousel, { W: 300, H: 260, oy: 0.65 });
+def('cargo', cargoTerminal, { k: 1.2, W: 640, H: 520, oy: 0.62 });
+def('statue', statue, { W: 200, H: 260, oy: 0.75 });
+def('flowerbed', flowerbed, { W: 260, H: 180, oy: 0.65 });
+def('palm_pot', palmPot, { W: 200, H: 260, oy: 0.8 });
+def('artwall', artwall, { W: 260, H: 260, oy: 0.75 });
 window.STUDIO.spriteNames = () => Object.keys(BUILD);

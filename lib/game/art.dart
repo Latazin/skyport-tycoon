@@ -24,7 +24,9 @@ class BgTile {
 /// Banco de arte: sprites renderizados em 3D pelo estúdio (tool/studio).
 class Art {
   static final Map<String, Spr> spr = {};
-  static final Map<int, List<BgTile>> bg = {};
+  static final Map<String, List<BgTile>> bg = {};
+  static String bgKey(int b, int phase) => 'bg${b}_${b == 0 ? phase : (phase < 1 ? 1 : phase)}';
+  static List<BgTile> get anyBg => bg.isEmpty ? const [] : bg.values.first;
   static final Map<String, ui.Image> icons = {};
   static bool ready = false;
 
@@ -45,7 +47,6 @@ class Art {
     }
     await Future.wait([for (final n in iconNames) Flame.images.load('art/icons/$n.png').then((img) { icons[n] = img; tick(); })]);
     // só o fundo da primeira cidade agora; os outros sob demanda
-    await loadBg(0, bgs);
     _bgMeta = bgs;
     tick();
     ready = true;
@@ -53,9 +54,9 @@ class Art {
   }
 
   static Map<String, dynamic> _bgMeta = {};
-  static Future<void> loadBg(int i, [Map<String, dynamic>? m]) async {
+  static Future<void> loadBg(String i) async {
     if (bg.containsKey(i)) return;
-    final tiles = ((m ?? _bgMeta)['bg$i'] as List?) ?? [];
+    final tiles = (_bgMeta[i] as List?) ?? [];
     final list = <BgTile>[];
     for (final t in tiles) {
       final img = await Flame.images.load('art/bg/${t['file']}');

@@ -27,23 +27,33 @@ class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.r, required this.reward, required this.onOk});
   @override
   Widget build(BuildContext context) => Center(child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.5, end: 1), duration: const Duration(milliseconds: 500), curve: Curves.elasticOut,
+        tween: Tween(begin: 0.85, end: 1), duration: const Duration(milliseconds: 380), curve: Curves.easeOutBack,
         builder: (_, v, c) => Transform.scale(scale: v, child: c),
         child: Container(
-          margin: const EdgeInsets.all(24), padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: K.cream, borderRadius: BorderRadius.circular(28), border: Border.all(color: K.navy, width: 4)),
+          margin: const EdgeInsets.all(24), padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 30, offset: Offset(0, 10))]),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _stars(r.stars, 46),
-            const SizedBox(height: 10),
-            Text(r.text, textAlign: TextAlign.center, style: display(26, color: r.stars > 0 ? K.gold : K.red)),
-            const SizedBox(height: 8),
-            Text(reward, textAlign: TextAlign.center, style: body(16)),
-            const SizedBox(height: 14),
-            GBtn(color: K.green, onTap: onOk, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12), child: Text('PEGAR', style: display(22))),
+            const SizedBox(height: 12),
+            Text(r.text, textAlign: TextAlign.center, style: body(24, color: r.stars > 0 ? K.ink : K.red, w: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text(reward, textAlign: TextAlign.center, style: body(15, color: K.muted)),
+            const SizedBox(height: 16),
+            GBtn(color: K.green, onTap: onOk, padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 12), child: Text('Pegar', style: display(20))),
           ]),
         ),
       ));
 }
+
+/// Cabeçalho comum dos minijogos.
+Widget _gameHead(EdgeInsets pad, String title, String help, List<Widget> stats) => Positioned(top: pad.top + 12, left: 16, right: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: display(26)),
+      const SizedBox(height: 4),
+      Text(help, style: body(13.5, color: Colors.white.withValues(alpha: 0.85))),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: stats),
+    ]));
+Widget _pill(String t, [Color c = Colors.white]) => Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)), child: Text(t, style: body(15, color: c, w: FontWeight.w900)));
 
 // =====================================================================
 // POUSO PERFEITO
@@ -117,7 +127,7 @@ class _LandingGameState extends State<LandingGame> with SingleTickerProviderStat
               child: Text(started ? 'Velocidade vertical: ${(vy * 60).round()} pés/min' : 'Segure o dedo na tela para levantar o nariz. Solte para descer. Encoste devagar na faixa verde da pista!', textAlign: TextAlign.center, style: body(15, color: Colors.white)),
             ),
           ])),
-          if (!started) Center(child: Text('TOQUE PARA COMEÇAR', style: display(28))),
+          if (!started) Center(child: Text('Toque para começar', style: display(26))),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -306,7 +316,7 @@ class _XrayGameState extends State<XrayGame> with SingleTickerProviderStateMixin
               Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white)),
             ]),
           ])),
-          if (!started) Positioned(left: 0, right: 0, bottom: sz.height * 0.22, child: Center(child: Text('TOQUE PARA COMEÇAR', style: display(28)))),
+          if (!started) Positioned(left: 0, right: 0, bottom: sz.height * 0.22, child: Center(child: Text('Toque para começar', style: display(26)))),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -410,7 +420,214 @@ class _BagGameState extends State<BagGame> with SingleTickerProviderStateMixin {
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Malas: $score', style: display(20)), const SizedBox(width: 18), Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white))]),
             if (flashT > 0) Text(flash, style: display(26, color: flash.startsWith('C') && !flash.startsWith('Car') ? K.gold : flash == 'Certo!' ? K.green : K.red)),
           ])),
-          if (!started) Center(child: Text('TOQUE PARA COMEÇAR', style: display(28))),
+          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
+          Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
+        ]),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// CONTROLE DE TRÁFEGO: autorize os pousos um de cada vez
+// =====================================================================
+class _Arr {
+  double a, r, fuel, land = -1;
+  final int c;
+  _Arr(this.a, this.r, this.fuel, this.c);
+}
+
+class AtcGame extends StatefulWidget {
+  final String Function(int stars) rewardText;
+  const AtcGame({super.key, required this.rewardText});
+  @override
+  State<AtcGame> createState() => _AtcGameState();
+}
+
+class _AtcGameState extends State<AtcGame> with SingleTickerProviderStateMixin {
+  late final Ticker tk;
+  Duration last = Duration.zero;
+  final r = math.Random();
+  static const dur = 40.0;
+  static const cols = [Color(0xFF2F6BFF), Color(0xFFFF7A1A), Color(0xFF18B48D), Color(0xFF8B5CF6), Color(0xFFE8343B)];
+  final List<_Arr> planes = [];
+  double t = 0, spawn = 0.5, flashT = 0;
+  int landed = 0, lost = 0;
+  bool started = false;
+  String flash = '';
+  GameResult? res;
+  @override
+  void initState() { super.initState(); tk = createTicker((d) { final dt = ((d - last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble(); last = d; if (started && res == null) _step(dt); setState(() {}); })..start(); }
+  @override
+  void dispose() { tk.dispose(); super.dispose(); }
+  bool get busy => planes.any((p) => p.land >= 0);
+  void _step(double dt) {
+    t += dt; flashT -= dt; spawn -= dt;
+    if (spawn <= 0 && planes.length < 6) { spawn = math.max(1.4, 3.4 - t * 0.05) + r.nextDouble(); planes.add(_Arr(r.nextDouble() * math.pi * 2, 0.62 + r.nextDouble() * 0.3, 9 + r.nextDouble() * 5, r.nextInt(cols.length))); }
+    for (final p in [...planes]) {
+      if (p.land >= 0) { p.land += dt / 2.4; if (p.land >= 1) { planes.remove(p); landed++; Sfx.play('coin', rate: 1 + landed * 0.03); } continue; }
+      p.a += dt * 0.55 / p.r; p.fuel -= dt;
+      if (p.fuel <= 0) { planes.remove(p); lost++; flash = 'Sem combustível: desviou!'; flashT = 1; Sfx.play('nope'); Sfx.haptic(30); }
+    }
+    if (t >= dur) { final st = landed >= 12 && lost <= 1 ? 3 : landed >= 8 ? 2 : landed >= 4 ? 1 : 0; res = GameResult(st, st == 3 ? 'Torre impecável!' : '$landed pousos seguros'); Sfx.play(st >= 2 ? 'level' : 'pop'); }
+  }
+  void _tap(_Arr p) {
+    if (p.land >= 0) return;
+    if (busy) { flash = 'Pista ocupada! Espere.'; flashT = 0.9; p.fuel -= 2; Sfx.play('nope'); Sfx.haptic(20); return; }
+    p.land = 0; Sfx.play('ding'); Sfx.haptic();
+  }
+  @override
+  Widget build(BuildContext context) {
+    final pad = MediaQuery.of(context).padding, sz = MediaQuery.of(context).size;
+    final c = Offset(sz.width / 2, sz.height * 0.55), R = sz.width * 0.46;
+    final rwA = Offset(c.dx - R * 0.55, c.dy), rwB = Offset(c.dx + R * 0.55, c.dy);
+    Offset posOf(_Arr p) {
+      if (p.land < 0) return c + Offset(math.cos(p.a), math.sin(p.a) * 0.8) * R * p.r;
+      // aproximação até a cabeceira e corrida na pista
+      final start = c + Offset(math.cos(p.a), math.sin(p.a) * 0.8) * R * p.r;
+      if (p.land < 0.45) { final k = p.land / 0.45; return Offset.lerp(start, rwA - const Offset(10, 0), Curves.easeInOut.transform(k))!; }
+      return Offset.lerp(rwA, rwB, Curves.easeOut.transform((p.land - 0.45) / 0.55))!;
+    }
+    return Scaffold(
+      backgroundColor: const Color(0xFF233B5E),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (d) {
+          if (!started) { started = true; return; }
+          if (res != null) return;
+          _Arr? best; var bd = 70.0;
+          for (final p in planes) { final dd = (posOf(p) - d.localPosition).distance; if (dd < bd) { bd = dd; best = p; } }
+          if (best != null) _tap(best);
+        },
+        child: Stack(children: [
+          Positioned.fill(child: CustomPaint(painter: _RadarPainter(c, R, busy))),
+          for (final p in planes) () {
+            final o = posOf(p);
+            final ang = p.land < 0 ? p.a + math.pi / 2 : p.land < 0.45 ? math.atan2(rwA.dy - o.dy, rwA.dx - o.dx) : 0.0;
+            return Positioned(left: o.dx - 26, top: o.dy - 26, child: SizedBox(width: 52, height: 52, child: Stack(alignment: Alignment.center, children: [
+              Container(width: 50, height: 50, decoration: BoxDecoration(shape: BoxShape.circle, color: cols[p.c].withValues(alpha: 0.25), border: Border.all(color: cols[p.c], width: 2.5))),
+              Transform.rotate(angle: ang, child: const Icon(Icons.flight_rounded, color: Colors.white, size: 30)),
+              if (p.land < 0) Positioned(bottom: 0, left: 8, right: 8, child: Container(height: 5, decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(3)), alignment: Alignment.centerLeft, child: FractionallySizedBox(widthFactor: (p.fuel / 14).clamp(0.0, 1.0), child: Container(decoration: BoxDecoration(color: p.fuel < 4 ? K.red : K.green, borderRadius: BorderRadius.circular(3)))))),
+            ])));
+          }(),
+          _gameHead(pad, 'Torre de Controle', 'Toque num avião para autorizar o pouso. Um por vez na pista! Não deixe o combustível acabar.', [_pill('Pousos: $landed'), _pill('Tempo: ${math.max(0, dur - t).ceil()}s', t > dur - 6 ? K.red : Colors.white), if (lost > 0) _pill('Desvios: $lost', K.red)]),
+          if (flashT > 0) Positioned(top: sz.height * 0.82, left: 0, right: 0, child: Center(child: _pill(flash, const Color(0xFFFFC9CE)))),
+          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
+          Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
+        ]),
+      ),
+    );
+  }
+}
+
+class _RadarPainter extends CustomPainter {
+  final Offset c;
+  final double R;
+  final bool busy;
+  _RadarPainter(this.c, this.R, this.busy);
+  @override
+  void paint(Canvas cv, Size z) {
+    final ring = Paint()..style = PaintingStyle.stroke..strokeWidth = 1.2..color = const Color(0x3384C5FF);
+    for (var k = 1; k <= 4; k++) { cv.drawOval(Rect.fromCenter(center: c, width: R * 2 * k / 4 * 1.0, height: R * 1.6 * k / 4), ring); }
+    final rw = RRect.fromRectAndRadius(Rect.fromCenter(center: c, width: R * 1.2, height: 26), const Radius.circular(6));
+    cv.drawRRect(rw, Paint()..color = const Color(0xFF3B4558));
+    for (var x = -R * 0.5; x < R * 0.5; x += 22) { cv.drawLine(c + Offset(x, 0), c + Offset(x + 11, 0), Paint()..color = Colors.white70..strokeWidth = 2); }
+    cv.drawRRect(rw, Paint()..style = PaintingStyle.stroke..strokeWidth = 3..color = busy ? const Color(0xFFFF4D5E) : const Color(0xFF1DB66E));
+  }
+  @override
+  bool shouldRepaint(covariant _RadarPainter o) => o.busy != busy;
+}
+
+// =====================================================================
+// PÁTIO: mande cada avião para o portão da cor certa
+// =====================================================================
+class YardGame extends StatefulWidget {
+  final String Function(int stars) rewardText;
+  const YardGame({super.key, required this.rewardText});
+  @override
+  State<YardGame> createState() => _YardGameState();
+}
+
+class _YardGameState extends State<YardGame> with SingleTickerProviderStateMixin {
+  late final Ticker tk;
+  Duration last = Duration.zero;
+  final r = math.Random();
+  static const dur = 35.0;
+  static const cols = [Color(0xFF2F6BFF), Color(0xFFFF7A1A), Color(0xFF18B48D), Color(0xFF8B5CF6)];
+  final List<int> queue = [];
+  final List<double> busy = [0, 0, 0, 0];
+  double t = 0, spawn = 0.2, flashT = 0;
+  int score = 0, miss = 0;
+  bool started = false;
+  String flash = '';
+  GameResult? res;
+  @override
+  void initState() { super.initState(); tk = createTicker((d) { final dt = ((d - last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble(); last = d; if (started && res == null) _step(dt); setState(() {}); })..start(); }
+  @override
+  void dispose() { tk.dispose(); super.dispose(); }
+  void _step(double dt) {
+    t += dt; flashT -= dt; spawn -= dt;
+    for (var i = 0; i < 4; i++) { busy[i] = math.max(0, busy[i] - dt); }
+    if (spawn <= 0) {
+      spawn = math.max(0.9, 2.2 - t * 0.035);
+      if (queue.length >= 5) { miss++; flash = 'Fila cheia: voo atrasado!'; flashT = 1; Sfx.play('nope'); } else { queue.add(r.nextInt(4)); }
+    }
+    if (t >= dur) { final st = score >= 18 && miss <= 1 ? 3 : score >= 12 ? 2 : score >= 6 ? 1 : 0; res = GameResult(st, st == 3 ? 'Pátio perfeito!' : '$score aviões estacionados'); Sfx.play(st >= 2 ? 'level' : 'pop'); }
+  }
+  void _gate(int i) {
+    if (!started) { started = true; return; }
+    if (res != null || queue.isEmpty) return;
+    if (busy[i] > 0) { flash = 'Portão ocupado!'; flashT = 0.8; Sfx.play('nope'); Sfx.haptic(20); return; }
+    final c = queue.first;
+    if (c != i) { flash = 'Portão errado!'; flashT = 0.8; queue.removeAt(0); miss++; Sfx.play('nope'); Sfx.haptic(30); return; }
+    queue.removeAt(0); busy[i] = 2.6 + r.nextDouble() * 1.4; score++; Sfx.play('coin', rate: 1 + score * 0.03); Sfx.haptic();
+  }
+  @override
+  Widget build(BuildContext context) {
+    final pad = MediaQuery.of(context).padding, sz = MediaQuery.of(context).size;
+    return Scaffold(
+      backgroundColor: const Color(0xFF3A4A5E),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) { if (!started) started = true; },
+        child: Stack(children: [
+          // fila de aviões chegando
+          Positioned(left: 16, right: 16, top: sz.height * 0.3, child: Container(
+            height: 86, padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(color: const Color(0xFF2B3546), borderRadius: BorderRadius.circular(20)),
+            child: Row(children: [
+              for (var k = 0; k < queue.length; k++) AnimatedContainer(
+                duration: const Duration(milliseconds: 200), margin: const EdgeInsets.only(right: 8),
+                width: k == 0 ? 70 : 52, height: k == 0 ? 70 : 52,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: cols[queue[k]], border: k == 0 ? Border.all(color: Colors.white, width: 3) : null),
+                child: Transform.rotate(angle: math.pi / 2, child: Icon(Icons.flight_rounded, color: Colors.white, size: k == 0 ? 40 : 30)),
+              ),
+              if (queue.isEmpty) Expanded(child: Center(child: Text('Aguardando aviões...', style: body(14, color: Colors.white70)))),
+            ]),
+          )),
+          Positioned(left: 16, top: sz.height * 0.3 + 92, child: Text('Próximo avião ↑  ·  toque no portão da mesma cor', style: body(12.5, color: Colors.white70))),
+          // portões
+          Positioned(left: 12, right: 12, bottom: pad.bottom + 24, height: sz.height * 0.34, child: Row(children: [
+            for (var i = 0; i < 4; i++) Expanded(child: GestureDetector(
+              onTap: () => _gate(i),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                decoration: BoxDecoration(color: cols[i].withValues(alpha: busy[i] > 0 ? 0.12 : 0.28), borderRadius: BorderRadius.circular(20), border: Border.all(color: cols[i], width: 3)),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('Portão ${i + 1}', style: body(14, color: Colors.white, w: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  busy[i] > 0
+                      ? Column(children: [Icon(Icons.flight_rounded, color: cols[i], size: 46), const SizedBox(height: 6), SizedBox(width: 50, child: LinearProgressIndicator(value: busy[i] / 4, color: Colors.white, backgroundColor: Colors.white24, minHeight: 5))])
+                      : Icon(Icons.local_parking_rounded, color: Colors.white.withValues(alpha: 0.5), size: 46),
+                ]),
+              ),
+            )),
+          ])),
+          _gameHead(pad, 'Pátio', 'Mande cada avião para o portão da cor dele. Portão ocupado não recebe ninguém!', [_pill('Estacionados: $score'), _pill('Tempo: ${math.max(0, dur - t).ceil()}s', t > dur - 6 ? K.red : Colors.white)]),
+          if (flashT > 0) Positioned(top: sz.height * 0.24, left: 0, right: 0, child: Center(child: _pill(flash, const Color(0xFFFFC9CE)))),
+          if (!started) Center(child: Text('Toque para começar', style: display(26))),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),

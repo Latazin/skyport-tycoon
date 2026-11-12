@@ -55,7 +55,6 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     offline = st.ls > 0 ? (nowMs() - st.ls) / 1000 : 0;
     Sfx.music = st.music; Sfx.sound = st.sound; Sfx.vibration = st.vibration;
     await Art.load((k) { if (mounted) setState(() => progress = k); });
-    await Art.loadBg(cityAt(st.city).bg);
     await Sfx.init();
     final q = Uri.base.queryParameters;
     if (q['demo'] == '1') {
@@ -70,8 +69,20 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
       st.cnt.addAll({'flights': 300, 'upgrades': 900, 'collects': 60});
       st.estimate();
     }
+    if (q['demo'] == 'p0' || q['demo'] == 'p1') {
+      final p1 = q['demo'] == 'p1';
+      st..money = p1 ? 4e4 : 900..gems = 40..tut = 7..star = p1 ? 1 : 0..flightsCity = 30..mission = 8;
+      st.lv.addAll(p1 ? {'entrada': 22, 'checkin': 20, 'seguranca': 18, 'g0': 24, 'g1': 12, 'g2': 3, 'lojas': 6, 'pista': 14, 'torre': 8} : {'entrada': 9, 'checkin': 8, 'seguranca': 7, 'g0': 9, 'g1': 3, 'pista': 4, 'torre': 3});
+      st.mgr.addAll(p1 ? ['lia', 'ana'] : ['lia']);
+      st.decor.addAll(['d1', 'd2']);
+      st.estimate();
+    }
+    if (q['demo'] == '1') st.decor.addAll(['d1', 'd2', 'd3', 'd4']);
+    if (q['star'] != null) st.star = int.parse(q['star']!);
     if (q['chest'] == '1') st.chestsQ.add('chest_gold');
     if (q['tut'] != null) st.tut = int.parse(q['tut']!);
+    await Art.loadBg(Art.bgKey(cityAt(st.city).bg, st.phase));
+    if (st.phase < 3) Art.loadBg(Art.bgKey(cityAt(st.city).bg, st.phase + 1));
     if (mounted) setState(() => s = st);
     panel0 = q['panel'];
     if (q['auto'] == '1') _play();
@@ -101,9 +112,9 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
                   colors: [const Color(0xE6103A8A), const Color(0x88103A8A), const Color(0x00103A8A), const Color(0x00103A8A), const Color(0xE60B1A3E)], stops: const [0, 0.26, 0.42, 0.62, 1])))),
               Align(alignment: const Alignment(0, -0.66), child: Opacity(opacity: ease(0, 0.3), child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Transform.translate(offset: Offset(-40 + ease(0, 0.8) * 40, -a.value * 6), child: Transform.scale(scale: el(0.05, 0.6), child: const Ico('plane', size: 110))),
-                Transform.scale(scale: el(0.12, 0.65), child: Text('SKYPORT', style: display(62))),
+                Transform.scale(scale: el(0.12, 0.65), child: Text('SKYPORT', style: display(62).copyWith(shadows: const [Shadow(color: Color(0x661F2A44), offset: Offset(0, 4), blurRadius: 10)]))),
                 Transform.scale(scale: el(0.2, 0.75), child: Stack(children: [
-                  Text('TYCOON', style: display(70)),
+                  Text('TYCOON', style: display(70).copyWith(color: const Color(0xFF1F2A44), shadows: const [Shadow(color: Color(0x661F2A44), offset: Offset(0, 4), blurRadius: 10)])),
                   ShaderMask(
                     shaderCallback: (r) => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFFFF4B0), Color(0xFFFFC531), Color(0xFFFF8F00)]).createShader(r),
                     blendMode: BlendMode.srcIn,
@@ -112,15 +123,15 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
                 ])),
                 const SizedBox(height: 6),
                 Transform.scale(scale: el(0.3, 0.85), child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-                  decoration: BoxDecoration(color: const Color(0xFF2F7BFF), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white, width: 2.5)),
-                  child: Text('AEROPORTO IDLE', style: display(18)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: K.shadow),
+                  child: Text('Do aeroclube ao hub mundial', style: body(15, color: K.blue, w: FontWeight.w900)),
                 )),
               ]))),
               Align(alignment: const Alignment(0, 0.8), child: s == null
                   ? SizedBox(width: 240, child: Column(mainAxisSize: MainAxisSize.min, children: [GBar(value: progress, height: 18, color: K.gold), const SizedBox(height: 8), Text('Preparando a pista... ${(progress * 100).round()}%', style: body(14, color: Colors.white))]))
-                  : Transform.scale(scale: (1 + a.value * 0.05) * el(0.45, 1), child: GBtn(color: K.green, onTap: _play, padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 16), child: Text('JOGAR', style: display(36))))),
-              Positioned(bottom: 10, left: 0, right: 0, child: Text('v2.0', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
+                  : Transform.scale(scale: el(0.45, 1), child: GBtn(color: K.green, onTap: _play, radius: 22, padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 16), child: Text('Jogar', style: display(32))))),
+              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.0', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
             ]);
           },
         ),

@@ -33,7 +33,7 @@ class SkyGame extends FlameGame {
     camera.viewfinder.anchor = Anchor.center;
     final first = s.tut < 2;
     camera.viewfinder.zoom = (size.x / (first ? 760 : 980)).clamp(0.3, 0.9);
-    final o = first ? iso(-33, 9, 2) : iso(-14, 2);
+    final o = first ? iso(-33, 9, 2) : iso(s.phase == 0 ? -28 : -14, 2);
     camera.viewfinder.position = Vector2(o.dx, o.dy);
     for (var i = 0; i < 6; i++) { Future.delayed(Duration(milliseconds: 400 * i), () => w.spawnAt(Lay.door.$1 + i * 0.5, 17)); }
   }
@@ -56,7 +56,15 @@ class SkyGame extends FlameGame {
     final after = screenToWorld(focal);
     camera.viewfinder.position = camera.viewfinder.position + (before - after); _camTarget = null; _clamp();
   }
-  void _clamp() { final p = camera.viewfinder.position; camera.viewfinder.position = Vector2(p.x.clamp(-1900.0, 1900.0), p.y.clamp(-900.0, 900.0)); }
+  /// Limita a câmera à área da fase atual (o mapa cresce junto com o aeroporto).
+  void _clamp() {
+    final ph = s.ph;
+    final cs = [iso(ph.camX0, ph.camZ0), iso(ph.camX1, ph.camZ0), iso(ph.camX0, ph.camZ1), iso(ph.camX1, ph.camZ1)];
+    var l = cs[0].dx, r = cs[0].dx, t = cs[0].dy, b = cs[0].dy;
+    for (final o in cs) { l = math.min(l, o.dx); r = math.max(r, o.dx); t = math.min(t, o.dy); b = math.max(b, o.dy); }
+    final p = camera.viewfinder.position;
+    camera.viewfinder.position = Vector2(p.x.clamp(l, r).toDouble(), p.y.clamp(t - 120, b).toDouble());
+  }
   /// Centraliza uma estação (com espaço para o painel de baixo).
   void focusStation(String id, {bool sheet = false}) {
     final c = w.stationCenter(id);
@@ -67,17 +75,22 @@ class SkyGame extends FlameGame {
   }
   void focusWorld(double x, double z, {double? zoomTo}) { final o = iso(x, z); _camTarget = Vector2(o.dx, o.dy); _zoomTarget = zoomTo; }
   /// Visão geral (dois toques).
-  void overview() { if (zoom < 0.36) { focusWorld(-24, 6, zoomTo: 0.6); } else { focusWorld(-8, -6, zoomTo: (size.x / 1700).clamp(0.2, 0.4).toDouble()); } }
+  void overview() {
+    final ph = s.ph, cx = (ph.camX0 + ph.camX1) / 2;
+    if (zoom < 0.36) { focusWorld(-24, 6, zoomTo: 0.6); } else { focusWorld(cx, -6, zoomTo: (size.x / (ph.camX1 - ph.camX0) / 20).clamp(0.2, 0.45).toDouble()); }
+  }
 
-  /// Toque no mundo: presentes, aviões, estações.
-  void tapAt(Offset screen) {
+  /// Toque no mundo: escolhe o alvo mais importante e menor sob o dedo.
+  String tapAt(Offset screen) {
     final p = screenToWorld(screen), o = Offset(p.x, p.y);
-    for (final h in scene.hits.reversed) {
+    Hit? best;
+    for (final h in scene.hits) {
       if (!h.r.contains(o)) continue;
-      onTap?.call(h.id);
-      return;
+      if (best == null || h.prio < best.prio || (h.prio == best.prio && h.r.width * h.r.height < best.r.width * best.r.height)) best = h;
     }
-    onTap?.call('none');
+    final id = best?.id ?? 'none';
+    onTap?.call(id);
+    return id;
   }
 
   double _saveT = 0;
@@ -96,9 +109,9 @@ class SkyGame extends FlameGame {
     if (_camTarget != null) {
       final d = _camTarget! - vf.position;
       if (d.length < 2) { _camTarget = null; } else { vf.position = vf.position + d * math.min(1.0, step * 5); }
-    } else if (!dragging && vel.length > 5) {
-      vf.position = vf.position - vel * step / vf.zoom; vel.scale(math.pow(0.03, step).toDouble()); _clamp();
-    }
+    } else if (!dragging && vel.length > 8) {
+      vf.position = vf.position - vel * step / vf.zoom; vel.scale(math.pow(0.02, step).toDouble()); _clamp();
+    } else { vel.setZero(); }
     final a = screenToWorld(Offset.zero), b = screenToWorld(Offset(size.x, size.y));
     scene.view = Rect.fromLTRB(a.x, a.y, b.x, b.y).inflate(160);
     scene.zoom = zoom;

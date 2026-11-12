@@ -13,17 +13,19 @@ Offset iso(double x, double z, [double y = 0]) => Offset((x - z) * 0.70710678 * 
 (double, double) toGround(double u, double v) { final a = u / (0.70710678 * S), b = v / (0.35355339 * S); return ((a + b) / 2, (b - a) / 2); }
 
 /// Etapas do passageiro visual.
-class St8 { static const walkCheck = 0, queueCheck = 1, walkSec = 2, queueSec = 3, walkShop = 4, shopping = 5, walkGate = 6, waitGate = 7, boarding = 8; }
+class St8 { static const walkCheck = 0, queueCheck = 1, walkSec = 2, queueSec = 3, walkShop = 4, shopping = 5, walkGate = 6, waitGate = 7, boarding = 8, arriving = 9, carousel = 10, leaving = 11; }
 
 /// Passageiro visual (cosmético, segue o ritmo real das estações).
 class Agent {
   double x, z, speed;
   final int c;
   bool bag = true, shop;
-  int stage = St8.walkCheck, desk = -1, lane = -1, gate = -1, qi = -1;
-  double wait = 0, anim = 0, fade = 1, hx = 1, hz = 0, waitQ = 0, emoT = 0, stuck = 0;
+  int stage = St8.walkCheck, desk = -1, lane = -1, gate = -1, qi = -1, seat = -1, shopI = 0;
+  double wait = 0, anim = 0, fade = 1, hx = 1, hz = 0, waitQ = 0, emoT = 0, stuck = 0, y = -1;
   String emo = '';
-  bool moving = false;
+  bool moving = false, outside = false;
+  // escada do avião: (x do pé, x do topo, altura)
+  (double, double, double)? stairs;
   List<(double, double)> path = [];
   Agent(this.x, this.z, this.c, this.speed, this.shop);
 }
@@ -90,6 +92,22 @@ class AirWorld {
   double _svcS() => _svc(s.muS, lanes);
 
   // ---------- passageiros ----------
+  static const corridorZ = 1.8, frontZ = 15.3, backZ = -4.4, leftX = -46.95;
+  bool _noBridge(int g, int tier) => !s.ph.bridges || tier < 1;
+  /// Porta do avião estacionado (x, z) e raio da fuselagem.
+  (double, double, double) planeDoor(int g, int tier) {
+    const r = [0.46, 0.62, 0.82], door = [0.2, 0.17, 0.15];
+    return (Lay.gates[g] + r[tier], Lay.standNose - planeTypes[tier].len * door[tier], r[tier]);
+  }
+  /// Vagas de assento na sala de embarque.
+  List<(double, double)> seatsAt(int g) {
+    final gx = Lay.gates[g];
+    final rows = s.ph.wood ? 2 : gateVis(s.lvl('g$g'));
+    final dz = s.ph.wood ? 1.4 : 1.3, nx = s.ph.wood ? 5 : 6;
+    return [for (var r = 0; r < rows; r++) for (var k = 0; k < nx; k++) (gx - 1.0 + k * 0.7, -2.0 + r * dz + 0.38)];
+  }
+  final List<Set<int>> _taken = List.generate(6, (_) => <int>{});
+
   void spawnAt(double x, double z) {
     if (agents.length >= maxAgents) return;
     final a = Agent(x, z, r.nextInt(8), 1.9 + r.nextDouble() * 0.7, s.built('lojas') && r.nextDouble() < 0.55);
@@ -102,22 +120,22 @@ class AirWorld {
     final d = _shortest(deskQ, desks);
     a.desk = d; a.stage = St8.walkCheck; a.qi = -1; deskQ[d].add(a);
     final door = Lay.door;
-    a.path = [(door.$1 + r.nextDouble() * 2 - 1, door.$2 - 0.6), (deskSlot(d, 0).$1, 13.6)];
+    a.path = [(door.$1 + r.nextDouble() * 2 - 1, door.$2 - 0.6), (deskSlot(d, 0).$1, frontZ - 1.2)];
   }
   void _toSecurity(Agent a) {
     final l = _shortest(laneQ, lanes);
     a.lane = l; a.stage = St8.walkSec; a.qi = -1; a.waitQ = 0; laneQ[l].add(a);
     final dp = deskPos(a.desk);
-    a.path = [(dp.$1 + 1.2, dp.$2 + 1.2), (dp.$1 + 1.2, 14.2), (laneSlot(l, 0).$1, 14.2)];
+    a.path = [(dp.$1 + 1.3, dp.$2 + 1.2), (dp.$1 + 1.3, frontZ), (laneSlot(l, 0).$1, frontZ)];
   }
   void _afterSecurity(Agent a) {
     final lp = lanePos(a.lane);
-    final exit = [(lp.$1 + 0.75, lp.$2 - 2.7), (lp.$1 + 0.75, 1.0)];
+    final exit = [(lp.$1 + 0.75, lp.$2 - 2.7), (lp.$1 + 0.75, corridorZ)];
     final shops = shopsFor(s.lvl('lojas'));
     if (a.shop && shops > 0) {
-      final sh = Lay.shops[r.nextInt(shops)];
-      a.stage = St8.walkShop; a.wait = 1.4 + r.nextDouble() * 2;
-      a.path = [exit[0], (lp.$1 + 0.75, 2.2), (sh.$1 + r.nextDouble() * 1.6 - 0.8, sh.$2 + 2.1)];
+      final i = r.nextInt(shops), sh = Lay.shops[i], gap = sh.$1 + 3.0;
+      a.shopI = i; a.stage = St8.walkShop; a.wait = 1.4 + r.nextDouble() * 2;
+      a.path = [...exit, (gap, corridorZ), (gap, sh.$2 + 3.0), (sh.$1 + r.nextDouble() * 1.6 - 0.8, sh.$2 + 2.6)];
     } else {
       _toGate(a, exit);
     }
@@ -128,15 +146,58 @@ class AirWorld {
     final pool = soon.isNotEmpty && r.nextDouble() < 0.8 ? soon : open;
     final g = pool[r.nextInt(pool.length)];
     a.gate = g; a.stage = St8.walkGate;
-    final gx = Lay.gates[g];
-    a.path = [...prefix, (a.x, 0.9), (gx + r.nextDouble() * 3.4 - 1.2, -0.7 + r.nextDouble() * 1.9)];
-    if (prefix.isNotEmpty) a.path.removeAt(prefix.length);
+    // assento livre (ou em pé ao lado)
+    final seats = seatsAt(g);
+    final free = [for (var i = 0; i < seats.length; i++) if (!_taken[g].contains(i)) i];
+    (double, double) spot;
+    if (free.isNotEmpty) { a.seat = free[r.nextInt(free.length)]; _taken[g].add(a.seat); spot = seats[a.seat]; }
+    else { a.seat = -1; spot = (Lay.gates[g] + 3.0 + r.nextDouble() * 1.4, -2.6 + r.nextDouble() * 3.6); }
+    final p = <(double, double)>[...prefix];
+    if (prefix.isEmpty) {
+      if (a.stage == St8.walkGate && a.shopI >= 0 && a.z > 5) { final gap = Lay.shops[a.shopI].$1 + 3.0; p.addAll([(gap, a.z), (gap, corridorZ)]); }
+      else { p.add((a.x, corridorZ)); }
+    }
+    p.addAll([(spot.$1, corridorZ), spot]);
+    a.path = p;
   }
+  void _freeSeat(Agent a) { if (a.gate >= 0 && a.seat >= 0) _taken[a.gate].remove(a.seat); a.seat = -1; }
   void _board(Agent a) {
-    final gx = Lay.gates[a.gate];
+    final g = a.gate, G = s.gates[g], gx = Lay.gates[g];
+    _freeSeat(a);
     a.stage = St8.boarding;
-    a.path = [(gx + 2.0, -3.4), (gx + 3.2, -4.6)];
+    if (_noBridge(g, G.tier)) {
+      final d = planeDoor(g, G.tier);
+      a.stairs = (d.$1 + 2.6, d.$1 + 0.35, 1.0 + d.$3 * 1.4);
+      a.path = [(gx + 3.2, backZ), (gx + 3.2, -5.7), (d.$1 + 2.8, d.$2), (d.$1 + 0.35, d.$2)];
+    } else {
+      a.path = [(gx + 3.2, -3.4), (gx + 3.2, -4.7)];
+    }
     if (r.nextDouble() < 0.3) { a.emo = '😍'; a.emoT = 1.6; }
+  }
+  /// Desembarque: um grupo sai do avião, pega a mala e vai embora.
+  void arrivals(int g, int pax) {
+    final G = s.gates[g], gx = Lay.gates[g];
+    final n = math.min(maxAgents + 14 - agents.length, math.min(9, 2 + pax ~/ 14));
+    for (var i = 0; i < n; i++) {
+      Future.delayed(Duration(milliseconds: 380 * i), () {
+        final a = Agent(0, 0, r.nextInt(8), 2.0 + r.nextDouble() * 0.6, false)..bag = false..stage = St8.arriving..fade = 0;
+        final p = <(double, double)>[];
+        if (_noBridge(g, G.tier)) {
+          final d = planeDoor(g, G.tier);
+          a.x = d.$1 + 0.35; a.z = d.$2; a.stairs = (d.$1 + 2.6, d.$1 + 0.35, 1.0 + d.$3 * 1.4);
+          p.addAll([(d.$1 + 2.8, d.$2), (gx + 3.2, -5.7)]);
+        } else { a.x = gx + 3.2; a.z = -4.9; }
+        p.addAll([(gx + 3.2, backZ), (leftX, backZ)]);
+        if (s.phase >= 1) { p.addAll([(leftX, -0.2), (Lay.carousel.$1 + r.nextDouble() * 2.4 - 1.2, -0.3)]); }
+        else { p.add((leftX, frontZ)); }
+        a.path = p;
+        agents.add(a);
+      });
+    }
+  }
+  void _leave(Agent a) {
+    a.stage = St8.leaving; a.bag = true;
+    a.path = [(leftX, a.z + 0.6), (leftX, frontZ), (-45.5, 17.0), (-47.5 - r.nextDouble() * 3, 19.5)];
   }
 
   bool _walk(Agent a, double dt) {
@@ -183,7 +244,11 @@ class AirWorld {
     }
     for (final a in [...agents]) {
       if (a.emoT > 0) a.emoT -= dt;
+      if (a.stage == St8.arriving && a.fade < 1) a.fade = math.min(1.0, a.fade + dt * 3);
       final arrived = _walk(a, dt);
+      a.outside = a.z < -5.0 && a.z > -16;
+      final st = a.stairs;
+      if (st != null && a.outside && a.x <= st.$1 + 0.05) { a.y = ((st.$1 - a.x) / (st.$1 - st.$2)).clamp(0.0, 1.0) * st.$3; } else { a.y = -1; }
       if (!arrived) continue;
       switch (a.stage) {
         case St8.walkShop: a.stage = St8.shopping; break;
@@ -191,32 +256,44 @@ class AirWorld {
           a.wait -= dt;
           if (a.wait <= 0) { if (r.nextDouble() < 0.6) { a.emo = '😃'; a.emoT = 1.6; } _toGate(a); }
           break;
-        case St8.walkGate: a.stage = St8.waitGate; break;
+        case St8.walkGate: a.stage = St8.waitGate; a.hx = 0.6; a.hz = 0.8; break;
         case St8.waitGate:
-          if (!s.built('g${a.gate}')) { _toGate(a); break; }
-          if (s.gates[a.gate].phase == Ph.boarding) _board(a);
+          if (!s.built('g${a.gate}')) { _freeSeat(a); _toGate(a); break; }
+          if (s.gates[a.gate].phase == Ph.boarding && r.nextDouble() < dt * 2.5) _board(a);
           break;
         case St8.boarding:
           a.fade -= dt * 3;
+          if (a.fade <= 0) agents.remove(a);
+          break;
+        case St8.arriving:
+          if (s.phase >= 1) { a.stage = St8.carousel; a.wait = 1.2 + r.nextDouble() * 1.8; } else { _leave(a); }
+          break;
+        case St8.carousel:
+          a.wait -= dt; a.moving = false;
+          if (a.wait <= 0) { if (r.nextDouble() < 0.25) { a.emo = '😃'; a.emoT = 1.4; } _leave(a); }
+          break;
+        case St8.leaving:
+          a.fade -= dt * 2.5;
           if (a.fade <= 0) agents.remove(a);
           break;
       }
     }
     if (agents.length > maxAgents) {
       final w = agents.where((a) => a.stage == St8.waitGate).toList();
-      if (w.isNotEmpty) { final a = w.first; a.stage = St8.boarding; a.path = []; }
+      if (w.isNotEmpty) { final a = w.first; _freeSeat(a); a.stage = St8.boarding; a.path = []; }
     }
   }
 
   // ---------- faxineiros ----------
-  static const _cleanSpots = [(-40.0, 12.0), (-30.0, 3.0), (-15.0, 11.0), (-8.0, 1.5), (2.0, 12.0), (14.0, 3.0), (-36.0, -2.4), (-6.0, -2.4), (18.0, -2.4), (24.0, 12.0)];
+  static const _cleanSpots = [(-40.0, 12.0), (-30.0, 3.0), (-15.0, 11.0), (-9.0, 1.5), (2.0, 12.0), (14.0, 3.0), (-36.0, -4.3), (-9.0, -4.3), (18.0, -4.3), (24.0, 12.0)];
   void _cleanersTick(double dt) {
     final want = cleanersFor(s.lvl('checkin'));
-    while (cleaners.length < want) { final p = _cleanSpots[r.nextInt(_cleanSpots.length)]; cleaners.add(Cleaner(p.$1, p.$2, _cleanSpots[r.nextInt(_cleanSpots.length)])); }
+    final spots = _cleanSpots.where((p) => p.$1 < s.ph.termX1 - 1.5).toList();
+    while (cleaners.length < want) { final p = spots[r.nextInt(spots.length)]; cleaners.add(Cleaner(p.$1, p.$2, spots[r.nextInt(spots.length)])); }
     for (final c in cleaners) {
       if (c.pause > 0) { c.pause -= dt; c.moving = false; continue; }
       final dx = c.tgt.$1 - c.x, dz = c.tgt.$2 - c.z, d = math.sqrt(dx * dx + dz * dz), st = 1.3 * dt;
-      if (d <= st) { c.x = c.tgt.$1; c.z = c.tgt.$2; c.pause = 1.5 + r.nextDouble() * 2; c.tgt = _cleanSpots[r.nextInt(_cleanSpots.length)]; }
+      if (d <= st) { c.x = c.tgt.$1; c.z = c.tgt.$2; c.pause = 1.5 + r.nextDouble() * 2; c.tgt = spots[r.nextInt(spots.length)]; }
       else { c.x += dx / d * st; c.z += dz / d * st; c.hx = dx / d; c.hz = dz / d; c.anim += dt * 3; c.moving = true; }
     }
   }
@@ -235,16 +312,21 @@ class AirWorld {
       final kind = r.nextDouble() < 0.25 ? 'taxi' : 'car${r.nextInt(6)}';
       vehicles.add(Vehicle(kind, dir ? -100.0 : 110.0, dir ? 18.9 : 21.4, 11 + r.nextDouble() * 4, [(dir ? 110.0 : -100.0, dir ? 18.9 : 21.4)]));
     }
+    const svc = -5.9;
     if (_tugT <= 0 && s.gatesOpen >= 2 && vehicles.where((v) => v.kind == 'tug').length < 2) {
       _tugT = 8 + r.nextDouble() * 8;
       final open = [for (var g = 0; g < 6; g++) if (s.built('g$g')) g];
-      final a = Lay.gates[open[r.nextInt(open.length)]], b = Lay.gates[open[r.nextInt(open.length)]];
-      vehicles.add(Vehicle('tug', a + 4.6, -10.0, 5.0, [(a + 4.6, -23.0), (b + 4.6, -23.0), (b + 4.6, -10.0), (b + 4.6, -10.01)]));
+      final a = Lay.gates[open[r.nextInt(open.length)]] + 4.7, b = Lay.gates[open[r.nextInt(open.length)]] + 4.7;
+      if (s.built('cargas') && r.nextBool()) {
+        vehicles.add(Vehicle('tug', 43.0, -3.0, 5.0, [(43.0, svc), (b, svc), (b, -10.5), (b, svc), (43.0, svc), (43.0, -3.0)]));
+      } else if ((a - b).abs() > 1) {
+        vehicles.add(Vehicle('tug', a, -10.5, 5.0, [(a, svc), (b, svc), (b, -10.5), (b, -10.51)]));
+      }
     }
     if (_tugT <= 0 && s.built('combustivel') && !vehicles.any((v) => v.kind == 'fuel')) {
       final open = [for (var g = 0; g < 6; g++) if (s.built('g$g')) g];
-      final b = Lay.gates[open[r.nextInt(open.length)]];
-      vehicles.add(Vehicle('fuel', Lay.fuel.$1 - 5, -23.0, 6.0, [(b + 4.6, -23.0), (b + 4.6, -12.0), (b + 4.6, -23.0), (Lay.fuel.$1 - 5, -23.0)]));
+      final b = Lay.gates[open[r.nextInt(open.length)]] + 4.7;
+      vehicles.add(Vehicle('fuel', 44.0, -11.0, 6.0, [(44.0, svc), (b, svc), (b, -11.0), (b, svc), (44.0, svc), (44.0, -11.0)]));
     }
     for (final v in [...vehicles]) {
       if (v.wait > 0) { v.wait -= dt; continue; }
@@ -255,7 +337,7 @@ class AirWorld {
       if (d <= st) {
         v.x = tg.$1; v.z = tg.$2; v.path.removeAt(0);
         if (v.kind == 'bus' && v.path.length == 1) { v.wait = 2.5; final n = 1 + r.nextInt(2 + math.min(5, el ~/ 15)); for (var i = 0; i < n; i++) { Future.delayed(Duration(milliseconds: 280 * i), () => spawnAt(Lay.busStop.$1 + r.nextDouble() * 2, Lay.busStop.$2 - 1.2)); } }
-        if ((v.kind == 'tug' || v.kind == 'fuel') && v.path.length == 1) v.wait = 3;
+        if ((v.kind == 'tug' || v.kind == 'fuel') && v.path.length == 3 && v.z < -9) v.wait = 3;
       } else { v.x += dx / d * st; v.z += dz / d * st; }
     }
   }
@@ -268,38 +350,79 @@ class AirWorld {
   ];
 
   // ---------- aviões ----------
-  final Map<String, Path3> _pc = {};
-  Path3 _p(String k, Path3 Function() f) => _pc[k] ??= f();
   Pose? planePose(int g) {
     final G = s.gates[g];
-    final k = G.k;
+    final k = G.k, ph = s.phase;
     switch (G.phase) {
       case Ph.landing:
-        final p = Routes.landingPath; final u = 1 - (1 - k) * (1 - k);
+        final p = Routes.landing(ph); final u = 1 - (1 - k) * (1 - k);
         return p.at(p.length * (0.15 * k + 0.85 * u));
       case Ph.taxiIn:
-        final p = _p('in$g${G.tier}', () => Routes.taxiIn(g, G.tier));
-        return p.at(p.length * _smooth(k));
+        final p = Routes.taxiIn(g, G.tier, ph);
+        return p.at(p.length * _ease(k));
       case Ph.boarding:
         return Pose(P3(Lay.gates[g], 0, Routes.parkZ(G.tier)), 0);
       case Ph.pushback:
-        final p = _p('pb$g${G.tier}', () => Routes.pushback(g, G.tier));
+        final p = Routes.pushback(g, G.tier);
         return Pose(p.at(p.length * _smooth(k)).p, 0);
       case Ph.taxiOut:
-        final p = _p('out$g', () => Routes.taxiOut(g));
-        final pose = p.at(p.length * _smooth(k));
-        if (k < 0.08) return Pose(pose.p, -math.pi / 2 * (k / 0.08));
+        final p = Routes.taxiOut(g, ph);
+        // gira no lugar (rebocador) e depois taxia
+        const turn = 0.16;
+        if (k < turn) { final u = _smooth(k / turn); return Pose(p.pts.first, -math.pi / 2 * u); }
+        final pose = p.at(p.length * _ease((k - turn) / (1 - turn)));
         return pose;
       case Ph.hold:
         return Pose(const P3(Lay.connL, 0, Lay.holdZ), math.pi);
       case Ph.takeoff:
         final p = Routes.takeoff;
         final d = p.length * math.pow(k, 1.7);
-        final pose = p.at(d.toDouble());
-        if (d < p.acc[1]) return pose;
-        return Pose(pose.p, math.pi / 2);
+        return p.at(d.toDouble());
     }
     return null;
+  }
+  /// Partida e chegada suaves sem parar no meio.
+  double _ease(double k) { const a = 0.12; if (k < a) return k * k / (2 * a * (1 - a)); if (k > 1 - a) return 1 - (1 - k) * (1 - k) / (2 * a * (1 - a)); return (k - a / 2) / (1 - a); }
+
+  /// Controle de tráfego: avião que tem outro logo à frente espera.
+  final Map<int, Pose> _poses = {};
+  void _traffic() {
+    _poses.clear();
+    for (var g = 0; g < 6; g++) { if (!s.built('g$g')) continue; final p = planePose(g); if (p != null && p.p.y < 0.4) _poses[g] = p; }
+    final moving = <int, (double, double)>{};
+    for (final e in _poses.entries) {
+      final G = s.gates[e.key];
+      if (G.phase != Ph.taxiIn && G.phase != Ph.pushback && G.phase != Ph.taxiOut) continue;
+      // direção do movimento (pushback anda de ré)
+      double dx, dz;
+      if (G.phase == Ph.pushback) { dx = 0; dz = -1; }
+      else if (G.phase == Ph.taxiOut && G.k < 0.16) { dx = -1; dz = 0; }
+      else { dx = math.sin(e.value.heading); dz = math.cos(e.value.heading); }
+      moving[e.key] = (dx, dz);
+    }
+    final blockedBy = <int, int>{};
+    for (final m in moving.entries) {
+      final g = m.key, me = _poses[g]!.p, len = planeTypes[s.gates[g].tier].len;
+      final look = len * 0.5 + 2.2;
+      final lx = me.x + m.value.$1 * look, lz = me.z + m.value.$2 * look;
+      for (final o in _poses.entries) {
+        if (o.key == g) continue;
+        final op = o.value.p, olen = planeTypes[s.gates[o.key].tier].len;
+        final d = math.sqrt((op.x - lx) * (op.x - lx) + (op.z - lz) * (op.z - lz));
+        // só conta quem está à frente
+        final ahead = (op.x - me.x) * m.value.$1 + (op.z - me.z) * m.value.$2;
+        if (ahead > 0 && d < olen * 0.5 + 1.6) { blockedBy[g] = o.key; break; }
+      }
+    }
+    // impasse: quem está fazendo pushback cede
+    for (final e in [...blockedBy.entries]) {
+      if (blockedBy[e.value] == e.key) {
+        final a = s.gates[e.key].phase, b = s.gates[e.value].phase;
+        final yield0 = a == Ph.pushback ? e.key : b == Ph.pushback ? e.value : math.max(e.key, e.value);
+        blockedBy.remove(yield0 == e.key ? e.value : e.key);
+      }
+    }
+    for (var g = 0; g < 6; g++) { s.gates[g].blocked = blockedBy.containsKey(g); }
   }
   double _smooth(double k) => k * k * (3 - 2 * k);
   /// Onde fica a pilha de dinheiro do portão.
@@ -320,8 +443,9 @@ class AirWorld {
       case 'seguranca': return (Lay.secX0 + (math.max(lanes, 2) - 1) * Lay.secDx / 2, Lay.secZ, 4.0);
       case 'lojas': return (7.5, 8.0, 4.4);
       case 'vip': return (Lay.vip.$1, Lay.vip.$2, 3.4);
-      case 'pista': return (-10.0, Lay.runwayZ, 1.0);
+      case 'pista': return (-30.0, Lay.runwayZ, 1.0);
       case 'torre': return (Lay.tower.$1, Lay.tower.$2, 6.0);
+      case 'cargas': return (Lay.cargo.$1, Lay.cargo.$2, 5.0);
       case 'hangar': return (Lay.hangar.$1, Lay.hangar.$2, 7.0);
       case 'combustivel': return (Lay.fuel.$1, Lay.fuel.$2, 5.0);
     }
@@ -350,6 +474,7 @@ class AirWorld {
       _spawnT = 1 / _visRate * (0.7 + r.nextDouble() * 0.6);
       if (r.nextDouble() < 0.55) spawnAt(Lay.parking.$1 + 10 + r.nextDouble() * 4, 23.5);
     }
+    _traffic();
     _agentsTick(dt);
     _cleanersTick(dt);
     _vehiclesTick(dt);

@@ -19,27 +19,24 @@ class GameModal extends StatelessWidget {
   const GameModal({super.key, required this.title, this.icon, required this.child, this.actions = const [], this.color = K.blue});
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.6, end: 1), duration: const Duration(milliseconds: 380), curve: Curves.elasticOut,
-        builder: (_, v, c) => Transform.scale(scale: v, child: c),
+        tween: Tween(begin: 0.0, end: 1), duration: const Duration(milliseconds: 340), curve: Curves.easeOutBack,
+        builder: (_, v, c) => Opacity(opacity: v.clamp(0.0, 1.0), child: Transform.scale(scale: 0.88 + 0.12 * v, child: c)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 400),
-          decoration: BoxDecoration(color: K.navy, borderRadius: BorderRadius.circular(30), boxShadow: const [BoxShadow(color: Color(0x88000000), blurRadius: 30)]),
-          padding: const EdgeInsets.all(3.5),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x401F2A44), blurRadius: 40, offset: Offset(0, 12))]),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(27),
+            borderRadius: BorderRadius.circular(28),
             child: Material(
-              color: K.cream,
+              color: Colors.white,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: double.infinity, padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color.lerp(color, Colors.white, 0.25)!, color]), border: const Border(bottom: BorderSide(color: K.navy, width: 3.5))),
-                  child: Text(title, textAlign: TextAlign.center, style: display(26)),
-                ),
-                Padding(padding: const EdgeInsets.fromLTRB(18, 14, 18, 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  if (icon != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Ico(icon!, size: 84)),
-                  child,
+                Container(height: 6, color: color),
+                Padding(padding: const EdgeInsets.fromLTRB(20, 18, 20, 6), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  if (icon != null) Container(width: 92, height: 92, margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle), padding: const EdgeInsets.all(10), child: Ico(icon!, size: 72)),
+                  Text(title, textAlign: TextAlign.center, style: body(24, w: FontWeight.w900)),
+                  const SizedBox(height: 10),
+                  DefaultTextStyle(style: body(15, w: FontWeight.w700), textAlign: TextAlign.center, child: child),
                 ])),
-                Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 16), child: Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 8, children: actions)),
+                Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 18), child: Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 8, children: actions)),
               ]),
             ),
           ),
@@ -56,8 +53,8 @@ class OfflineModal extends StatelessWidget {
   Widget build(BuildContext context) => GameModal(
         title: 'Bem-vindo de volta!', icon: 'cash', color: K.green,
         actions: [
-          GBtn(color: K.blue, onTap: () => onClaim(false), child: Text('PEGAR', style: display(18))),
-          GBtn(color: K.purple, enabled: gems >= 15, onTap: () => onClaim(true), child: Row(mainAxisSize: MainAxisSize.min, children: [Text('PEGAR x3  ', style: display(18)), const Price('15', icon: 'gem', size: 16)])),
+          GBtn(color: K.blue, onTap: () => onClaim(false), child: Text('Pegar', style: display(18))),
+          GBtn(color: K.purple, enabled: gems >= 15, onTap: () => onClaim(true), child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Pegar x3  ', style: display(18)), const Price('15', icon: 'gem', size: 16)])),
         ],
         child: Column(children: [
           Text('Seu aeroporto operou por ${fmtTime(secs)} enquanto você estava fora e faturou:', textAlign: TextAlign.center, style: body(15)),
@@ -91,12 +88,12 @@ class _ChestModalState extends State<ChestModal> with TickerProviderStateMixin {
     final l = loot;
     return GameModal(
       title: gold ? 'Baú de ouro!' : 'Baú!', color: gold ? K.goldD : K.orange,
-      actions: [if (l != null) GBtn(color: K.green, onTap: widget.onDone, child: Text(widget.left > 0 ? 'PRÓXIMO (${widget.left})' : 'PEGAR', style: display(20)))],
+      actions: [if (l != null) GBtn(color: K.green, onTap: widget.onDone, child: Text(widget.left > 0 ? 'Próximo (${widget.left})' : 'Pegar', style: display(19)))],
       child: l == null
           ? GestureDetector(onTap: _open, child: Column(children: [
               AnimatedBuilder(animation: shake, builder: (_, c) => Transform.rotate(angle: math.sin(shake.value * math.pi * 2) * 0.08, child: Transform.scale(scale: 1 + shake.value * 0.06, child: c)), child: Ico(widget.type, size: 140)),
               const SizedBox(height: 6),
-              Text('TOQUE PARA ABRIR', style: display(20, color: K.navy, outline: false)),
+              Text('Toque para abrir', style: body(18, color: K.muted, w: FontWeight.w900)),
             ]))
           : AnimatedBuilder(animation: reveal, builder: (_, __) {
               double k(int i) => Curves.elasticOut.transform(((reveal.value - i * 0.08) / 0.5).clamp(0.0, 1.0));
@@ -119,10 +116,10 @@ class _ChestModalState extends State<ChestModal> with TickerProviderStateMixin {
     const cols = [Color(0xFF8A93A6), Color(0xFF3E8BFF), Color(0xFF8F62F8), Color(0xFFFFB020)];
     return Container(
       width: 74, padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: cols[m.rarity], width: 3)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: cols[m.rarity].withValues(alpha: 0.6), width: 2), boxShadow: K.shadowS),
       child: Column(children: [
         Text(fresh ? 'NOVO!' : rarityNames[m.rarity], style: body(9, color: fresh ? K.red : cols[m.rarity], w: FontWeight.w900)),
-        Container(width: 62, height: 46, decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF8FD0FF), Color(0xFF4F9BEA)])), child: Ico('pm_${m.tier}_${m.liv}', size: 46)),
+        Container(width: 62, height: 46, decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: cols[m.rarity].withValues(alpha: 0.12)), child: Ico('pm_${m.tier}_${m.liv}', size: 46)),
         Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(9, w: FontWeight.w900)),
       ]),
     );
@@ -161,14 +158,14 @@ class _WheelModalState extends State<WheelModal> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) => GameModal(
         title: 'Roleta do dia', color: K.purple,
-        actions: [result == null ? GBtn(color: K.green, enabled: target == null, pulse: target == null, onTap: _go, child: Text('GIRAR!', style: display(22))) : GBtn(color: K.green, onTap: widget.onClose, child: Text('PEGAR', style: display(20)))],
+        actions: [result == null ? GBtn(color: K.green, enabled: target == null, pulse: target == null, onTap: _go, child: Text('Girar!', style: display(20))) : GBtn(color: K.green, onTap: widget.onClose, child: Text('Pegar', style: display(19)))],
         child: Column(children: [
           SizedBox(width: 250, height: 260, child: Stack(alignment: Alignment.center, children: [
             AnimatedBuilder(animation: a, builder: (_, __) => Transform.rotate(angle: _angle(), child: CustomPaint(size: const Size(240, 240), painter: _WheelPainter()))),
             Positioned(top: 0, child: Transform.rotate(angle: math.pi, child: const Ico('up', size: 40))),
             Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white, border: Border.all(color: K.navy, width: 3))),
           ])),
-          if (result != null) Text(result!, textAlign: TextAlign.center, style: display(22, color: K.gold)),
+          if (result != null) Text(result!, textAlign: TextAlign.center, style: body(22, color: K.goldD, w: FontWeight.w900)),
         ]),
       );
 }

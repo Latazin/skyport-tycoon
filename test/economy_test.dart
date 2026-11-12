@@ -79,4 +79,44 @@ void main() {
     expect(t.gems, 77);
     expect(t.lvl('checkin'), 9);
   });
+
+  test('aeroporto cresce em fases com as estrelas', () {
+    final s = GameState();
+    expect(s.phase, 0);
+    s.star = 1; expect(s.phase, 1);
+    s.star = 2; expect(s.phase, 2);
+    s.star = 4; expect(s.phase, 3);
+    s.city = 1; s.star = 0; expect(s.phase, 1);
+  });
+
+  test('rotas existem em todas as fases e o ciclo é finito', () {
+    final s = GameState()..money = 1e12;
+    for (var st = 0; st <= 5; st++) {
+      s.star = st;
+      for (var g = 0; g < 6; g++) { expect(s.cycle(g) > 0 && s.cycle(g).isFinite, true); }
+    }
+  });
+
+  test('decoração, contrato e habilidade', () {
+    final s = GameState()..money = 1e9..tut = 7;
+    expect(s.buyDecor(decors[1]), false);
+    expect(s.buyDecor(decors[0]), true);
+    expect(s.decorMult > 1, true);
+    final o = s.ctOffers().first;
+    s.takeContract(o);
+    expect(s.ctActive, true);
+    s.mgr.add('ana');
+    final a = abilities.firstWhere((x) => x.mgr == 'ana');
+    expect(s.abilReady(a), true);
+    s.useAbility(a);
+    expect(s.abilOn('ana'), true);
+    expect(s.abilReady(a), false);
+  });
+
+  test('salvar e carregar mantém os dados novos', () {
+    final s = GameState()..money = 1e9;
+    s.buyDecor(decors[0]);
+    final t = GameState()..loadJson(s.toJson());
+    expect(t.decor.contains('d1'), true);
+  });
 }

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 /// Layout do aeroporto em unidades do mundo (igual ao estúdio de arte, tool/studio/studio.js).
 class Lay {
   static const runwayX0 = -74.0, runwayX1 = 54.0, runwayZ = -37.0;
-  static const laneZ = -20.0, connL = -46.0, connR = 38.0, holdZ = -31.0;
+  static const laneZ = -23.5, connL = -46.0, connR = 38.0, holdZ = -29.5;
   static const standNose = -6.4;
   static const gates = [-38.0, -26.0, -14.0, -2.0, 10.0, 22.0];
   static const checkinX0 = -44.0, checkinZ = 8.0, checkinDx = 2.6;
@@ -14,12 +14,33 @@ class Lay {
   static const roadZ = 20.0;
   static const parking = (-24.0, 30.0);
   static const busStop = (-40.0, 18.4);
-  static const tower = (46.0, -3.0);
+  static const tower = (-56.0, 5.0);
+  static const cargo = (48.0, 3.0);
+  static const carousel = (-42.5, 1.4);
   static const fuel = (50.0, -15.0);
   static const hangar = (-60.0, -13.0);
   static const floorY = 0.35;
   static const termX0 = -48.0, termX1 = 36.0;
 }
+
+/// Fases visuais do aeroporto: do barracão de madeira ao hub.
+class Phase {
+  final String name, desc;
+  final double rx1, connR, termX1;
+  final int gates;
+  final double camX0, camX1, camZ0, camZ1;
+  const Phase(this.name, this.desc, this.rx1, this.connR, this.termX1, this.gates, this.camX0, this.camX1, this.camZ0, this.camZ1);
+  bool get wood => termX1 < -5;
+  bool get bridges => termX1 > 30;
+}
+const phases = [
+  Phase('Aeroclube', 'Pista de terra e um barracão de madeira', 10, 2, -6, 2, -70, 20, -44, 34),
+  Phase('Terminal Regional', 'Pista asfaltada e terminal de verdade', 26, 14, 20, 3, -74, 36, -46, 36),
+  Phase('Aeroporto Nacional', 'Terminal grande com pontes de embarque', 54, 38, 36, 6, -86, 62, -50, 40),
+  Phase('Hub Internacional', 'Hub completo com terminal de cargas', 54, 38, 36, 6, -86, 66, -50, 40),
+];
+/// Fase conforme a cidade e as estrelas (a primeira cidade começa no barracão).
+int phaseFor(int city, int star) => city == 0 ? const [0, 1, 2, 2, 3, 3][star.clamp(0, 5).toInt()] : const [1, 1, 2, 2, 3, 3][star.clamp(0, 5).toInt()];
 
 /// Aviões: comprimento, lugares base e nome.
 class PlaneType {
@@ -63,6 +84,7 @@ const stations = [
   St('vip', 'Sala VIP', 'crown', 'Passageiros premium: +4% no preço da passagem por nível.', Kind.boost, base: 5e4, growth: 1.2, unlock: 1e5, star: 2),
   St('hangar', 'Hangar', 'hangar', 'Manutenção própria dos aviões: receita x1,5.', Kind.building, unlock: 1e6, star: 3),
   St('combustivel', 'Combustível', 'fuel', 'Posto próprio vende querosene a cada voo: receita x1,5.', Kind.building, unlock: 3e7, star: 4),
+  St('cargas', 'Terminal de Cargas', 'cargo', 'Cada voo leva carga no porão: +5% de receita por nível. Trens de bagagem levam os contêineres.', Kind.boost, base: 2e7, growth: 1.2, unlock: 4e7, star: 4),
 ];
 St stationById(String id) => stations.firstWhere((s) => s.id == id);
 
@@ -103,6 +125,60 @@ const props = [
   Prop('lojas', 12, 'atm', 8.2, 13.4), Prop('lojas', 20, 'fountain', 12.8, 13.1), Prop('lojas', 25, 'plant_big', 19.6, 13.8),
   Prop('lojas', 35, 'bench', 16.5, 13.6), Prop('lojas', 50, 'vending', 21.0, 12.2),
 ];
+
+/// Decoração comprável (por cidade): cada peça dá +3% de receita.
+class Decor {
+  final String id, name, sprite;
+  final double x, z, cost;
+  const Decor(this.id, this.name, this.sprite, this.x, this.z, this.cost);
+}
+const decors = [
+  Decor('d1', 'Canteiro da entrada', 'flowerbed', -45.5, 18.6, 400),
+  Decor('d2', 'Palmeira no vaso', 'palm_pot', -49.6, 16.8, 2e3),
+  Decor('d3', 'Estátua do avião', 'statue', -4.5, 26.0, 1e4),
+  Decor('d4', 'Jardim lateral', 'flowerbed', -51.0, 11.0, 5e4),
+  Decor('d5', 'Palmeira da torre', 'palm_pot', -50.0, 0.0, 2.5e5),
+  Decor('d6', 'Chafariz', 'fountain', -2.0, 30.5, 1.2e6),
+  Decor('d7', 'Mural de arte', 'artwall', -52.5, -2.0, 6e6),
+  Decor('d8', 'Monumento', 'statue', -62.0, 18.5, 3e7),
+];
+
+/// Habilidades ativas dos gerentes (recarga de 5 minutos).
+class Ability {
+  final String mgr, name, desc, icon;
+  final double secs;
+  const Ability(this.mgr, this.name, this.desc, this.icon, this.secs);
+}
+const abilities = [
+  Ability('lia', 'Coleta geral', 'Recolhe todo o dinheiro na hora', 'cash', 0),
+  Ability('ana', 'Balcão relâmpago', 'Check-in 3x por 30 s', 'checkin', 30),
+  Ability('bruno', 'Raio-X turbo', 'Raio-X 3x por 30 s', 'security', 30),
+  Ability('carla', 'Ônibus lotado', 'Chega um ônibus extra cheio', 'bus', 0),
+  Ability('diego', 'Pista livre', 'Todos os aviões adiantam 10 s', 'runway', 0),
+  Ability('elisa', 'Liquidação', 'Lojas 5x por 30 s', 'shop', 30),
+  Ability('fabio', 'Alta temporada', 'Passagens 2x por 30 s', 'ticket', 30),
+  Ability('hugo', 'Dia de recorde', 'Receita 3x por 20 s', 'crown', 20),
+];
+const abilityCooldown = 300.0;
+
+/// Mecânica própria de cada cidade.
+class CityPerk {
+  final String name, desc;
+  final double lambda, ticket, shop, events;
+  const CityPerk(this.name, this.desc, {this.lambda = 1, this.ticket = 1, this.shop = 1, this.events = 1});
+}
+const cityPerks = [
+  CityPerk('Turismo rural', 'Excursões de turistas aparecem com mais frequência', events: 1.3),
+  CityPerk('Executivos apressados', 'Passageiros chegam 25% mais rápido', lambda: 1.25),
+  CityPerk('Rotas internacionais', 'Passagens 30% mais caras', ticket: 1.3),
+  CityPerk('Neblina da serra', 'Mais neblina, mas eventos pagam em dobro', events: 1.5),
+  CityPerk('Polo de compras', 'Lojas faturam 50% mais', shop: 1.5),
+  CityPerk('Temporada de praia', 'Mais passageiros e lojas +25%', lambda: 1.15, shop: 1.25),
+];
+CityPerk perkFor(int city) => cityPerks[city % cityPerks.length];
+
+/// Contratos com companhias aéreas.
+const airlines = [('SkyLink', 0), ('Laranja Air', 1), ('Verdemar', 2), ('Ouro Linhas', 3), ('Violeta Jet', 4), ('Rubra', 5)];
 
 /// Cidades (cada nova cidade reinicia o aeroporto com multiplicador maior).
 class City {
