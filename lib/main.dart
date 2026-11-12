@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/audio.dart';
+import 'core/ads.dart';
 import 'core/data.dart';
 import 'core/notify.dart';
 import 'core/save.dart';
@@ -58,11 +59,14 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     await Art.load((k) { if (mounted) setState(() => progress = k); });
     await Sfx.init();
     Notify.init();
+    Ads.init();
     final q = Uri.base.queryParameters;
     if (q['demo'] == '1') {
       st..money = 2e9..gems = 120..tut = 7..flightsAll = 300..flightsCity = 300..mission = 18..earnedCity = 1.2e9..star = 3..alv = 14..miles = 420;
       const lv = {'entrada': 80, 'checkin': 46, 'seguranca': 70, 'g0': 82, 'g1': 64, 'g2': 40, 'g3': 26, 'g4': 0, 'g5': 0, 'lojas': 62, 'pista': 45, 'torre': 40, 'vip': 30, 'hangar': 1, 'combustivel': 0};
       st.lv.addAll(lv);
+      st.lv.addAll({'loja1': 28, 'loja2': 12, 'loja3': 4, 'checkin': 55});
+      st.piggy = 4e8;
       st.mgr.addAll(['lia', 'ana', 'bruno', 'carla', 'diego']);
       st.research.addAll(['online', 'scan', 'expresso']);
       st.routesOwned.addAll(['sp', 'rj', 'bh']);
@@ -74,7 +78,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     if (q['demo'] == 'p0' || q['demo'] == 'p1') {
       final p1 = q['demo'] == 'p1';
       st..money = p1 ? 4e4 : 900..gems = 40..tut = 7..star = p1 ? 1 : 0..flightsCity = 30..mission = 8;
-      st.lv.addAll(p1 ? {'entrada': 22, 'checkin': 20, 'seguranca': 18, 'g0': 24, 'g1': 12, 'g2': 3, 'lojas': 6, 'pista': 14, 'torre': 8} : {'entrada': 9, 'checkin': 8, 'seguranca': 7, 'g0': 9, 'g1': 3, 'pista': 4, 'torre': 3});
+      st.lv.addAll(p1 ? {'entrada': 22, 'checkin': 26, 'seguranca': 18, 'g0': 24, 'g1': 12, 'g2': 3, 'lojas': 12, 'loja1': 3, 'pista': 14, 'torre': 8} : {'entrada': 9, 'checkin': 8, 'seguranca': 7, 'g0': 9, 'g1': 3, 'pista': 4, 'torre': 3});
       st.mgr.addAll(p1 ? ['lia', 'ana'] : ['lia']);
       st.decor.addAll(['d1', 'd2']);
       st.estimate();
@@ -134,7 +138,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
               Align(alignment: const Alignment(0, 0.8), child: s == null
                   ? SizedBox(width: 240, child: Column(mainAxisSize: MainAxisSize.min, children: [GBar(value: progress, height: 18, color: K.gold), const SizedBox(height: 8), Text('Preparando a pista... ${(progress * 100).round()}%', style: body(14, color: Colors.white))]))
                   : Transform.scale(scale: el(0.45, 1), child: GBtn(color: K.green, onTap: _play, radius: 22, padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 16), child: Text('Jogar', style: display(32))))),
-              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.1', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
+              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.2', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
             ]);
           },
         ),

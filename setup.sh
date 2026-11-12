@@ -10,6 +10,20 @@ MANIFEST=android/app/src/main/AndroidManifest.xml
 sed -i.bak 's/android:label="[^"]*"/android:label="SkyPort Tycoon"/' "$MANIFEST" && rm -f "$MANIFEST.bak"
 PLIST=ios/Runner/Info.plist
 if [ -f "$PLIST" ]; then sed -i.bak 's/<string>Skyport Tycoon<\/string>/<string>SkyPort Tycoon<\/string>/' "$PLIST" && rm -f "$PLIST.bak"; fi
+# AdMob: o SDK fecha o app na abertura se o ID do aplicativo não estiver no manifesto.
+# admob_app_id.txt guarda o ID (o padrão é o ID de TESTE do Google).
+ADMOB_ID="$(tr -d ' \n\r' < admob_app_id.txt 2>/dev/null || true)"
+[ -z "$ADMOB_ID" ] && ADMOB_ID="ca-app-pub-3940256099942544~3347511713"
+ADMOB_ID="$ADMOB_ID" python3 - <<'PY'
+import os
+f = 'android/app/src/main/AndroidManifest.xml'
+s = open(f).read()
+if 'com.google.android.gms.ads.APPLICATION_ID' not in s:
+    tag = '<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="%s"/>\n        ' % os.environ['ADMOB_ID']
+    s = s.replace('<activity', tag + '<activity', 1)
+    open(f, 'w').write(s)
+print('AdMob ok:', os.environ['ADMOB_ID'])
+PY
 # notificações: permissão e desugaring exigidos pelo flutter_local_notifications
 grep -q POST_NOTIFICATIONS "$MANIFEST" || sed -i.bak 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application#' "$MANIFEST" && rm -f "$MANIFEST.bak"
 python3 - <<'PY'

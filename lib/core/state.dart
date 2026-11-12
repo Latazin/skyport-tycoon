@@ -173,7 +173,14 @@ class GameState {
   double get waveSecs => math.min(60.0, 10.0 + 1.5 * esp);
   double get netRate => city <= 0 ? 0 : rate * 0.2 * city;
   static const netCap = 7200.0;
-  bool unlockOk(St s) => starOk(s) && (s.kind != Kind.gate || s.gate == 0 || built('g${s.gate - 1}'));
+  bool unlockOk(St s) {
+    if (!starOk(s)) return false;
+    if (s.kind == Kind.gate) return s.gate == 0 || built('g${s.gate - 1}');
+    if (s.kind == Kind.shop) { final i = shopIds.indexOf(s.id); return i == 0 || built(shopIds[i - 1]); }
+    return true;
+  }
+  List<int> get shopsBuilt => [for (var i = 0; i < shopIds.length; i++) if (built(shopIds[i])) i];
+  double shopSpendOf(int i) { final l = lvl(shopIds[i]); return l > 0 ? shopBase[i] * l * math.pow(1.6, milestonesPassed(l)).toDouble() : 0; }
   bool canUnlock(St s) => !built(s.id) && money >= s.unlock && unlockOk(s);
 
   // ---------- multiplicadores ----------
@@ -181,10 +188,10 @@ class GameState {
   double get lambda => 0.5 * power(lvl('entrada')) * (hasMgr('carla') ? 2 : 1) * (has('expresso') ? 1.5 : 1) * (rushOn || clock < waveUntil ? 3 : 1) * perk.lambda * (weekend ? 1.25 : 1);
   double get muC => 0.6 * power(lvl('checkin')) * (hasMgr('ana') ? 2 : 1) * (has('online') ? 1.5 : 1) * (has('bio') ? 2 : 1) * (abilOn('ana') ? 3 : 1);
   double get muS => 0.55 * power(lvl('seguranca')) * (hasMgr('bruno') ? 2 : 1) * (has('scan') ? 1.5 : 1) * (has('bio') ? 2 : 1) * (abilOn('bruno') ? 3 : 1);
-  double get shopSpend { final l = lvl('lojas'); return l > 0 ? 0.4 * l * math.pow(1.6, milestonesPassed(l)) * (hasMgr('elisa') ? 3 : 1) * (has('premium') ? 2 : 1) * perk.shop * (abilOn('elisa') ? 5 : 1) * (kind6 == 0 ? 1 + 0.06 * esp : 1) : 0.0; }
+  double get shopSpend { var t = 0.0; for (var i = 0; i < shopIds.length; i++) { t += shopSpendOf(i); } return t * (hasMgr('elisa') ? 3 : 1) * (has('premium') ? 2 : 1) * perk.shop * (abilOn('elisa') ? 5 : 1) * (kind6 == 0 ? 1 + 0.06 * esp : 1); }
   double get starMult => math.pow(2, star).toDouble();
   double get tipMult => 0.85 + sat / 100 * 0.3;
-  double get revMult => cityMult(city) * (1 + 0.06 * (lvl('torre') - 1)) * (built('hangar') ? 1.5 : 1) * (built('combustivel') ? 1.5 : 1) * (hasMgr('hugo') ? 2 : 1) * (boostOn ? 2 : 1) * starMult * (has('verde') ? 1.5 : 1) * (has('mega') ? 2 : 1) * tipMult * decorMult * (1 + 0.05 * lvl('cargas')) * (abilOn('hugo') ? 3 : 1);
+  double get revMult => cityMult(city) * (1 + 0.06 * (lvl('torre') - 1)) * (built('hangar') ? 1.5 : 1) * (built('combustivel') ? 1.5 : 1) * (hasMgr('hugo') ? 2 : 1) * (boostOn ? 2 : 1) * starMult * (has('verde') ? 1.5 : 1) * (has('mega') ? 2 : 1) * tipMult * decorMult * (1 + 0.05 * lvl('cargas')) * (abilOn('hugo') ? 3 : 1) * (frenzyOn ? 2 : 1) * (tripleOn ? 3 : 1);
   double get routeBonus => routes.where((r) => routesOwned.contains(r.id)).fold(0.0, (a, r) => a + r.bonus);
   double fleetBonus(int tier) {
     var b = 0.0;
@@ -233,7 +240,47 @@ class GameState {
   bool get qsFull => qs >= queueCapS * 0.9;
 
   // ---------- dinheiro ----------
-  void earn(double v) { money += v; earnedCity += v; earnedAll += v; _histEarned += v; }
+  void earn(double v) { money += v; earnedCity += v; earnedAll += v; _histEarned += v; if (tut >= 7) piggy = math.min(piggyCap, piggy + v * 0.15); }
+
+  // ---------- frenesi, cofrinho, passageiro dourado e oferta relâmpago ----------
+  double frenzy = 0, frenzyUntil = 0, piggy = 0;
+  int offerUntil = 0, offerNext = 0, offerKind = 0, adsToday = 0, adsDay = 0;
+  bool get frenzyOn => clock < frenzyUntil;
+  double get piggyCap => math.max(rate * 1500, 500.0 * cityMult(city));
+  bool get piggyFull => piggy >= piggyCap * 0.999;
+  /// Cada toque útil enche a barra; cheia, a receita dobra por 20 s.
+  void addFrenzy(double v) {
+    if (frenzyOn || tut < 7) return;
+    frenzy += v;
+    if (frenzy >= 1) { frenzy = 0; frenzyUntil = clock + 20; inc('frenzy'); _estimate(); fx?.special('frenzy', 0); }
+  }
+  double breakPiggy() { final v = piggy; if (v <= 0) return 0; piggy = 0; money += v; earnedCity += v; earnedAll += v; inc('piggy'); return v; }
+  /// Passageiro dourado: devolve (moedas, gemas).
+  (double, int) goldTap() {
+    inc('gold'); addFrenzy(0.15);
+    if (_r.nextDouble() < 0.2) { gems += 2; return (0.0, 2); }
+    final v = math.max(rate * 25, 40.0 * cityMult(city)); earn(v); return (v, 0);
+  }
+  static const offerNames = ['Lucro x3 por 5 minutos', 'Baú de ouro', 'Rush de passageiros por 10 minutos'];
+  static const offerGems = [8, 20, 6];
+  bool get offerOn => nowMs() < offerUntil;
+  void _offerTick() {
+    if (tut < 7 || offerOn) return;
+    if (offerNext == 0) offerNext = nowMs() + 4 * 60000;
+    if (nowMs() >= offerNext) { offerKind = _r.nextInt(3); offerUntil = nowMs() + 3 * 60000; offerNext = offerUntil + (18 + _r.nextInt(10)) * 60000; fx?.special('offer', 0); }
+  }
+  /// Entrega a oferta (paga com gemas ou anúncio; quem chama cobra).
+  void grantOffer() {
+    switch (offerKind) {
+      case 0: tripleUntil = math.max(nowMs(), tripleUntil) + 5 * 60000; break;
+      case 1: chestsQ.add('chest_gold'); break;
+      case 2: rushUntil = math.max(nowMs(), rushUntil) + 10 * 60000; break;
+    }
+    offerUntil = 0; inc('offers'); _estimate();
+  }
+  int tripleUntil = 0;
+  bool get tripleOn => nowMs() < tripleUntil;
+  void adWatched() { if (adsDay != dayKey()) { adsDay = dayKey(); adsToday = 0; } adsToday++; inc('ads'); sPts += 5; }
   bool spend(double v) { if (money + 1e-9 < v) return false; money -= v; return true; }
   double get pilesTotal => pile.fold(0.0, (a, b) => a + b) + shopPile;
 
@@ -241,9 +288,10 @@ class GameState {
     final d = after - before;
     if (d <= 0) return '';
     if (id.startsWith('esp')) return const ['+6% lojas', '+diária', '+2% voos 3x', '+velocidade', '+helicópteros', '+1,5 s de onda'][int.parse(id.substring(3))];
+    if (shopIds.contains(id)) return '+\$${_short(d * revMult)}/pax';
     switch (id) {
       case 'entrada': case 'checkin': case 'seguranca': return '+${_short(d * 60)} pax/min';
-      case 'lojas': return '+\$${_short(d * revMult)}/pax';
+
       case 'pista': return '+${(d * 100).round()}% velocidade';
       case 'torre': case 'vip': case 'cargas': return '+${(d * 100).round()}% receita';
     }
@@ -254,13 +302,14 @@ class GameState {
       case 'entrada': return lambda;
       case 'checkin': return muC;
       case 'seguranca': return muS;
-      case 'lojas': return shopSpend;
+
       case 'pista': return speed;
       case 'torre': return 1 + 0.06 * (lvl('torre') - 1);
       case 'vip': return 1 + 0.04 * lvl('vip');
       case 'cargas': return 1 + 0.05 * lvl('cargas');
     }
     if (id.startsWith('esp')) return lvl(id).toDouble();
+    if (shopIds.contains(id)) return shopSpend;
     if (id.startsWith('g')) return ticketFor(int.parse(id.substring(1)));
     return 0;
   }
@@ -339,6 +388,7 @@ class GameState {
     final v0 = g < 0 ? shopPile : pile[g];
     if (v0 <= 0) return 0;
     combo = clock - lastCollect < 2.5 ? math.min(10, combo + 1) : 1;
+    addFrenzy(0.1);
     lastCollect = clock;
     final v = v0 * comboMult;
     if (g < 0) { shopPile = 0; } else { pile[g] = 0; }
@@ -366,14 +416,15 @@ class GameState {
     for (var g = 0; g < 6; g++) { if (pile[g] > 0 && clock - pileT[g] > wait) { earn(pile[g]); pile[g] = 0; } }
     if (shopPile > 0 && clock - shopPileT > wait) { earn(shopPile); shopPile = 0; }
     _eventsTick();
-    if (_acc == 0) { _ctTick(); _wkTick(); }
+    if (_acc == 0) { _ctTick(); _wkTick(); _offerTick(); }
+    if (frenzy > 0 && !frenzyOn) frenzy = math.max(0, frenzy - dt * 0.012);
     _specialTick(dt);
     _histAcc += dt;
     if (_histAcc >= 30) { _histAcc = 0; history.add(_histEarned); _histEarned = 0; if (history.length > 20) history.removeAt(0); }
     if (autoUp && has('auto')) { _autoT += dt; if (_autoT > 1.2) { _autoT = 0; final b = bestBuy(); if (b != null && money >= b.$2) buyBest(); } }
   }
   void _satTick() {
-    final t = (80 - (qcFull ? 15 : 0) - (qsFull ? 15 : 0) - (lounge >= loungeCap * 0.95 ? 10 : 0) + (built('lojas') ? 8 : 0) + (built('vip') ? 7 : 0) + cleanersFor(lvl('checkin')) * 4.0).clamp(30.0, 100.0);
+    final t = (80 - (qcFull ? 15 : 0) - (qsFull ? 15 : 0) - (lounge >= loungeCap * 0.95 ? 10 : 0) + (shopsBuilt.length * 3.0) + (built('vip') ? 7 : 0) + cleanersFor(lvl('checkin')) * 4.0).clamp(30.0, 100.0);
     sat += (t - sat) * 0.08;
   }
 
@@ -473,7 +524,7 @@ class GameState {
   }
   void hurry(int g, double secs) {
     final G = gates[g]; if (G.phase == Ph.hold || G.phase == Ph.empty) return;
-    G.t = math.min(G.dur, G.t + secs); inc('taps');
+    G.t = math.min(G.dur, G.t + secs); inc('taps'); addFrenzy(0.035);
   }
 
   // ---------- eventos ----------
@@ -712,7 +763,7 @@ class GameState {
 
   // ---------- bônus, roleta, minijogos ----------
   bool get freeReady => nowMs() >= freeAt;
-  void claimFree() { if (!freeReady) return; boostUntil = math.max(nowMs(), boostUntil) + 10 * 60000; freeAt = nowMs() + 4 * 3600000; _estimate(); }
+  void claimFree() { boostUntil = math.max(nowMs(), boostUntil) + 10 * 60000; _estimate(); }
   bool buyBoost(int gemsCost, int minutes) { if (gems < gemsCost) return false; gems -= gemsCost; boostUntil = math.max(nowMs(), boostUntil) + minutes * 60000; _estimate(); return true; }
   bool buyTurbo(int gemsCost) { if (gems < gemsCost) return false; gems -= gemsCost; turboUntil = math.max(nowMs(), turboUntil) + 5 * 60000; _estimate(); return true; }
   bool buyRush(int gemsCost) { if (gems < gemsCost) return false; gems -= gemsCost; rushUntil = math.max(nowMs(), rushUntil) + 5 * 60000; _estimate(); return true; }
@@ -782,7 +833,7 @@ class GameState {
         'res': research.toList(), 'rot': routesOwned.toList(), 'ach': achClaimed.toList(), 'cards': cards, 'mlv': mlv, 'cnt': cnt,
         'dk': dKey, 'wk': wKey, 'db': dBase, 'wb': wBase, 'dt': dTasks, 'wt': wTasks, 'dc': dClaimed, 'wc': wClaimed, 'dbo': dBonus,
         'si': sId, 'sp': sPts, 'sc': sClaimed.toList(), 'cq': chestsQ,
-        'hp': hotelPile, 'np': netPile, 'dec': decor.toList(), 'aa': abilAt, 'ct': [ctAir, ctNeed, ctUntil, ctGems, ctBase, ctNext], 'wke': [wkEnd, wkBase, wkClaimed ? 1 : 0],
+        'pg': piggy, 'on': offerNext, 'tru': tripleUntil, 'hp': hotelPile, 'np': netPile, 'dec': decor.toList(), 'aa': abilAt, 'ct': [ctAir, ctNeed, ctUntil, ctGems, ctBase, ctNext], 'wke': [wkEnd, wkBase, wkClaimed ? 1 : 0],
       };
   void loadJson(Map<String, dynamic> j) {
     double d(String k, double def) => (j[k] as num?)?.toDouble() ?? def;
@@ -813,6 +864,7 @@ class GameState {
     sId = i('si', -1); sPts = i('sp', 0); sClaimed..clear()..addAll(((j['sc'] as List?) ?? []).map((e) => (e as num).toInt()));
     chestsQ..clear()..addAll(ls0('cq'));
     decor..clear()..addAll(ls0('dec'));
+    piggy = ((j['pg'] as num?) ?? 0).toDouble(); offerNext = ((j['on'] as num?) ?? 0).toInt(); tripleUntil = ((j['tru'] as num?) ?? 0).toInt();
     hotelPile = ((j['hp'] as num?) ?? 0).toDouble(); netPile = ((j['np'] as num?) ?? 0).toDouble();
     abilAt..clear()..addAll(mi('aa'));
     final ct = ((j['ct'] as List?) ?? []).map((e) => (e as num).toInt()).toList();

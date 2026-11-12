@@ -45,6 +45,27 @@ class _ResultCard extends StatelessWidget {
       ));
 }
 
+/// Cartão "pronto para começar" comum a todos os minijogos.
+class _StartCard extends StatelessWidget {
+  const _StartCard();
+  @override
+  Widget build(BuildContext context) => Center(child: IgnorePointer(child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.8, end: 1), duration: const Duration(milliseconds: 420), curve: Curves.easeOutBack,
+        builder: (_, v, c) => Transform.scale(scale: v, child: c),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(26, 18, 26, 18),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26), boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 30, offset: Offset(0, 10))]),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _stars(3, 34),
+            const SizedBox(height: 8),
+            Text('Valendo até 3 estrelas', style: body(15, color: K.muted)),
+            const SizedBox(height: 12),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11), decoration: BoxDecoration(color: K.green, borderRadius: BorderRadius.circular(16)), child: Text('Toque para começar', style: display(19))),
+          ]),
+        ),
+      )));
+}
+
 /// Cabeçalho comum dos minijogos.
 Widget _gameHead(EdgeInsets pad, String title, String help, List<Widget> stats) => Positioned(top: pad.top + 12, left: 16, right: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(title, style: display(26)),
@@ -118,7 +139,7 @@ class _LandingGameState extends State<LandingGame> with SingleTickerProviderStat
         child: Stack(children: [
           Positioned.fill(child: CustomPaint(painter: _LandPainter(this))),
           Positioned(top: pad.top + 12, left: 16, right: 16, child: Column(children: [
-            Text(widget.level == 0 ? 'POUSO PERFEITO' : 'POUSO PERFEITO · NÍVEL ${widget.level + 1}', style: display(widget.level == 0 ? 30 : 24)),
+            Text(widget.level == 0 ? 'Pouso Perfeito' : 'Pouso Perfeito · nível ${widget.level + 1}', style: display(widget.level == 0 ? 30 : 24)),
             if (widget.level > 0) Text(widget.level >= 2 ? 'Noite e vento forte!' : 'Vento lateral!', style: display(16, color: K.gold)),
             const SizedBox(height: 6),
             Container(
@@ -127,7 +148,7 @@ class _LandingGameState extends State<LandingGame> with SingleTickerProviderStat
               child: Text(started ? 'Velocidade vertical: ${(vy * 60).round()} pés/min' : 'Segure o dedo na tela para levantar o nariz. Solte para descer. Encoste devagar na faixa verde da pista!', textAlign: TextAlign.center, style: body(15, color: Colors.white)),
             ),
           ])),
-          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (!started) const _StartCard(),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -303,7 +324,7 @@ class _XrayGameState extends State<XrayGame> with SingleTickerProviderStateMixin
             ))),
           ),
           Positioned(top: pad.top + 12, left: 16, right: 16, child: Column(children: [
-            Text('RAIO-X', style: display(32)),
+            Text('Raio-X', style: display(28)),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -312,11 +333,11 @@ class _XrayGameState extends State<XrayGame> with SingleTickerProviderStateMixin
             ),
             const SizedBox(height: 10),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text('Apreendidos: $score', style: display(20)), const SizedBox(width: 18),
-              Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white)),
+              _pill('Apreendidos: $score'), const SizedBox(width: 10),
+              _pill('Tempo: ${math.max(0, dur - t).ceil()}s', t > dur - 6 ? const Color(0xFFFFC9CE) : Colors.white),
             ]),
           ])),
-          if (!started) Positioned(left: 0, right: 0, bottom: sz.height * 0.22, child: Center(child: Text('Toque para começar', style: display(26)))),
+          if (!started) Positioned(left: 0, right: 0, bottom: sz.height * 0.22, child: const _StartCard()),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -413,14 +434,14 @@ class _BagGameState extends State<BagGame> with SingleTickerProviderStateMixin {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 36, height: 10, decoration: BoxDecoration(color: const Color(0xFF1E2A47), borderRadius: BorderRadius.circular(5))), const SizedBox(height: 8), Text('MALA', style: display(16))]),
           )),
           Positioned(top: pad.top + 12, left: 16, right: 16, child: Column(children: [
-            Text('ESTEIRA DE BAGAGEM', style: display(28)),
+            Text('Esteira de Bagagem', style: display(26)),
             const SizedBox(height: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: const Color(0xCC1E2A47), borderRadius: BorderRadius.circular(16)), child: Text('Arraste cada mala para o avião da mesma cor antes que ela caia!', textAlign: TextAlign.center, style: body(15, color: Colors.white))),
             const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Malas: $score', style: display(20)), const SizedBox(width: 18), Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white))]),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [_pill('Malas: $score'), const SizedBox(width: 10), Text('Tempo: ${math.max(0, dur - t).ceil()}s', style: display(20, color: t > dur - 6 ? K.red : Colors.white))]),
             if (flashT > 0) Text(flash, style: display(26, color: flash.startsWith('C') && !flash.startsWith('Car') ? K.gold : flash == 'Certo!' ? K.green : K.red)),
           ])),
-          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (!started) const _StartCard(),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -513,7 +534,7 @@ class _AtcGameState extends State<AtcGame> with SingleTickerProviderStateMixin {
           }(),
           _gameHead(pad, 'Torre de Controle', 'Toque num avião para autorizar o pouso. Um por vez na pista! Não deixe o combustível acabar.', [_pill('Pousos: $landed'), _pill('Tempo: ${math.max(0, dur - t).ceil()}s', t > dur - 6 ? K.red : Colors.white), if (lost > 0) _pill('Desvios: $lost', K.red)]),
           if (flashT > 0) Positioned(top: sz.height * 0.82, left: 0, right: 0, child: Center(child: _pill(flash, const Color(0xFFFFC9CE)))),
-          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (!started) const _StartCard(),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),
@@ -627,7 +648,7 @@ class _YardGameState extends State<YardGame> with SingleTickerProviderStateMixin
           ])),
           _gameHead(pad, 'Pátio', 'Mande cada avião para o portão da cor dele. Portão ocupado não recebe ninguém!', [_pill('Estacionados: $score'), _pill('Tempo: ${math.max(0, dur - t).ceil()}s', t > dur - 6 ? K.red : Colors.white)]),
           if (flashT > 0) Positioned(top: sz.height * 0.24, left: 0, right: 0, child: Center(child: _pill(flash, const Color(0xFFFFC9CE)))),
-          if (!started) Center(child: Text('Toque para começar', style: display(26))),
+          if (!started) const _StartCard(),
           if (res != null) Positioned.fill(child: Container(color: const Color(0x88000000), child: _ResultCard(r: res!, reward: widget.rewardText(res!.stars), onOk: () => Navigator.of(context).pop(res)))),
           Positioned(top: pad.top + 6, right: 8, child: CloseBtn(onTap: () => Navigator.of(context).pop(const GameResult(0, '')))),
         ]),

@@ -139,7 +139,7 @@ class SceneRenderer extends Component {
     for (var d = 0; d < w.desks; d++) {
       final p = w.deskPos(d);
       _add(4, p.$1 + p.$2, (c) {
-        spr(c, wood ? 'checkin_w' : 'checkin', p.$1, p.$2, y: fy, scale: bc);
+        spr(c, wood ? 'checkin_w' : const ['checkin', 'checkin', 'checkin_2', 'checkin_3'][visTier('checkin', s.lvl('checkin'))], p.$1, p.$2, y: fy, scale: bc);
         final pr = w.deskProgress(d);
         if (pr > 0 && zoom > 0.32) bar(c, iso(p.$1, p.$2, 3.4), 30, 5, pr, const Color(0xFF3FD46B));
       });
@@ -151,19 +151,26 @@ class SceneRenderer extends Component {
     for (var l = 0; l < w.lanes; l++) {
       final p = w.lanePos(l);
       _add(4, p.$1 + p.$2, (c) {
-        spr(c, wood ? 'security_w' : 'security', p.$1, p.$2, y: fy, scale: bs);
+        spr(c, wood ? 'security_w' : const ['security', 'security', 'security_2', 'security_3'][visTier('seguranca', s.lvl('seguranca'))], p.$1, p.$2, y: fy, scale: bs);
         if (scan) spr(c, 'bodyscan', p.$1 + 0.75, p.$2 - 0.2, y: fy, scale: bs);
         final pr = w.laneProgress(l);
         if (pr > 0 && zoom > 0.32) bar(c, iso(p.$1 + 0.5, p.$2, 3.4), 30, 5, pr, const Color(0xFF8F62F8));
       });
     }
     _hitWorld('seguranca', Lay.secX0 - 1.4, Lay.secX0 + (math.max(w.lanes, 2) - 1) * Lay.secDx + 2, Lay.secZ - 2.4, Lay.secZ + 2.4);
-    // ---------- lojas ----------
-    if (s.built('lojas')) {
-      final bl = _bounce('lojas');
-      for (var i = 0; i < shopsFor(s.lvl('lojas')); i++) { final p = Lay.shops[i]; _add(4, p.$1 + p.$2, (c) => spr(c, 'shop$i', p.$1, p.$2, y: fy, scale: bl)); }
-    } else if (s.starOk(stationById('lojas'))) { _add(4, 15.5, (c) => spr(c, 'obra_m', 7.5, 8, y: fy)); }
-    if (s.built('lojas') || s.starOk(stationById('lojas'))) _hitWorld('lojas', -4, 4 + 6.0 * math.max(1, shopsFor(s.lvl('lojas'))), 6, 10.5);
+    // ---------- lojas (cada uma é construída e evolui sozinha) ----------
+    for (var i = 0; i < shopIds.length; i++) {
+      final id = shopIds[i], st = stationById(id), p = Lay.shops[i];
+      if (p.$1 > ph.termX1 - 1.5) continue;
+      if (s.built(id)) {
+        final b = _bounce(id), t = visTier(id, s.lvl(id));
+        _add(4, p.$1 + p.$2, (c) => spr(c, 'shop${i}_$t', p.$1, p.$2, y: fy, scale: b));
+        _hitWorld(id, p.$1 - 1.9, p.$1 + 1.9, p.$2 - 1.8, p.$2 + 2.0, h: 2.5);
+      } else if (s.unlockOk(st)) {
+        _add(4, p.$1 + p.$2, (c) => spr(c, 'obra_s', p.$1, p.$2, y: fy));
+        _hitWorld(id, p.$1 - 1.9, p.$1 + 1.9, p.$2 - 1.8, p.$2 + 2.0, h: 2);
+      }
+    }
     // ---------- enfeites por nível ----------
     for (final pr in props) {
       if (s.lvl(pr.st) < pr.lvl || pr.x > ph.termX1 - 0.8) continue;
@@ -265,6 +272,13 @@ class SceneRenderer extends Component {
       final name = 'p${a.c}_${down ? 'd' : 'u'}_$f${a.bag ? 'b' : ''}';
       final y = a.y >= 0 ? a.y : (a.z > 16.2 || a.z < -5.0) ? 0.0 : fy;
       _add(a.outside ? 0 : 4, a.x + a.z + 0.3 + (a.y > 0 ? 1.6 : 0), (c) {
+        if (a.gold) {
+          final o = iso(a.x, a.z, y + 0.9), k = 1 + math.sin(w.t * 6) * 0.15;
+          c.drawCircle(o, 26 * k, Paint()..color = const Color(0x55FFD54A));
+          c.drawCircle(o, 15 * k, Paint()..color = const Color(0x88FFE27A));
+          icon(c, 'coin', iso(a.x, a.z, y + 3.2 + math.sin(w.t * 4) * 0.15), 26);
+          hits.add(Hit(Rect.fromCenter(center: o, width: 76, height: 86), 'gold:${a.hashCode}', 0));
+        }
         spr(c, name, a.x, a.z, y: y, flip: flip, alpha: a.fade);
         if (a.emoT > 0) txt(c, a.emo, iso(a.x, a.z, y + 2.1 + (2 - a.emoT) * 0.3), 15, Colors.white, const Color(0x00000000));
       });
@@ -430,6 +444,15 @@ class SceneRenderer extends Component {
       final sel = selected == st.id;
       final r = plate(c, 'Nv ${s.lvl(st.id)}', at, 11.5 * k, sel ? const Color(0xFFFF9F1C) : isBest ? const Color(0xFF22B573) : const Color(0xFF2F6BFF), solid: sel || isBest);
       hits.add(Hit(r.inflate(14), st.id, 1));
+      // quanto falta para o próximo marco (x2 e evolução visual)
+      final nm = nextMilestone(s.lvl(st.id));
+      if (nm != null && zoom > 0.3) {
+        final pm = milestones.lastWhere((m) => m <= s.lvl(st.id), orElse: () => 0);
+        final v = (s.lvl(st.id) - pm) / (nm - pm);
+        final br = RRect.fromRectAndRadius(Rect.fromLTWH(r.left + 3 * k, r.bottom + 2 * k, r.width - 6 * k, 3.5 * k), Radius.circular(2 * k));
+        c.drawRRect(br, Paint()..color = const Color(0xCCFFFFFF));
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(br.left, br.top, br.width * v.clamp(0.04, 1.0), br.height), Radius.circular(2 * k)), Paint()..color = const Color(0xFFFFB627));
+      }
       if (up) {
         final uo = Offset(r.right + 2 * k, r.top + 1 * k);
         c.drawCircle(uo, 8.5 * k, Paint()..color = const Color(0xFF22B573));

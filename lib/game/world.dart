@@ -23,7 +23,7 @@ class Agent {
   int stage = St8.walkCheck, desk = -1, lane = -1, gate = -1, qi = -1, seat = -1, shopI = 0;
   double wait = 0, anim = 0, fade = 1, hx = 1, hz = 0, waitQ = 0, emoT = 0, stuck = 0, y = -1;
   String emo = '';
-  bool moving = false, outside = false;
+  bool moving = false, outside = false, gold = false;
   // escada do avião: (x do pé, x do topo, altura)
   (double, double, double)? stairs;
   List<(double, double)> path = [];
@@ -106,13 +106,16 @@ class AirWorld {
     final dz = s.ph.wood ? 1.4 : 1.3, nx = s.ph.wood ? 5 : 6;
     return [for (var r = 0; r < rows; r++) for (var k = 0; k < nx; k++) (gx - 1.0 + k * 0.7, -2.0 + r * dz + 0.38)];
   }
+  double _goldT = -20;
   final List<Set<int>> _taken = List.generate(6, (_) => <int>{});
   /// Limpa passageiros e filas (troca de aeroporto).
   void resetPeople() { agents.clear(); cleaners.clear(); vehicles.clear(); for (final q in deskQ) { q.clear(); } for (final q in laneQ) { q.clear(); } for (final t in _taken) { t.clear(); } }
 
   void spawnAt(double x, double z) {
     if (agents.length >= maxAgents) return;
-    final a = Agent(x, z, r.nextInt(8), 1.9 + r.nextDouble() * 0.7, s.built('lojas') && r.nextDouble() < 0.55);
+    final a = Agent(x, z, r.nextInt(8), 1.9 + r.nextDouble() * 0.7, s.built('lojas') && r.nextDouble() < 0.6);
+    // passageiro dourado: aparece de vez em quando, vale um toque
+    if (s.tut >= 7 && t - _goldT > 38 && !agents.any((x) => x.gold)) { a.gold = true; _goldT = t + r.nextDouble() * 20; }
     agents.add(a);
     _toCheckin(a);
   }
@@ -133,9 +136,9 @@ class AirWorld {
   void _afterSecurity(Agent a) {
     final lp = lanePos(a.lane);
     final exit = [(lp.$1 + 0.75, lp.$2 - 2.7), (lp.$1 + 0.75, corridorZ)];
-    final shops = shopsFor(s.lvl('lojas'));
-    if (a.shop && shops > 0) {
-      final i = r.nextInt(shops), sh = Lay.shops[i], gap = sh.$1 + 3.0;
+    final shops = [for (final i in s.shopsBuilt) if (Lay.shops[i].$1 < s.ph.termX1 - 1.5) i];
+    if (a.shop && shops.isNotEmpty) {
+      final i = shops[r.nextInt(shops.length)], sh = Lay.shops[i], gap = sh.$1 + 2.35;
       a.shopI = i; a.stage = St8.walkShop; a.wait = 1.4 + r.nextDouble() * 2;
       a.path = [...exit, (gap, corridorZ), (gap, sh.$2 + 3.0), (sh.$1 + r.nextDouble() * 1.6 - 0.8, sh.$2 + 2.6)];
     } else {
@@ -156,7 +159,7 @@ class AirWorld {
     else { a.seat = -1; spot = (Lay.gates[g] + 3.0 + r.nextDouble() * 1.4, -2.6 + r.nextDouble() * 3.6); }
     final p = <(double, double)>[...prefix];
     if (prefix.isEmpty) {
-      if (a.stage == St8.walkGate && a.shopI >= 0 && a.z > 5) { final gap = Lay.shops[a.shopI].$1 + 3.0; p.addAll([(gap, a.z), (gap, corridorZ)]); }
+      if (a.stage == St8.walkGate && a.shopI >= 0 && a.z > 5) { final gap = Lay.shops[a.shopI].$1 + 2.35; p.addAll([(gap, a.z), (gap, corridorZ)]); }
       else { p.add((a.x, corridorZ)); }
     }
     p.addAll([(spot.$1, corridorZ), spot]);
@@ -443,7 +446,7 @@ class AirWorld {
       case 'entrada': return (Lay.parking.$1, Lay.parking.$2, 3.0);
       case 'checkin': return (Lay.checkinX0 + (math.max(desks, 3) - 1) * Lay.checkinDx / 2, Lay.checkinZ, 4.2);
       case 'seguranca': return (Lay.secX0 + (math.max(lanes, 2) - 1) * Lay.secDx / 2, Lay.secZ, 4.0);
-      case 'lojas': return (7.5, 8.0, 4.4);
+      case 'lojas': case 'loja1': case 'loja2': case 'loja3': case 'loja4': case 'loja5': final i = shopIds.indexOf(id); return (Lay.shops[i].$1, Lay.shops[i].$2, 3.6 + visTier(id, s.lvl(id)) * 1.1);
       case 'vip': return (Lay.vip.$1, Lay.vip.$2, 3.4);
       case 'pista': return (-30.0, Lay.runwayZ, 1.0);
       case 'torre': return (Lay.tower.$1, Lay.tower.$2, 6.0);

@@ -142,4 +142,27 @@ void main() {
     expect(s.star, 0);
     expect(s.phase, 1);
   });
+
+  test('lojas são construídas uma a uma e somam no gasto', () {
+    final s = GameState()..star = 2..money = 1e12;
+    expect(s.unlockOk(stationById('loja1')), false);
+    expect(s.unlock('lojas'), true);
+    final a = s.shopSpend;
+    expect(s.unlockOk(stationById('loja1')), true);
+    expect(s.unlock('loja1'), true);
+    expect(s.shopSpend > a, true);
+    expect(visTier('lojas', 9), 1); expect(visTier('lojas', 10), 2); expect(visTier('checkin', 50), 3);
+  });
+
+  test('frenesi, cofrinho e oferta', () {
+    final s = GameState()..tut = 7..money = 0;
+    for (var i = 0; i < 12; i++) { s.addFrenzy(0.1); }
+    expect(s.frenzyOn, true);
+    s.earn(1000);
+    expect(s.piggy > 0, true);
+    final m = s.money; final v = s.breakPiggy();
+    expect(s.money, m + v);
+    s.offerKind = 1; s.grantOffer();
+    expect(s.chestsQ.contains('chest_gold'), true);
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/audio.dart';
@@ -61,9 +63,11 @@ class GBtn extends StatefulWidget {
   final VoidCallback? onTap;
   final Color color;
   final bool enabled, pulse;
+  /// Segurar o botão repete o toque cada vez mais rápido (até não dar mais).
+  final bool repeat;
   final double radius;
   final EdgeInsets padding;
-  const GBtn({super.key, required this.child, this.onTap, this.color = K.green, this.enabled = true, this.radius = 16, this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 10), this.pulse = false});
+  const GBtn({super.key, required this.child, this.onTap, this.color = K.green, this.enabled = true, this.radius = 16, this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 10), this.pulse = false, this.repeat = false});
   @override
   State<GBtn> createState() => _GBtnState();
 }
@@ -75,8 +79,23 @@ class _GBtnState extends State<GBtn> with SingleTickerProviderStateMixin {
   void initState() { super.initState(); if (widget.pulse) pc.repeat(); }
   @override
   void didUpdateWidget(covariant GBtn old) { super.didUpdateWidget(old); if (widget.pulse && !pc.isAnimating) { pc.repeat(); } else if (!widget.pulse && pc.isAnimating) { pc.stop(); pc.value = 0; } }
+  Timer? _rep;
+  int _reps = 0;
+  void _holdStart() {
+    if (!widget.repeat) return;
+    _reps = 0;
+    void fire() {
+      if (!mounted || !widget.enabled || widget.onTap == null) { _holdEnd(); return; }
+      widget.onTap!(); _reps++;
+      if (_reps % 3 == 0) Sfx.haptic(8);
+      _rep = Timer(Duration(milliseconds: _reps < 4 ? 170 : _reps < 12 ? 100 : _reps < 30 ? 60 : 35), fire);
+    }
+    setState(() => down = true);
+    fire();
+  }
+  void _holdEnd() { _rep?.cancel(); _rep = null; if (mounted && down) setState(() => down = false); }
   @override
-  void dispose() { pc.dispose(); super.dispose(); }
+  void dispose() { _rep?.cancel(); pc.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
     final on = widget.enabled && widget.onTap != null;
@@ -110,6 +129,9 @@ class _GBtnState extends State<GBtn> with SingleTickerProviderStateMixin {
       onTapCancel: () => setState(() => down = false),
       onTapUp: (_) => setState(() => down = false),
       onTap: () { if (on) { Sfx.click(); widget.onTap!(); } else { Sfx.play('nope'); Sfx.haptic(); } },
+      onLongPressStart: widget.repeat ? (_) => _holdStart() : null,
+      onLongPressEnd: widget.repeat ? (_) => _holdEnd() : null,
+      onLongPressCancel: widget.repeat ? _holdEnd : null,
       child: btn,
     );
   }

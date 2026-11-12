@@ -8,7 +8,7 @@ class Lay {
   static const gates = [-38.0, -26.0, -14.0, -2.0, 10.0, 22.0];
   static const checkinX0 = -44.0, checkinZ = 8.0, checkinDx = 2.6;
   static const secX0 = -21.5, secZ = 5.0, secDx = 3.0;
-  static const shops = [(-1.5, 8.0), (4.5, 8.0), (10.5, 8.0), (16.5, 8.0)];
+  static const shops = [(-1.6, 8.0), (3.1, 8.0), (7.8, 8.0), (12.5, 8.0), (17.2, 8.0), (21.9, 8.0)];
   static const vip = (28.0, 9.0);
   static const door = (-35.0, 16.0);
   static const roadZ = 20.0;
@@ -57,7 +57,7 @@ const planeTypes = [
   PlaneType('Jato grande', 11.2, 260, 2.4),
 ];
 
-enum Kind { flow, gate, boost, building }
+enum Kind { flow, gate, boost, building, shop }
 
 /// Estação do aeroporto (algo que se melhora).
 class St {
@@ -80,7 +80,12 @@ const stations = [
   St('g3', 'Portão 4', 'plane', 'Mais um portão = mais voos ao mesmo tempo.', Kind.gate, base: 5e4, growth: 1.17, unlock: 1e5, gate: 3, star: 2),
   St('g4', 'Portão 5', 'plane', 'Mais um portão = mais voos ao mesmo tempo.', Kind.gate, base: 1.5e6, growth: 1.17, unlock: 3e6, gate: 4, star: 3),
   St('g5', 'Portão 6', 'plane', 'Mais um portão = mais voos ao mesmo tempo.', Kind.gate, base: 4e7, growth: 1.17, unlock: 8e7, gate: 5, star: 4),
-  St('lojas', 'Praça de Lojas', 'shop', 'Cada passageiro que passa no raio-X gasta nas lojas. Novo quiosque nos níveis 5, 10 e 15.', Kind.flow, base: 80, growth: 1.18, unlock: 600, star: 1),
+  St('lojas', 'Café', 'shop', 'Quem passa no raio-X toma um café antes do voo. Evolui no nível 10 e no 25.', Kind.shop, base: 80, growth: 1.18, unlock: 600, star: 1),
+  St('loja1', 'Lanchonete', 'shop', 'Lanches rápidos: cada passageiro gasta mais. Evolui no nível 10 e no 25.', Kind.shop, base: 900, growth: 1.18, unlock: 9e3, star: 1),
+  St('loja2', 'Livraria', 'shop', 'Revistas e livros para a viagem. Evolui no nível 10 e no 25.', Kind.shop, base: 1.2e4, growth: 1.18, unlock: 1.5e5, star: 2),
+  St('loja3', 'Sorveteria', 'shop', 'Sorvete artesanal que todo mundo quer. Evolui no nível 10 e no 25.', Kind.shop, base: 2e5, growth: 1.18, unlock: 2.5e6, star: 2),
+  St('loja4', 'Loja de Presentes', 'shop', 'Lembranças da cidade: gasto alto por passageiro. Evolui no nível 10 e no 25.', Kind.shop, base: 4e6, growth: 1.18, unlock: 5e7, star: 3),
+  St('loja5', 'Duty Free', 'shop', 'A loja mais lucrativa do aeroporto. Evolui no nível 10 e no 25.', Kind.shop, base: 9e7, growth: 1.18, unlock: 1.2e9, star: 4),
   St('pista', 'Pista', 'runway', 'Aviões mais rápidos em pouso, taxi e decolagem. Nível 10 libera jatos médios; nível 30, jatos grandes.', Kind.boost, base: 60, growth: 1.2),
   St('torre', 'Torre de Controle', 'tower', 'Coordena o tráfego: +6% de receita por nível. Cresce nos níveis 15 e 30.', Kind.boost, base: 150, growth: 1.21),
   St('vip', 'Sala VIP', 'crown', 'Passageiros premium: +4% no preço da passagem por nível.', Kind.boost, base: 5e4, growth: 1.2, unlock: 1e5, star: 2),
@@ -105,7 +110,11 @@ double power(int l) => l <= 0 ? 0.0 : l * math.pow(2, milestonesPassed(l)).toDou
 
 int desksFor(int l) => 1 + [2, 4, 6, 8, 10, 15, 20].where((m) => l >= m).length;
 int lanesFor(int l) => 1 + [3, 6, 10, 15, 25].where((m) => l >= m).length;
-int shopsFor(int l) => l <= 0 ? 0 : 1 + [5, 10, 15].where((m) => l >= m).length;
+const shopIds = ['lojas', 'loja1', 'loja2', 'loja3', 'loja4', 'loja5'];
+const shopBase = [0.4, 1.4, 5.0, 18.0, 60.0, 220.0];
+/// Evolução visual (1 básico, 2 moderno, 3 luxo) de lojas, check-in e raio-X.
+int visTier(String id, int l) { final m = shopIds.contains(id) ? const [10, 25] : const [25, 50]; return l >= m[1] ? 3 : l >= m[0] ? 2 : 1; }
+bool hasVisTier(String id) => shopIds.contains(id) || id == 'checkin' || id == 'seguranca';
 int parkCars(int l) => math.min(24, 1 + l);
 int parkTier(int l) => 1 + [10, 25, 50].where((m) => l >= m).length;
 int towerTier(int l) => 1 + [15, 30].where((m) => l >= m).length;
@@ -220,10 +229,10 @@ class Mission {
 /// Estrelas do aeroporto: tarefas de cada estrela (os níveis escalam por cidade só no texto).
 const starTasks = [
   [Mission('lvl', 'checkin', 10), Mission('lvl', 'entrada', 10), Mission('lvl', 'seguranca', 10), Mission('unlock', 'g1', 1), Mission('flights', '', 15)],
-  [Mission('lvl', 'g0', 30), Mission('lvl', 'lojas', 10), Mission('unlock', 'g2', 1), Mission('lvl', 'pista', 15), Mission('manager', '', 2)],
-  [Mission('lvl', 'checkin', 50), Mission('unlock', 'vip', 1), Mission('unlock', 'g3', 1), Mission('lvl', 'torre', 25), Mission('flights', '', 120)],
-  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 100), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 100), Mission('lvl', 'lojas', 60)],
-  [Mission('unlock', 'combustivel', 1), Mission('unlock', 'g5', 1), Mission('lvl', 'pista', 50), Mission('lvl', 'entrada', 100), Mission('flights', '', 600)],
+  [Mission('lvl', 'g0', 40), Mission('lvl', 'lojas', 15), Mission('unlock', 'loja1', 1), Mission('unlock', 'g2', 1), Mission('lvl', 'pista', 15), Mission('manager', '', 2), Mission('flights', '', 120)],
+  [Mission('lvl', 'checkin', 75), Mission('unlock', 'vip', 1), Mission('unlock', 'g3', 1), Mission('lvl', 'torre', 40), Mission('unlock', 'loja3', 1), Mission('lvl', 'loja1', 25), Mission('flights', '', 450)],
+  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 125), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 125), Mission('lvl', 'lojas', 75), Mission('unlock', 'loja4', 1), Mission('flights', '', 1200)],
+  [Mission('unlock', 'combustivel', 1), Mission('unlock', 'g5', 1), Mission('lvl', 'pista', 60), Mission('lvl', 'entrada', 150), Mission('unlock', 'loja5', 1), Mission('lvl', 'cargas', 25), Mission('flights', '', 3000)],
 ];
 const starNames = ['Aeródromo', 'Aeroporto Regional', 'Aeroporto Nacional', 'Aeroporto Internacional', 'Hub Global', 'Lenda dos Céus'];
 

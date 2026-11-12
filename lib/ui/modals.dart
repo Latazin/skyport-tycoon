@@ -47,14 +47,17 @@ class GameModal extends StatelessWidget {
 class OfflineModal extends StatelessWidget {
   final double secs, amount;
   final int gems;
-  final void Function(bool triple) onClaim;
-  const OfflineModal({super.key, required this.secs, required this.amount, required this.gems, required this.onClaim});
+  final bool first;
+  /// 0 = pegar, 1 = dobrar (anúncio; grátis na primeira vez), 2 = triplicar com gemas.
+  final void Function(int mode) onClaim;
+  const OfflineModal({super.key, required this.secs, required this.amount, required this.gems, required this.onClaim, this.first = false});
   @override
   Widget build(BuildContext context) => GameModal(
         title: 'Bem-vindo de volta!', icon: 'cash', color: K.green,
         actions: [
-          GBtn(color: K.blue, onTap: () => onClaim(false), child: Text('Pegar', style: display(18))),
-          GBtn(color: K.purple, enabled: gems >= 15, onTap: () => onClaim(true), child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Pegar x3  ', style: display(18)), const Price('15', icon: 'gem', size: 16)])),
+          GBtn(color: K.grey, onTap: () => onClaim(0), child: Text('Pegar', style: display(16))),
+          GBtn(color: K.purple, enabled: gems >= 15, onTap: () => onClaim(2), child: Row(mainAxisSize: MainAxisSize.min, children: [Text('x3  ', style: display(16)), const Price('15', icon: 'gem', size: 15)])),
+          GBtn(color: K.green, pulse: true, onTap: () => onClaim(1), child: Row(mainAxisSize: MainAxisSize.min, children: [if (!first) ...[const Icon(Icons.play_circle_fill_rounded, size: 20), const SizedBox(width: 6)], Text('Pegar em dobro', style: display(16))])),
         ],
         child: Column(children: [
           Text('Seu aeroporto operou por ${fmtTime(secs)} enquanto você estava fora e faturou:', textAlign: TextAlign.center, style: body(15)),
@@ -76,54 +79,112 @@ class ChestModal extends StatefulWidget {
 }
 
 class _ChestModalState extends State<ChestModal> with TickerProviderStateMixin {
-  late final AnimationController shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
-  late final AnimationController reveal = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+  late final AnimationController shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
+  late final AnimationController spin = AnimationController(vsync: this, duration: const Duration(seconds: 14))..repeat();
+  late final AnimationController reveal = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
+  late final AnimationController pop = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   Loot? loot;
+  int taps = 0;
   @override
-  void dispose() { shake.dispose(); reveal.dispose(); super.dispose(); }
-  void _open() { if (loot != null) return; Sfx.play('gift'); Sfx.haptic(40); setState(() => loot = widget.open()); reveal.forward(); }
+  void dispose() { shake.dispose(); spin.dispose(); reveal.dispose(); pop.dispose(); super.dispose(); }
+  void _tap() {
+    if (loot != null) return;
+    taps++; pop.forward(from: 0); Sfx.haptic(15 + taps * 10);
+    if (taps < 3) { Sfx.play('tick', rate: 1 + taps * 0.2); setState(() {}); return; }
+    Sfx.play('gift'); Sfx.haptic(50);
+    setState(() => loot = widget.open());
+    reveal.forward();
+  }
+  static const rar = [Color(0xFF8A93A6), Color(0xFF3E8BFF), Color(0xFF8F62F8), Color(0xFFFFB020)];
   @override
   Widget build(BuildContext context) {
     final gold = widget.type == 'chest_gold';
+    final glow = gold ? const Color(0xFFFFC531) : const Color(0xFFFF9F1C);
     final l = loot;
-    return GameModal(
-      title: gold ? 'Baú de ouro!' : 'Baú!', color: gold ? K.goldD : K.orange,
-      actions: [if (l != null) GBtn(color: K.green, onTap: widget.onDone, child: Text(widget.left > 0 ? 'Próximo (${widget.left})' : 'Pegar', style: display(19)))],
-      child: l == null
-          ? GestureDetector(onTap: _open, child: Column(children: [
-              AnimatedBuilder(animation: shake, builder: (_, c) => Transform.rotate(angle: math.sin(shake.value * math.pi * 2) * 0.08, child: Transform.scale(scale: 1 + shake.value * 0.06, child: c)), child: Ico(widget.type, size: 140)),
-              const SizedBox(height: 6),
-              Text('Toque para abrir', style: body(18, color: K.muted, w: FontWeight.w900)),
-            ]))
-          : AnimatedBuilder(animation: reveal, builder: (_, __) {
-              double k(int i) => Curves.elasticOut.transform(((reveal.value - i * 0.08) / 0.5).clamp(0.0, 1.0));
-              return Column(children: [
-                Wrap(alignment: WrapAlignment.center, spacing: 12, runSpacing: 6, children: [
-                  Transform.scale(scale: k(0), child: Price('\$${fmt(l.coins)}', size: 18)),
-                  Transform.scale(scale: k(1), child: Price('${l.gems}', icon: 'gem', size: 18)),
-                  Transform.scale(scale: k(2), child: Price(fmt(l.miles), icon: 'miles', size: 18)),
-                ]),
-                const SizedBox(height: 10),
-                Wrap(alignment: WrapAlignment.center, spacing: 6, runSpacing: 6, children: [
-                  for (var i = 0; i < l.cards.length; i++) Transform.scale(scale: k(3 + i), child: _card(l.cards[i], l.fresh.contains(l.cards[i]))),
-                ]),
-              ]);
-            }),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(gold ? 'Baú de ouro' : 'Baú de cartas', style: display(30)),
+          const SizedBox(height: 2),
+          Text(l == null ? (taps == 0 ? 'Toque 3 vezes para abrir' : 'Mais ${3 - taps}!') : 'Você ganhou', style: body(15, color: Colors.white.withValues(alpha: 0.85))),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: _tap,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              height: l == null ? 250 : 150,
+              child: Stack(alignment: Alignment.center, children: [
+                RotationTransition(turns: spin, child: CustomPaint(size: Size.square(l == null ? 300 : 220), painter: _RayPainter(glow))),
+                Container(width: l == null ? 170 : 110, height: l == null ? 170 : 110, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [glow.withValues(alpha: 0.55), glow.withValues(alpha: 0)]))),
+                AnimatedBuilder(
+                  animation: Listenable.merge([shake, pop]),
+                  builder: (_, c) {
+                    final w0 = l == null ? math.sin(shake.value * math.pi * 2) * (0.04 + taps * 0.035) : 0.0;
+                    final p0 = 1 + math.sin(pop.value * math.pi) * 0.22;
+                    return Transform.rotate(angle: w0, child: Transform.scale(scale: p0, child: c));
+                  },
+                  child: Ico(widget.type, size: l == null ? 170 : 96),
+                ),
+              ]),
+            ),
+          ),
+          if (l != null) AnimatedBuilder(animation: reveal, builder: (_, __) {
+            double k(int i) => Curves.easeOutBack.transform(((reveal.value - i * 0.09) / 0.3).clamp(0.0, 1.0));
+            Widget res(int i, String icon, String v, String label) => Transform.scale(scale: k(i), child: Container(
+                  width: 112, padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: K.shadow),
+                  child: Column(children: [Ico(icon, size: 38), Text(v, style: body(16, w: FontWeight.w900)), Text(label, style: body(10.5, color: K.muted))]),
+                ));
+            return Column(children: [
+              Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+                res(0, 'coin', '\$${fmt(l.coins)}', 'moedas'),
+                res(1, 'gem', '${l.gems}', 'gemas'),
+                res(2, 'miles', fmt(l.miles), 'milhas'),
+              ]),
+              const SizedBox(height: 10),
+              Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+                for (var i = 0; i < l.cards.length; i++) Transform.scale(scale: k(3 + i), child: _card(l.cards[i], l.fresh.contains(l.cards[i]))),
+              ]),
+              const SizedBox(height: 16),
+              Opacity(opacity: ((reveal.value - 0.6) / 0.3).clamp(0.0, 1.0), child: GBtn(color: K.green, pulse: true, padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 13), onTap: widget.onDone, child: Text(widget.left > 0 ? 'Próximo baú (${widget.left})' : 'Pegar tudo', style: display(19)))),
+            ]);
+          }),
+        ]),
+      ),
     );
   }
   Widget _card(String id, bool fresh) {
     final m = modelById(id);
-    const cols = [Color(0xFF8A93A6), Color(0xFF3E8BFF), Color(0xFF8F62F8), Color(0xFFFFB020)];
     return Container(
-      width: 74, padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: cols[m.rarity].withValues(alpha: 0.6), width: 2), boxShadow: K.shadowS),
+      width: 92, padding: const EdgeInsets.fromLTRB(5, 5, 5, 7),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: rar[m.rarity], width: 2.5), boxShadow: [BoxShadow(color: rar[m.rarity].withValues(alpha: 0.55), blurRadius: 14)]),
       child: Column(children: [
-        Text(fresh ? 'NOVO!' : rarityNames[m.rarity], style: body(9, color: fresh ? K.red : cols[m.rarity], w: FontWeight.w900)),
-        Container(width: 62, height: 46, decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: cols[m.rarity].withValues(alpha: 0.12)), child: Ico('pm_${m.tier}_${m.liv}', size: 46)),
-        Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(9, w: FontWeight.w900)),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1), decoration: BoxDecoration(color: fresh ? K.red : rar[m.rarity], borderRadius: BorderRadius.circular(8)), child: Text(fresh ? 'NOVO!' : rarityNames[m.rarity].toUpperCase(), style: body(9, color: Colors.white, w: FontWeight.w900))),
+        const SizedBox(height: 3),
+        Container(width: 80, height: 56, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: rar[m.rarity].withValues(alpha: 0.13)), child: Ico('pm_${m.tier}_${m.liv}', size: 56)),
+        const SizedBox(height: 3),
+        Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(10.5, w: FontWeight.w900)),
       ]),
     );
   }
+}
+
+class _RayPainter extends CustomPainter {
+  final Color c;
+  _RayPainter(this.c);
+  @override
+  void paint(Canvas cv, Size z) {
+    final o = z.center(Offset.zero), r = z.width / 2;
+    final p = Paint()..shader = RadialGradient(colors: [c.withValues(alpha: 0.5), c.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: o, radius: r));
+    for (var i = 0; i < 12; i++) {
+      final a = i * math.pi / 6;
+      cv.drawPath(Path()..moveTo(o.dx, o.dy)..lineTo(o.dx + math.cos(a - 0.11) * r, o.dy + math.sin(a - 0.11) * r)..lineTo(o.dx + math.cos(a + 0.11) * r, o.dy + math.sin(a + 0.11) * r)..close(), p);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _RayPainter o) => false;
 }
 
 /// Roleta do dia.

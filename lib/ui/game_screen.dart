@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../core/audio.dart';
 import '../core/data.dart';
+import '../core/ads.dart';
 import '../core/format.dart';
 import '../core/notify.dart';
 import '../core/save.dart';
@@ -163,7 +164,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     if (id == 'checkin' && desksFor(to) > desksFor(from)) banner('NOVO BALCÃO!', '${desksFor(to)} balcões de check-in');
     if (id == 'seguranca' && lanesFor(to) > lanesFor(from)) banner('NOVA FAIXA!', '${lanesFor(to)} faixas de raio-X');
     if (id == 'seguranca' && from < 20 && to >= 20) toast('Scanners corporais instalados!');
-    if (id == 'lojas' && shopsFor(to) > shopsFor(from)) banner('NOVO QUIOSQUE!', '${shopsFor(to)} lojas na praça');
+    if (hasVisTier(id) && visTier(id, to) > visTier(id, from)) {
+      final lux = visTier(id, to) == 3;
+      final c = game.w.stationCenter(id);
+      game.w.burst(c.$1, c.$2, 2.5, 40, const [Color(0xFFFFE27A), Color(0xFFFFFFFF), Color(0xFF7FD8FF), Color(0xFFFF9AC4)]);
+      for (var i = 0; i < 10; i++) { game.w.puffs.add(Puff(c.$1 - 2 + game.w.r.nextDouble() * 4, c.$2 - 1 + game.w.r.nextDouble() * 2, 0.8 + game.w.r.nextDouble())); }
+      game.focusWorld(c.$1, c.$2, zoomTo: 0.8);
+      banner('${st.name} evoluiu!', lux ? 'Agora com visual de luxo' : 'Agora com visual moderno');
+      Sfx.play('build'); confetti(70); Sfx.haptic(40);
+    }
     if (id == 'pista' && runwayTier(to) > runwayTier(from)) banner('PISTA MAIOR!', 'Agora a pista recebe ${planeTypes[runwayTier(to)].name}');
     if (id == 'torre' && towerTier(to) > towerTier(from)) banner('TORRE NOVA!', 'Controle de tráfego ampliado');
     if (id == 'entrada' && parkTier(to) > parkTier(from)) toast('Estacionamento ampliado!');
@@ -222,6 +231,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       case 'heli':
         Sfx.play('ding'); toast('Helicóptero executivo pousou! Toque nele.');
         break;
+      case 'frenzy':
+        Sfx.play('boost'); Sfx.haptic(40); confetti(50);
+        banner('Frenesi!', 'Tudo rende x2 por 20 segundos');
+        break;
+      case 'offer':
+        Sfx.play('ding'); toast('Oferta relâmpago! Toque no aviso lá em cima.');
+        break;
       case 'wave':
         Sfx.play('boost'); game.w.spawnGroup(12);
         banner('Onda de turistas!', 'O resort lotou o aeroporto por ${s.waveSecs.round()} s');
@@ -236,6 +252,60 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     closePanel();
     banner('Decoração nova!', '${d.name} · +3% de receita');
     confetti(40);
+  }
+
+  // ================= anúncios premiados =================
+  bool _adBusy = false, _adPaid = false;
+  Future<void> _ad(VoidCallback reward) async {
+    if (_adBusy) return;
+    _adBusy = true; Sfx.pauseMusic();
+    final r = await Ads.show();
+    _adBusy = false;
+    if (!mounted) return;
+    Sfx.resumeMusic();
+    switch (r) {
+      case 'ok': s.adWatched(); reward(); break;
+      case 'demo': s.adWatched(); toast('Anúncio de teste: prêmio liberado'); reward(); break;
+      case 'none': toast('Nenhum anúncio disponível agora. Tente de novo em instantes.'); break;
+      default: toast('Assista o anúncio até o fim para ganhar o prêmio.');
+    }
+    Save.save(s);
+    setState(() {});
+  }
+  /// Janela "ver anúncio para ganhar X" (com opção de pagar em gemas quando houver).
+  void _adOffer(String title, String text, String icon, VoidCallback reward, {int gems = 0, Color color = K.purple}) {
+    _showModal(GameModal(title: title, icon: icon, color: color, actions: [
+      GBtn(color: K.grey, onTap: _closeModal, child: Text('Agora não', style: display(15))),
+      if (gems > 0) GBtn(color: K.purple, enabled: s.gems >= gems, onTap: () { if (s.gems < gems) return; s.gems -= gems; _closeModal(); reward(); setState(() {}); }, child: Price('$gems', icon: 'gem', size: 16)),
+      GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); _ad(reward); }, child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.play_circle_fill_rounded, size: 20), const SizedBox(width: 6), Text('Ver anúncio', style: display(16))])),
+    ], child: Text(text, textAlign: TextAlign.center, style: body(15, w: FontWeight.w700))));
+  }
+  @override
+  void boostTap() => _boostTap();
+  void _boostTap() {
+    if (s.boostOn) { toast('Lucro x2 ativo por mais ${fmtTime((s.boostUntil - nowMs()) / 1000)}'); return; }
+    void give() { s.claimFree(); s.inc('x2'); Sfx.play('boost'); banner('Lucro x2!', 'Por 10 minutos'); setState(() {}); }
+    if (s.c('x2') == 0) { give(); return; }
+    _adOffer('Lucro x2', 'Dobre todo o lucro do aeroporto por 10 minutos.', 'bolt', give, color: K.gold);
+  }
+  void _chestTap() {
+    if (s.chestReady) { s.takeFreeChest(); showChests(); return; }
+    _adOffer('Baú agora?', 'O baú grátis fica pronto em ${fmtTime(math.max(0, (s.chestAt - nowMs()) / 1000))}. Quer abrir um agora?', 'chest', () { s.chestsQ.add('chest'); showChests(); }, color: K.orange);
+  }
+  void _wheelTap() {
+    if (s.spinReady) { openWheel(); return; }
+    _adOffer('Giro extra', 'Você já usou o giro grátis de hoje. Quer girar a roleta de novo?', 'wheel', () => openWheel(force: true), color: K.purple);
+  }
+  void _piggyTap() {
+    final pct = (s.piggy / s.piggyCap * 100).clamp(0, 100).round();
+    if (s.piggy <= 0) { toast('O cofrinho guarda 15% de tudo que você ganha'); return; }
+    void give() { final v = s.breakPiggy(); final sz = MediaQuery.of(context).size; _flyFrom(Offset(sz.width / 2, sz.height * 0.45), 0, 20); Sfx.play('cash'); confetti(60); banner('Cofrinho quebrado!', '+\$${fmt(v)}'); setState(() {}); }
+    if (s.c('piggy') == 0 && s.piggyFull) { give(); return; }
+    _adOffer(s.piggyFull ? 'Cofrinho cheio!' : 'Cofrinho ($pct%)', 'Tem \$${fmt(s.piggy)} guardados no cofrinho. Quebre para pegar tudo agora.', 'cash', give, gems: 12, color: K.gold);
+  }
+  void _offerTap() {
+    if (!s.offerOn) return;
+    _adOffer('Oferta relâmpago', '${GameState.offerNames[s.offerKind]}\n\nSó por mais ${fmtTime((s.offerUntil - nowMs()) / 1000)}!', const ['bolt', 'chest_gold', 'rush'][s.offerKind], () { s.grantOffer(); Sfx.play('boost'); banner('Oferta ativada!', GameState.offerNames[s.offerKind]); showChests(); }, gems: GameState.offerGems[s.offerKind], color: K.red);
   }
 
   // ================= PanelHost =================
@@ -299,8 +369,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     _showModal(ChestModal(key: ValueKey('chest${s.chestsQ.length}$type${nowMs()}'), type: type, left: s.chestsQ.length, open: () { final l = s.openChest(type); confetti(60); return l; }, onDone: () { _closeModal(); Save.save(s); if (s.chestsQ.isNotEmpty) Future.delayed(const Duration(milliseconds: 250), showChests); }));
   }
   @override
-  void openWheel() {
-    if (!s.spinReady) return;
+  void openWheel({bool force = false}) {
+    if (!s.spinReady && !force) return;
     closePanel();
     _showModal(WheelModal(spin: s.spin, apply: (i) {
       final r = s.applyWheel(i);
@@ -355,6 +425,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       game.w.floaters.add(Floater(Lay.special.$1, Lay.special.$2, 6, 'Diárias +\$${fmt(v)}', const Color(0xFFFFE27A), 1.2));
       return;
     }
+    if (id.startsWith('gold:')) {
+      final a = game.w.agents.where((x) => x.gold && 'gold:${x.hashCode}' == id).toList();
+      if (a.isEmpty) return;
+      a.first.gold = false;
+      final r = s.goldTap();
+      final o = game.worldToScreen(iso(a.first.x, a.first.z, 2));
+      if (r.$1 > 0) _flyFrom(o, r.$1, 12);
+      if (r.$2 > 0) _flyGems(r.$2, o);
+      Sfx.play('gift'); Sfx.haptic(25);
+      game.w.burst(a.first.x, a.first.z, 1.5, 18, const [Color(0xFFFFE27A), Color(0xFFFFFFFF)]);
+      game.w.floaters.add(Floater(a.first.x, a.first.z, 3, r.$2 > 0 ? 'Passageiro dourado! +${r.$2} gemas' : 'Passageiro dourado! +\$${fmt(r.$1)}', const Color(0xFFFFE27A), 1.3));
+      return;
+    }
     if (id == 'heli') {
       final v = s.tapHeli(); if (v <= 0) return;
       final o = game.worldToScreen(iso(Lay.special.$1, Lay.special.$2, 3));
@@ -407,18 +490,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
   void _offerOffline(double secs) {
     final v = s.offlineFor(secs); if (v < 1) return;
-    _showModal(OfflineModal(secs: secs, amount: v, gems: s.gems, onClaim: (x3) {
-      if (x3) { if (s.gems < 15) return; s.gems -= 15; }
-      final a = x3 ? v * 3 : v;
-      s.earn(a); _closeModal();
-      final sz = MediaQuery.of(context).size;
-      _flyFrom(Offset(sz.width / 2, sz.height * 0.5), a, 18); Sfx.play('cash'); confetti(40);
+    void pay(double a) { s.earn(a); final sz = MediaQuery.of(context).size; _flyFrom(Offset(sz.width / 2, sz.height * 0.5), a, 18); Sfx.play('cash'); confetti(40); }
+    _showModal(OfflineModal(secs: secs, amount: v, gems: s.gems, first: s.c('offx') == 0, onClaim: (mode) {
+      if (mode == 2) { if (s.gems < 15) return; s.gems -= 15; _closeModal(); pay(v * 3); return; }
+      _closeModal();
+      if (mode == 1) { if (s.c('offx') == 0) { s.inc('offx'); pay(v * 2); return; } s.inc('offx'); pay(v); _ad(() => pay(v)); return; }
+      pay(v);
     }));
   }
 
   Future<void> _playGame(String which) async {
-    final at0 = {'land': s.landAt, 'xray': s.xrayAt, 'bag': s.bagAt, 'atc': s.atcAt, 'yard': s.yardAt}[which]!;
-    if (nowMs() < at0) { toast('Disponível em ${fmtTime(math.max(0, (at0 - nowMs()) / 1000))}'); return; }
+    // a primeira partida de cada jogo é livre; depois, um anúncio por partida
+    if (s.c('mg_$which') > 0 && !_adPaid) { _ad(() { _adPaid = true; _playGame(which); }); return; }
+    _adPaid = false;
+    s.inc('mg_$which');
     Sfx.click();
     final page = switch (which) {
       'land' => LandingGame(rewardText: _rewardText, level: s.landingLevel) as Widget,
@@ -486,6 +571,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           _topBar(pad),
           _sideButtons(pad),
           if (panel == null) _abilities(pad),
+          if (panel == null && s.tut >= 7) _frenzy(pad),
           if (panel == null) _goal(pad),
           if (panel == null) _bestButton(pad),
           _bottomNav(pad),
@@ -500,7 +586,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Positioned.fill(child: RepaintBoundary(child: FlyLayer(c: fly))),
         Positioned.fill(child: RepaintBoundary(child: ConfettiLayer(c: conf))),
         if (_banner != null) Positioned.fill(child: BannerView(key: ValueKey(_banner), title: _banner!.$1, sub: _banner!.$2, onDone: _nextBanner)),
-        if (_modal != null) Positioned.fill(child: Container(color: const Color(0x8C1F2A44), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: _modal)),
+        if (_modal != null) Positioned.fill(child: Container(color: _modal is ChestModal ? const Color(0xE6101A33) : const Color(0x8C1F2A44), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: SingleChildScrollView(child: _modal))),
       ]),
     );
   }
@@ -545,6 +631,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             if (s.rushOn) _chip('rush', 'Rush ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
             if (s.turboOn) _chip('turbo', 'Turbo ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
             for (final a in abilities) if (s.abilOn(a.mgr)) _chip(a.icon, '${a.name} ${fmtTime(((s.abilUntil[a.mgr] ?? 0) - nowMs()) / 1000)}', K.purple),
+            if (s.offerOn) GestureDetector(onTap: _offerTap, child: _chip('gift', 'Oferta ${fmtTime((s.offerUntil - nowMs()) / 1000)}', K.red)),
+            if (s.tripleOn) _chip('bolt', 'x3 ${fmtTime((s.tripleUntil - nowMs()) / 1000)}', K.red),
+            if (s.frenzyOn) _chip('fire', 'Frenesi x2 ${(s.frenzyUntil - s.clock).ceil()}s', K.orange),
             if (s.weekend) _chip('gift', 'Fim de semana +25%', K.orange),
             if (s.clock < s.waveUntil) _chip('esp5', 'Onda de turistas ${(s.waveUntil - s.clock).ceil()}s', K.teal),
             if (s.snow) _chip('esp3', 'Neve x${s.snowSpeed.toStringAsFixed(2)}', s.snowSpeed < 1 ? K.blue : K.green),
@@ -567,9 +656,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     return Positioned(
       right: 10, top: pad.top + 74,
       child: Column(children: [
-        _RoundBtn(icon: 'bolt', label: s.freeReady ? 'x2 grátis' : 'Turbinas', ready: s.freeReady, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('Lucro x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
-        if (s.spinReady) _RoundBtn(icon: 'wheel', label: 'Roleta', ready: true, onTap: openWheel),
-        _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, dim: !s.chestReady, onTap: () { if (s.chestReady) { s.takeFreeChest(); showChests(); } else { toast('Baú grátis em ${cd(s.chestAt)}'); } }),
+        _RoundBtn(icon: 'bolt', label: s.boostOn ? fmtTime((s.boostUntil - nowMs()) / 1000) : 'Lucro x2', ready: !s.boostOn, onTap: _boostTap),
+        _RoundBtn(icon: 'wheel', label: 'Roleta', ready: s.spinReady, onTap: _wheelTap),
+        _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, onTap: _chestTap),
+        if (s.tut >= 7) _RoundBtn(icon: 'cash', label: 'Cofrinho', ready: s.piggyFull, fill: s.piggy / s.piggyCap, onTap: _piggyTap),
         _RoundBtn(icon: 'landing', label: 'Jogos', ready: _games.any((g) => g.$4), onTap: () => openPanel('games')),
       ]),
     );
@@ -577,16 +667,40 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 
   /// Minijogos disponíveis: (id, nome, ícone, pronto, recarga).
   List<(String, String, String, bool, int)> get _games => [
-        ('land', 'Pouso perfeito', 'landing', s.landReady, s.landAt),
-        ('xray', 'Raio-X', 'xray', s.xrayReady, s.xrayAt),
-        ('bag', 'Esteira de malas', 'bags', s.bagReady, s.bagAt),
-        if (s.phase >= 1) ('atc', 'Torre de controle', 'tower', s.atcReady, s.atcAt),
-        if (s.phase >= 2) ('yard', 'Pátio', 'route', s.yardReady, s.yardAt),
+        ('land', 'Pouso perfeito', 'landing', s.c('mg_land') == 0, 0),
+        ('xray', 'Raio-X', 'xray', s.c('mg_xray') == 0, 0),
+        ('bag', 'Esteira de malas', 'bags', s.c('mg_bag') == 0, 0),
+        if (s.phase >= 1) ('atc', 'Torre de controle', 'tower', s.c('mg_atc') == 0, 0),
+        if (s.phase >= 2) ('yard', 'Pátio', 'route', s.c('mg_yard') == 0, 0),
       ];
   @override
   List<(String, String, String, bool, int)> get games => _games;
   @override
   void playGame(String id) { closePanel(); _playGame(id); }
+
+  /// Barra de frenesi: enche com toques (aviões, dinheiro, passageiro dourado).
+  Widget _frenzy(EdgeInsets pad) {
+    final on = s.frenzyOn, v = on ? (s.frenzyUntil - s.clock) / 20 : s.frenzy;
+    return Positioned(
+      left: 12, bottom: pad.bottom + 162,
+      child: GestureDetector(
+        onTap: () => toast(on ? 'Frenesi! Tudo rende x2' : 'Toque em aviões e dinheiro para encher. Cheia = lucro x2 por 20 s'),
+        child: Container(
+          width: 132, padding: const EdgeInsets.fromLTRB(4, 4, 10, 4),
+          decoration: BoxDecoration(color: on ? K.orange : Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: K.shadow),
+          child: Row(children: [
+            const Ico('fire', size: 26),
+            const SizedBox(width: 4),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(on ? 'Frenesi x2!' : 'Frenesi', style: body(11.5, color: on ? Colors.white : K.navy2, w: FontWeight.w900)),
+              const SizedBox(height: 3),
+              GBar(value: v.clamp(0.0, 1.0).toDouble(), height: 6, color: on ? Colors.white : K.orange, track: on ? Colors.white30 : K.track),
+            ])),
+          ]),
+        ),
+      ),
+    );
+  }
 
   /// Habilidades dos gerentes contratados (lado esquerdo).
   Widget _abilities(EdgeInsets pad) {
@@ -615,11 +729,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     final can = s.money >= b.$2;
     final st = stationById(b.$1);
     return Positioned(
-      right: 12, bottom: pad.bottom + 158,
+      right: 12, bottom: pad.bottom + 154,
       child: GBtn(
         color: can ? K.green : const Color(0xFF9AA4B8), enabled: true, pulse: can, radius: 18,
         padding: const EdgeInsets.fromLTRB(6, 5, 12, 6),
-        onTap: () { if (!can) { toast('Falta \$${fmt(b.$2 - s.money)} para ${st.name}'); return; } s.buyBest(); setState(() {}); },
+        repeat: true,
+        onTap: () { final bb = s.bestBuy(); if (bb == null || s.money < bb.$2) { if (!can) toast('Falta \$${fmt(b.$2 - s.money)} para ${st.name}'); return; } s.buyBest(); setState(() {}); },
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.all(3), child: Ico(st.icon, size: 32)),
           const SizedBox(width: 6),
@@ -687,7 +802,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           _NavBtn(icon: 'mission', label: 'Missões', badge: cl > 0 ? '$cl' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
           _NavBtn(icon: 'plane', label: 'Frota', dot: fleet, active: panel == 'fleet', onTap: () => openPanel('fleet')),
           _NavBtn(icon: 'pax', label: 'Equipe', dot: team, active: panel == 'team', onTap: () => openPanel('team')),
-          _NavBtn(icon: 'bag', label: 'Loja', dot: s.freeReady || s.chestReady || s.spinReady, active: panel == 'shop', onTap: () => openPanel('shop')),
+          _NavBtn(icon: 'bag', label: 'Loja', dot: s.chestReady || s.spinReady, active: panel == 'shop', onTap: () => openPanel('shop')),
         ]),
       )),
     );
@@ -757,8 +872,9 @@ class _ResState extends State<_Res> with SingleTickerProviderStateMixin {
 class _RoundBtn extends StatelessWidget {
   final String icon, label;
   final bool ready, dim;
+  final double? fill;
   final VoidCallback onTap;
-  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.ready = false, this.dim = false});
+  const _RoundBtn({required this.icon, required this.label, required this.onTap, this.ready = false, this.dim = false, this.fill});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
@@ -770,6 +886,7 @@ class _RoundBtn extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               child: Opacity(opacity: dim ? 0.45 : 1, child: Ico(icon, size: 34)),
             ),
+            if (fill != null) Positioned.fill(child: Padding(padding: const EdgeInsets.all(1.5), child: CircularProgressIndicator(value: fill!.clamp(0.0, 1.0), strokeWidth: 3.5, color: K.gold, backgroundColor: K.track))),
             if (ready) Positioned(right: -1, top: -1, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: K.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
           ]),
           const SizedBox(height: 3),

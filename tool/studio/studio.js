@@ -147,7 +147,7 @@ const L = {
   standNose: -6.4,
   checkin: { x0: -44, z: 8, dx: 2.6 },        // balcões de check-in
   security: { x0: -21.5, z: 5, dx: 3.0 },     // faixas do raio-X
-  shops: [{ x: -1.5, z: 8 }, { x: 4.5, z: 8 }, { x: 10.5, z: 8 }, { x: 16.5, z: 8 }],
+  shops: [{ x: -1.6, z: 8 }, { x: 3.1, z: 8 }, { x: 7.8, z: 8 }, { x: 12.5, z: 8 }, { x: 17.2, z: 8 }, { x: 21.9, z: 8 }],
   vip: { x: 28, z: 9 },
   door: { x: -35, z: 16 },
   road: { z: 20, x0: -92, x1: 82 },
@@ -378,15 +378,48 @@ const SHOPS = [
   { name: 'CAFÉ', c: 0x8a5a34, aw: [0xffffff, 0xd94b3a] },
   { name: 'LANCHES', c: 0xff8a1f, aw: [0xffffff, 0xff8a1f] },
   { name: 'REVISTAS', c: 0x2f7bff, aw: [0xffffff, 0x2f7bff] },
+  { name: 'SORVETES', c: 0xff7ab6, aw: [0xffffff, 0xff7ab6] },
+  { name: 'PRESENTES', c: 0x18b48d, aw: [0xffffff, 0x18b48d] },
   { name: 'DUTY FREE', c: 0x8b5cf6, aw: [0xffc928, 0x8b5cf6] },
 ];
+/* troca cores de um modelo pronto (para as evoluções visuais) */
+function reskin(g, map) { g.traverse(o => { if (o.isMesh && o.material && o.material.color) { const h = o.material.color.getHex(); if (map[h] != null && !o.material.transparent) o.material = M(map[h]); } }); return g; }
+/* evolução visual: t=1 básico, t=2 moderno, t=3 luxo */
+function shopT(i, t) {
+  const g = shop(i), s = SHOPS[i];
+  if (t >= 2) {
+    B(g, 3.8, 0.1, 3.4, 0xffffff, 0, -0.02, -0.1); B(g, 3.5, 0.5, 0.16, 0x1e2a47, 0, 3.5, -0.9); B(g, 3.3, 0.08, 0.18, M(0xfff1a8, { emissive: 0x8a7a20 }), 0, 3.42, -0.88);
+    [-1.9, 1.9].forEach(x => { C(g, 0.22, 0.18, 0.4, 0xf7f9fc, x, 0, 1.3, 8); Sp(g, 0.32, 0x3fae5a, x, 0.65, 1.3, 7); });
+    for (let k = 0; k < 5; k++) Sp(g, 0.09, M(0xfff1a8, { emissive: 0xa08a30 }), -1.5 + k * 0.75, 2.0, 0.25, 6);
+  }
+  if (t >= 3) {
+    B(g, 3.4, 1.9, 0.3, s.c, 0, 1.9, -1.6); B(g, 0.3, 3.8, 0.3, 0xf7f9fc, -1.7, 0, -1.6); B(g, 0.3, 3.8, 0.3, 0xf7f9fc, 1.7, 0, -1.6);
+    B(g, 3.6, 1.5, 0.3, s.c, 0, 3.8, -1.6); for (let k = 0; k < 3; k++) B(g, 0.8, 0.9, 0.08, M(0x8fd6ff), -1.1 + k * 1.1, 4.1, -1.42);
+    B(g, 3.8, 0.16, 0.5, 0xffc531, 0, 5.3, -1.6); B(g, 3.8, 0.12, 3.2, 0xffc531, 0, 0.0, -0.1);
+    [[-1.5, 0xff4e4e], [1.5, 0x2f7bff], [0, 0xffc531]].forEach(([x, c]) => { C(g, 0.015, 0.015, 1.2, 0xffffff, x, 5.4, -1.6, 4); Sp(g, 0.3, c, x, 6.8, -1.6, 10); });
+    const st = mesh(G.cone(0.34, 0.5, 5), M(0xffc531), g, 0, 5.75, -1.3); st.rotation.x = Math.PI / 2;
+  }
+  return g;
+}
+function checkinT(t) {
+  const g = checkinDesk();
+  if (t === 2) { reskin(g, { 0x2f7bff: 0x14b8a6, 0x253154: 0x0f766e }); B(g, 2.3, 0.04, 3.9, 0x14b8a6, 0, 0.0, 1.6); B(g, 2.1, 0.5, 0.06, M(0x7fd8ff, { emissive: 0x2a6a90 }), 0, 2.55, -0.27); B(g, 0.35, 1.3, 0.3, 0xf7f9fc, 1.35, 0, 1.2); B(g, 0.28, 0.4, 0.04, M(0x7fd8ff, { emissive: 0x2a6a90 }), 1.35, 0.8, 1.36); }
+  if (t === 3) { reskin(g, { 0x2f7bff: 0x1e2a47, 0xf7f9fc: 0xffe9b0, 0x253154: 0x1e2a47, 0xc0c8d6: 0xffc531 }); B(g, 2.3, 0.05, 3.9, 0xb3261e, 0, 0.0, 1.6); B(g, 2.3, 0.03, 0.2, 0xffc531, 0, 0.03, 3.4); B(g, 2.14, 0.1, 0.9, 0xffc531, 0, 0.9, 0); B(g, 2.1, 0.5, 0.06, M(0xffe27a, { emissive: 0x907020 }), 0, 2.55, -0.27); B(g, 0.35, 1.3, 0.3, 0x1e2a47, 1.35, 0, 1.2); B(g, 0.28, 0.4, 0.04, M(0xffe27a, { emissive: 0x907020 }), 1.35, 0.8, 1.36); mesh(G.cone(0.3, 0.45, 5), M(0xffc531), g, 0, 3.15, -0.35).rotation.x = Math.PI / 2; }
+  return g;
+}
+function securityT(t) {
+  const g = securityLane();
+  if (t === 2) { reskin(g, { 0x8b5cf6: 0x14b8a6, 0xdfe5ee: 0xf7f9fc }); B(g, 2.6, 0.04, 4.6, 0xbff0e8, 0.3, 0.0, 0); B(g, 1.3, 0.4, 0.06, M(0x7fd8ff, { emissive: 0x2a6a90 }), 0.75, 2.5, -0.2); B(g, 0.5, 0.5, 0.06, M(0x7fd8ff, { emissive: 0x2a6a90 }), -0.75, 2.2, 0.82); }
+  if (t === 3) { reskin(g, { 0x8b5cf6: 0x1e2a47, 0xdfe5ee: 0xffc531, 0x9aa3b4: 0x4a5670, 0xffc928: 0xffc531 }); B(g, 2.6, 0.04, 4.6, 0xffe9b0, 0.3, 0.0, 0); B(g, 1.3, 0.4, 0.06, M(0xffe27a, { emissive: 0x907020 }), 0.75, 2.5, -0.2); B(g, 0.5, 0.5, 0.06, M(0xffe27a, { emissive: 0x907020 }), -0.75, 2.2, 0.82); Sp(g, 0.14, M(0x3bff7a, { emissive: 0x20a050 }), 0.25, 2.5, -0.05, 8); Sp(g, 0.14, M(0x3bff7a, { emissive: 0x20a050 }), 1.25, 2.5, -0.05, 8); }
+  return g;
+}
 function shop(i) {
   const s = SHOPS[i], g = new THREE.Group();
   B(g, 3.6, 0.15, 3.0, 0xefe6d6, 0, 0, -0.2);
   B(g, 3.4, 1.9, 0.3, s.c, 0, 0, -1.6); // fundo
   for (let r = 0; r < 3; r++) for (let k = 0; k < 6; k++) B(g, 0.38, 0.32, 0.22, [0xffc928, 0xff4e4e, 0x2ec27e, 0x2f7bff, 0xffffff, 0xff8a1f][(k + r + i) % 6], -1.3 + k * 0.52, 0.5 + r * 0.45, -1.35);
   B(g, 2.6, 0.95, 0.7, 0xf7f9fc, 0, 0, 0.3); B(g, 2.7, 0.08, 0.8, s.c, 0, 0.95, 0.3);
-  const v = person({ shirt: s.c, pants: 0x253154, skin: P.skin[i % 4], hair: [0x3b2a20, 0xe0a040, 0x1a1210, 0x6b3a20][i] }); v.position.set(0.6, 0, -0.5); g.add(v);
+  const v = person({ shirt: s.c, pants: 0x253154, skin: P.skin[i % 4], hair: [0x3b2a20, 0xe0a040, 0x1a1210, 0x6b3a20][i % 4] }); v.position.set(0.6, 0, -0.5); g.add(v);
   // toldo listrado
   for (let k = 0; k < 7; k++) { const a = B(g, 0.52, 0.08, 1.2, s.aw[k % 2], -1.56 + k * 0.52, 2.15, -0.6); a.rotation.x = 0.3; }
   C(g, 0.05, 0.05, 2.2, 0x7a8395, -1.7, 0, 0.2, 6); C(g, 0.05, 0.05, 2.2, 0x7a8395, 1.7, 0, 0.2, 6);
@@ -395,6 +428,8 @@ function shop(i) {
     [[-1.0, 1.6], [1.0, 1.6]].forEach(([x, z]) => { C(g, 0.05, 0.05, 0.7, 0x7a8395, x, 0, z, 6); C(g, 0.38, 0.38, 0.05, 0xf7f9fc, x, 0.7, z, 12); });
   }
   if (i === 1) { B(g, 0.3, 0.25, 0.3, 0xffc928, -0.6, 1.03, 0.3); }
+  if (i === 3) { [-0.7, 0, 0.7].forEach((x, k) => { mesh(G.cone(0.16, 0.4, 8), M(0xe8c48a), g, x, 1.2, 0.3).rotation.x = Math.PI; Sp(g, 0.2, [0xff7ab6, 0xfff1a8, 0x8a5a34][k], x, 1.5, 0.3, 8); }); }
+  if (i === 4) { [[-0.8, 0xff4e4e], [0, 0x2f7bff], [0.8, 0xffc928]].forEach(([x, c]) => { B(g, 0.45, 0.4, 0.45, c, x, 1.03, 0.3); B(g, 0.47, 0.08, 0.1, 0xffffff, x, 1.2, 0.3); B(g, 0.1, 0.42, 0.47, 0xffffff, x, 1.03, 0.3); }); }
   return g;
 }
 function vip(t) {
@@ -1149,7 +1184,8 @@ const CARC = [0xff4e4e, 0x2f7bff, 0xffffff, 0x2b3245, 0x2ec27e, 0xffc928];
 for (let c = 0; c < CARC.length; c++) for (let h = 0; h < 4; h++) def(`car${c}_${h}`, () => { const g = new THREE.Group(); const o = vehicle('car', CARC[c]); o.rotation.y = h * Math.PI / 2; g.add(o); return g; }, { k: 1.5, W: 140, H: 120, oy: 0.65 });
 def('checkin', checkinDesk, { W: 300, H: 300, oy: 0.68 });
 def('security', securityLane, { W: 320, H: 320, oy: 0.62 });
-for (let i = 0; i < 4; i++) def('shop' + i, () => shop(i), { W: 380, H: 380, oy: 0.66 });
+for (let i = 0; i < 6; i++) for (let t = 1; t <= 3; t++) def(`shop${i}_${t}`, () => shopT(i, t), { W: 400, H: 560, oy: 0.76 });
+for (let t = 2; t <= 3; t++) { def('checkin_' + t, () => checkinT(t), { W: 320, H: 340, oy: 0.7 }); def('security_' + t, () => securityT(t), { W: 340, H: 340, oy: 0.64 }); }
 for (let t = 1; t <= 3; t++) def('vip' + t, () => vip(t), { W: 640, H: 520, oy: 0.55 });
 for (let n = 1; n <= 6; n++) for (let t = 1; t <= 3; t++) def(`gate${n}_${t}`, () => gateInterior(n, t), { W: 420, H: 360, oy: 0.6 });
 for (let t = 1; t <= 2; t++) def('bridge' + t, () => jetBridge(t), { W: 420, H: 420, oy: 0.4 });

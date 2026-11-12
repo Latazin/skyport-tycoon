@@ -22,6 +22,7 @@ abstract class PanelHost {
   void flyCash(double amount);
   void flyGemsCenter(int n);
   void openWheel();
+  void boostTap();
   void showChests();
   void decorBought(Decor d);
   List<(String, String, String, bool, int)> get games;
@@ -50,6 +51,7 @@ Color stColor(St st) {
     case Kind.boost: return K.purple;
     case Kind.building: return K.orange;
     case Kind.flow: return K.blue;
+    case Kind.shop: return K.orange;
   }
 }
 
@@ -116,6 +118,10 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
     if (add <= 0) return null;
     s.lv[id] = l + add; final v = f(); s.lv[id] = l; return v;
   }
+  if (st.kind == Kind.shop) {
+    final i = shopIds.indexOf(id), m = (s.hasMgr('elisa') ? 3 : 1) * (s.has('premium') ? 2 : 1) * s.perk.shop * s.revMult;
+    return [('Esta loja rende', '\$${fmt(s.shopSpendOf(i) * m)}/pax', nx(() => '\$${fmt(s.shopSpendOf(i) * m)}/pax')), ('Todas as lojas juntas', '\$${fmt(s.shopSpend * s.revMult)}/pax', null)];
+  }
   switch (id) {
     case 'entrada':
       return [('Chegada de passageiros', perMin(s.lambda), nx(() => perMin(s.lambda))), ('Carros no estacionamento', '${parkCars(l)}', nx(() => '${parkCars(s.lvl(id))}'))];
@@ -123,8 +129,6 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
       return [('Atendimento', perMin(s.muC), nx(() => perMin(s.muC))), ('Balcões abertos', '${desksFor(l)}', nx(() => '${desksFor(s.lvl(id))}'))];
     case 'seguranca':
       return [('Inspeção', perMin(s.muS), nx(() => perMin(s.muS))), ('Faixas de raio-X', '${lanesFor(l)}', nx(() => '${lanesFor(s.lvl(id))}'))];
-    case 'lojas':
-      return [('Gasto por passageiro', '\$${fmt(s.shopSpend * s.revMult)}', nx(() => '\$${fmt(s.shopSpend * s.revMult)}')), ('Quiosques', '${shopsFor(l)}', nx(() => '${shopsFor(s.lvl(id))}'))];
     case 'pista':
       return [('Velocidade dos voos', 'x${s.speed.toStringAsFixed(2)}', nx(() => 'x${s.speed.toStringAsFixed(2)}')), ('Maior avião', planeTypes[runwayTier(l)].name, nx(() => planeTypes[runwayTier(s.lvl(id))].name))];
     case 'torre':
@@ -160,11 +164,13 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
 /// Próxima novidade visual da estação.
 String? nextVisual(St st, int l) {
   int? nx(List<int> m) { for (final x in m) { if (l < x) return x; } return null; }
+  if (st.kind == Kind.shop) { final n = nx([10, 25]); return n == null ? null : n == 10 ? 'Vira loja moderna no nível 10' : 'Vira loja de luxo no nível 25'; }
+  if (st.id == 'checkin' || st.id == 'seguranca') { final t = nx([25, 50]); final small = nx(st.id == 'checkin' ? [2, 4, 6, 8, 10, 15, 20] : [3, 6, 10, 15, 20, 25]); if (t != null && (small == null || t <= small)) return t == 25 ? 'Evolui para o visual moderno no nível 25' : 'Evolui para o visual de luxo no nível 50'; }
   switch (st.id) {
     case 'checkin': final n = nx([2, 4, 6, 8, 10, 15, 20]); final p = props.where((p) => p.st == 'checkin' && p.lvl > l).map((p) => p.lvl).fold<int?>(null, (a, b) => a == null || b < a ? b : a); final m = [n, p].whereType<int>().fold<int?>(null, (a, b) => a == null || b < a ? b : a); return m == null ? null : m == n ? 'Novo balcão no nível $n' : 'Decoração nova no nível $m';
     case 'seguranca': final n = nx([3, 6, 10, 15, 20, 25]); return n == null ? null : n == 20 ? 'Scanner corporal no nível 20' : 'Nova faixa no nível $n';
     case 'entrada': return l < 23 ? 'Mais um carro a cada nível · ônibus mais frequentes' : null;
-    case 'lojas': final n = nx([5, 10, 15]); return n == null ? null : 'Novo quiosque no nível $n';
+
     case 'pista': final n = nx([10, 30]); return n == null ? null : 'Pista maior e luzes novas no nível $n';
     case 'torre': final n = nx([15, 30]); return n == null ? null : 'Torre mais alta no nível $n';
   }
@@ -222,7 +228,7 @@ class _StationPanelState extends State<StationPanel> {
           decoration: BoxDecoration(color: K.redL, borderRadius: BorderRadius.circular(14)),
           child: Row(children: [const Icon(Icons.warning_amber_rounded, color: K.red, size: 20), const SizedBox(width: 8), Expanded(child: Text(st.kind == Kind.gate ? 'Portões são o gargalo: abra mais portões ou suba o nível.' : 'Gargalo! Esta é a etapa mais lenta. Melhorar aqui aumenta o lucro.', style: body(13.5, color: K.red)))]),
         )
-      else if (st.kind == Kind.flow && st.id != 'lojas')
+      else if (st.kind == Kind.flow)
         Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Gargalo atual: ${bottleneckName(s.bottleneck)}', style: body(13, color: K.muted))),
       GCard(child: Column(children: [
         for (final r in stats) InfoRow(r.$1, r.$2, next: r.$3 != null && r.$3 != r.$2 ? '→ ${r.$3}' : null),
@@ -239,7 +245,7 @@ class _StationPanelState extends State<StationPanel> {
         BuyMode(s: s, onChange: () => setState(() {})),
         const SizedBox(width: 8),
         Expanded(child: GBtn(
-          color: K.green, enabled: can, pulse: can && s.tut == 2,
+          color: K.green, enabled: can, pulse: can && s.tut == 2, repeat: true,
           onTap: () { if (s.upgrade(st.id)) { if (s.tut == 2) s.tut = 3; widget.h.refresh(); setState(() {}); } },
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -334,7 +340,7 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
       )),
       if (!st.oneTime || locked)
         GBtn(
-          color: locked ? K.blue : K.green, enabled: can, radius: 14,
+          color: locked ? K.blue : K.green, enabled: can, radius: 14, repeat: !locked,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           onTap: () { final ok = locked ? s.unlock(st.id) : s.upgrade(st.id); if (ok) { widget.h.refresh(); setState(() {}); } },
           child: Column(mainAxisSize: MainAxisSize.min, children: [Text(locked ? 'Construir' : '+${b.$1}', style: display(12.5)), Price(fmt(b.$2), size: 13)]),
@@ -776,7 +782,7 @@ class _ShopPanelState extends State<ShopPanel> {
       const SectionTitle('Grátis'),
       item('wheel', 'Roleta do dia', s.spinReady ? 'Gire agora!' : 'Volte amanhã', free(s.spinReady, widget.h.openWheel)),
       item('chest', 'Baú grátis', s.chestReady ? 'Pronto para abrir!' : 'De novo em ${left(s.chestAt)}', free(s.chestReady, () { s.takeFreeChest(); widget.h.showChests(); setState(() {}); })),
-      item('bolt', 'Lucro x2 por 10 min', s.freeReady ? 'Grátis agora!' : 'De novo em ${left(s.freeAt)}', free(s.freeReady, () { s.claimFree(); Sfx.play('boost'); widget.h.refresh(); setState(() {}); })),
+      item('bolt', 'Lucro x2 por 10 min', s.boostOn ? 'Ativo: ${left(s.boostUntil)}' : 'Dobre o lucro agora', free(!s.boostOn, () { widget.h.closePanel(); widget.h.boostTap(); })),
       const SectionTitle('Turbinas'),
       item('bolt', 'Lucro x2 por 30 min', s.boostOn ? 'Ativo: ${left(s.boostUntil)}' : 'Dobra tudo que o aeroporto fatura', gemBtn(20, () { if (s.buyBoost(20, 30)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
       item('rush', 'Hora do rush (5 min)', s.rushOn ? 'Ativo: ${left(s.rushUntil)}' : 'Chegam 3x mais passageiros', gemBtn(12, () { if (s.buyRush(12)) { Sfx.play('boost'); widget.h.refresh(); setState(() {}); } })),
@@ -938,7 +944,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v3.1', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v3.2', style: body(12, color: K.muted)),
     ]));
   }
 }
@@ -958,17 +964,16 @@ class GamesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final list = h.games;
-    return Sheet(title: 'Minijogos', subtitle: 'Prêmios em dinheiro, gemas e baús', icon: 'landing', color: K.orange, onClose: h.closePanel, child: Column(children: [
+    return Sheet(title: 'Minijogos', subtitle: 'Até 3 estrelas: dinheiro, gemas e baú', icon: 'landing', color: K.orange, onClose: h.closePanel, child: Column(children: [
       for (final g in list) GCard(padding: const EdgeInsets.all(10), child: Row(children: [
-        IcoBox(g.$3, color: K.orange, size: 50, opacity: g.$4 ? 1 : 0.5),
+        IcoBox(g.$3, color: K.orange, size: 50),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(g.$2, style: body(16, w: FontWeight.w900)),
           Text(desc[g.$1] ?? '', style: body(12.5, color: K.muted)),
         ])),
         const SizedBox(width: 8),
-        g.$4 ? GBtn(color: K.green, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), onTap: () => h.playGame(g.$1), child: Text('Jogar', style: display(14)))
-            : Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: K.track, borderRadius: BorderRadius.circular(10)), child: Text(fmtTime(math.max(0, g.$5 - nowMs()) / 1000), style: body(13, color: K.muted, w: FontWeight.w900))),
+        GBtn(color: K.green, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: () => h.playGame(g.$1), child: Row(mainAxisSize: MainAxisSize.min, children: [if (!g.$4) ...[const Icon(Icons.play_circle_fill_rounded, size: 18), const SizedBox(width: 4)], Text('Jogar', style: display(14))])),
       ])),
       if (s.phase < 2) Text(s.phase < 1 ? 'Novos jogos chegam quando o aeroporto crescer: Torre (2ª fase) e Pátio (3ª fase).' : 'O jogo do Pátio chega na próxima fase do aeroporto.', textAlign: TextAlign.center, style: body(12.5, color: K.muted)),
     ]));
