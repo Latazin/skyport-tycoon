@@ -133,6 +133,18 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
       return [('Bônus na passagem', '+${4 * l}%', nx(() => '+${4 * s.lvl(id)}%'))];
     case 'cargas':
       return [('Bônus de receita', '+${5 * l}%', nx(() => '+${5 * s.lvl(id)}%'))];
+    case 'esp0':
+      return [('Lojas e gorjetas', '+${6 * l}%', nx(() => '+${6 * s.lvl(id)}%'))];
+    case 'esp1':
+      return [('Diárias', '\$${fmt(s.hotelRate)}/s', nx(() => '\$${fmt(s.hotelRate)}/s')), ('No caixa do hotel', '\$${fmt(s.hotelPile)}', null)];
+    case 'esp2':
+      return [('Voos internacionais (3x)', '${(s.intlChance * 100).round()}%', nx(() => '${(s.intlChance * 100).round()}%'))];
+    case 'esp3':
+      return [('Velocidade na neve', 'x${s.snowSpeed.toStringAsFixed(2)}', nx(() => 'x${s.snowSpeed.toStringAsFixed(2)}'))];
+    case 'esp4':
+      return [('Helicóptero a cada', '${s.heliEvery.round()} s', nx(() => '${s.heliEvery.round()} s')), ('Cada pouso paga', '\$${fmt(s.heliValue)}', nx(() => '\$${fmt(s.heliValue)}'))];
+    case 'esp5':
+      return [('Onda de turistas', '${s.waveSecs.round()} s', nx(() => '${s.waveSecs.round()} s')), ('Intervalo', '110 s', null)];
   }
   if (st.kind == Kind.gate) {
     final g = st.gate;
@@ -254,7 +266,7 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
   @override
   Widget build(BuildContext context) {
     final list = stations.where((st) => s.built(st.id) || s.unlockOk(st)).toList();
-    final next = stations.where((st) => !s.built(st.id)).take(4).toList();
+    final next = stations.where((st) => !s.built(st.id) && s.here(st)).take(4).toList();
     return Sheet(title: 'Melhorias', subtitle: '${s.ph.name} · lucro \$${fmt(s.rate)}/s', icon: 'up', color: K.green, onClose: widget.h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Tabs(labels: const ['Aeroporto', 'Decoração'], index: tab, dots: [false, decors.any((d) => !s.decor.contains(d.id) && s.decorOk(d) && s.money >= s.decorCost(d))], onTap: (i) => setState(() => tab = i)),
       if (tab == 1) ..._decor() else ...[
@@ -367,7 +379,7 @@ class StarsPanel extends StatelessWidget {
         const SizedBox(height: 6),
         GBtn(color: K.purple, enabled: s.starReady, pulse: s.starReady, onTap: h.claimStar, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 13), child: Text(s.starReady ? 'Ganhar estrela!' : 'Complete as tarefas', style: display(18))),
         const SizedBox(height: 8),
-        Text('Libera: ${stations.where((st) => st.star == s.star + 1).map((st) => st.name).join(', ')}', textAlign: TextAlign.center, style: body(13, color: K.purple)),
+        Text('Libera: ${stations.where((st) => st.star == s.star + 1 && s.here(st)).map((st) => st.name).join(', ')}', textAlign: TextAlign.center, style: body(13, color: K.purple)),
       ],
     ]));
   }
@@ -778,41 +790,98 @@ class _ShopPanelState extends State<ShopPanel> {
   }
 }
 
-class CitiesPanel extends StatelessWidget {
+/// Rede de aeroportos: o atual, o próximo à venda e o álbum de todos.
+class CitiesPanel extends StatefulWidget {
   final GameState s;
   final PanelHost h;
   const CitiesPanel({super.key, required this.s, required this.h});
   @override
+  State<CitiesPanel> createState() => _CitiesPanelState();
+}
+
+class _CitiesPanelState extends State<CitiesPanel> {
+  GameState get s => widget.s;
+  static const themeCol = [Color(0xFF3FAE5A), Color(0xFF2F6BFF), Color(0xFF7C5CFA), Color(0xFF5BA8D8), Color(0xFFE0A21A), Color(0xFF14B8A6)];
+  @override
   Widget build(BuildContext context) {
+    final h = widget.h;
     final cur = cityAt(s.city), next = cityAt(s.city + 1);
-    final pk = s.perk, pn = perkFor(s.city + 1);
-    return Sheet(title: 'Cidades', subtitle: '${cur.name} · ${s.ph.name}', icon: 'globe', color: K.teal, onClose: h.closePanel, child: Column(children: [
-      GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Você está em ${cur.name}', style: body(17, w: FontWeight.w900)),
-        Text(cur.sub, style: body(13, color: K.muted)),
-        const SizedBox(height: 8),
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: K.blueL, borderRadius: BorderRadius.circular(12)), child: Row(children: [const Icon(Icons.place_rounded, color: K.blue), const SizedBox(width: 8), Expanded(child: Text('${pk.name}: ${pk.desc}', style: body(13, color: K.blue)))])),
-        const SizedBox(height: 8),
-        Row(children: [for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.22, child: const Ico('star', size: 30)), const SizedBox(width: 6), Expanded(child: Text('Complete 5 estrelas para abrir ${next.name}', style: body(13)))]),
-      ])),
-      GCard(color: K.blueL, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [const Ico('plane', size: 34), const SizedBox(width: 8), Expanded(child: Text('Próximo: ${next.name}', style: body(16, w: FontWeight.w900)))]),
-        const SizedBox(height: 4),
-        Text('Começa do zero, mas tudo rende ${cityMult(s.city + 1) ~/ cityMult(s.city)}x mais. Pesquisa, rotas, frota, gemas e milhas vão com você. Ganhe ${25 + (s.city + 1) * 10} gemas e um baú de ouro.', style: body(13, w: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text('Especialidade: ${pn.name} — ${pn.desc}', style: body(12.5, color: K.teal)),
-        const SizedBox(height: 10),
-        Center(child: GBtn(color: K.green, enabled: s.canPrestige, pulse: s.canPrestige, onTap: h.doPrestige, child: Text('Voar para ${next.name}', style: display(16)))),
-      ])),
-      const SectionTitle('Rota'),
-      for (var i = 0; i < math.max(cities.length, s.city + 2); i++)
-        Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [
-          Ico(i < s.city ? 'trophy' : i == s.city ? 'plane' : 'lock', size: 28), const SizedBox(width: 8),
-          Expanded(child: Text(cityAt(i).name, style: body(15, color: i <= s.city ? K.ink : K.muted, w: i == s.city ? FontWeight.w900 : FontWeight.w700))),
-          Text('x${fmt(cityMult(i))}', style: body(13, color: K.greenD)),
+    final pk = s.perk, pn = perkFor(s.city + 1), en = specialFor(s.city + 1), ec = specialFor(s.city);
+    final price = s.nextPrice, have = s.money + s.pilesTotal;
+    return Sheet(title: 'Rede de aeroportos', subtitle: '${s.city + 1} aeroporto${s.city > 0 ? 's' : ''} · você está em ${cur.name}', icon: 'network', color: K.teal, onClose: h.closePanel, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (s.city > 0) GCard(color: K.greenL, child: Row(children: [
+        const IcoBox('network', color: K.green, size: 46),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Lucro dos outros aeroportos', style: body(14.5, w: FontWeight.w900)),
+          Text('+\$${fmt(s.netRate)}/s · guarda até 2 horas', style: body(12, color: K.greenD)),
+          const SizedBox(height: 5),
+          GBar(value: s.netRate > 0 ? s.netPile / (s.netRate * GameState.netCap) : 0, height: 7, color: K.green),
         ])),
+        const SizedBox(width: 8),
+        GBtn(color: K.green, radius: 12, enabled: s.netPile > 0, pulse: s.netReady, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), onTap: () { final v = s.collectNet(); if (v > 0) { h.flyCash(v); Sfx.play('cash'); setState(() {}); } }, child: Price(fmt(s.netPile), size: 13)),
+      ])),
+      GCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          IcoBox(ec.icon, color: themeCol[s.city % 6], size: 52),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(cur.name, style: body(17, w: FontWeight.w900)),
+            Text(cur.sub, style: body(12.5, color: K.muted)),
+            Row(children: [for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: const Ico('star', size: 18)), const SizedBox(width: 6), Text(s.ph.name, style: body(12, color: K.purple))]),
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        _feat(Icons.place_rounded, K.blue, pk.name, pk.desc),
+        _feat(Icons.apartment_rounded, themeCol[s.city % 6], 'Exclusivo: ${ec.name}', s.built(ec.id) ? 'Nível ${s.lvl(ec.id)}' : 'Libera com 1 estrela, ao lado da estrada'),
+      ])),
+      const SectionTitle('À venda'),
+      GCard(border: s.star >= 5 ? K.green.withValues(alpha: 0.6) : null, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          IcoBox(en.icon, color: themeCol[(s.city + 1) % 6], size: 52),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(next.name, style: body(17, w: FontWeight.w900)),
+            Text(next.sub, style: body(12.5, color: K.muted)),
+            Text('Tudo rende ${cityMult(s.city + 1) ~/ cityMult(s.city)}x mais', style: body(12.5, color: K.greenD)),
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        _feat(Icons.place_rounded, K.blue, pn.name, pn.desc),
+        _feat(Icons.apartment_rounded, themeCol[(s.city + 1) % 6], 'Exclusivo: ${en.name}', en.desc.replaceFirst(RegExp(r'^Só [^.]*\. '), '')),
+        _feat(Icons.card_giftcard_rounded, K.purple, 'Bônus de compra', '${25 + (s.city + 1) * 10} gemas, baú de ouro e +20% de lucro passivo do aeroporto atual'),
+        const SizedBox(height: 4),
+        Text('Você começa o novo aeroporto do zero. Pesquisas, rotas, frota, gemas e milhas vão junto. ${cur.name} continua rendendo na sua rede.', style: body(12, color: K.muted)),
+        const SizedBox(height: 10),
+        if (s.star < 5) Row(children: [const Icon(Icons.lock_rounded, color: K.muted, size: 18), const SizedBox(width: 6), Expanded(child: Text('Conquiste as 5 estrelas de ${cur.name} para poder comprar (${s.star}/5)', style: body(13, color: K.muted)))])
+        else ...[
+          GBar(value: have / price, height: 8, color: K.green, label: '\$${fmt(math.min(have, price))} / \$${fmt(price)}'),
+          const SizedBox(height: 10),
+          Center(child: GBtn(color: K.green, enabled: s.canPrestige, pulse: s.canPrestige, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12), onTap: h.doPrestige, child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Comprar  ', style: display(17)), Price(fmt(price), size: 17)]))),
+        ],
+      ])),
+      const SectionTitle('Álbum da rede'),
+      for (var i = 0; i < math.max(cities.length, s.city + 2); i++) () {
+        final own = i < s.city, here = i == s.city, e = specialFor(i);
+        return GCard(color: here ? K.blueL : null, padding: const EdgeInsets.all(9), child: Row(children: [
+          IcoBox(e.icon, color: themeCol[i % 6], size: 44, opacity: i <= s.city + 1 ? 1 : 0.35),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [Flexible(child: Text(cityAt(i).name, style: body(14.5, color: i <= s.city + 1 ? K.ink : K.muted, w: FontWeight.w900), overflow: TextOverflow.ellipsis)), if (own) const Tag('SEU', K.green), if (here) const Tag('ATUAL', K.blue)]),
+            Text('${e.name} · ${perkFor(i).name}', style: body(12, color: K.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ])),
+          Text('x${fmt(cityMult(i))}', style: body(13, color: K.greenD, w: FontWeight.w900)),
+          const SizedBox(width: 6),
+          Icon(own ? Icons.emoji_events_rounded : here ? Icons.flight_takeoff_rounded : Icons.lock_rounded, color: own ? K.gold : here ? K.blue : K.grey, size: 22),
+        ]));
+      }(),
     ]));
   }
+  Widget _feat(IconData ic, Color c, String t, String d) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(width: 28, height: 28, decoration: BoxDecoration(color: c.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(9)), child: Icon(ic, color: c, size: 17)),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(t, style: body(13.5, w: FontWeight.w900)), Text(d, style: body(12, color: K.muted))])),
+      ]));
 }
 
 class SettingsPanel extends StatefulWidget {
@@ -869,7 +938,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v3.0', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v3.1', style: body(12, color: K.muted)),
     ]));
   }
 }

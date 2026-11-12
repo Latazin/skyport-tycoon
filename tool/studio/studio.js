@@ -34,6 +34,7 @@ const G = {
   cyl: (a, b, h, s = 12) => GC['c' + a + b + h + s] ||= new THREE.CylinderGeometry(a, b, h, s),
   sph: (r, s = 12) => GC['s' + r + s] ||= new THREE.SphereGeometry(r, s, Math.max(6, s >> 1)),
   cone: (r, h, s = 8) => GC['o' + r + h + s] ||= new THREE.ConeGeometry(r, h, s),
+  torus: (r, t, a, b) => new THREE.TorusGeometry(r, t, a, b),
 };
 function mesh(geo, mat, p, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
@@ -154,6 +155,7 @@ const L = {
   busStop: { x: -40, z: 18.4 },
   tower: { x: -56, z: 5 },
   cargo: { x: 48, z: 3 },
+  special: { x: 38, z: 29 },
   carousel: { x: -45, z: 2.6 },
   fuel: { x: 50, z: -15 },
   hangar: { x: -60, z: -13 },
@@ -319,6 +321,13 @@ function tree(p, x, z, s = 1, kind = 0) {
   if (kind === 1) { // pinheiro
     C(g, 0.12, 0.16, 0.6, P.brown, 0, 0, 0, 6);
     mesh(G.cone(0.9, 1.4, 7), M(0x3fae5a), g, 0, 1.2, 0); mesh(G.cone(0.7, 1.1, 7), M(0x4cc067), g, 0, 1.8, 0);
+  } else if (kind === 3) { // pinheiro nevado
+    C(g, 0.12, 0.16, 0.6, P.brown, 0, 0, 0, 6);
+    mesh(G.cone(0.9, 1.4, 7), M(0x3f8f6a), g, 0, 1.2, 0); mesh(G.cone(0.7, 1.1, 7), M(0xffffff), g, 0, 1.85, 0); mesh(G.cone(0.93, 0.35, 7), M(0xffffff), g, 0, 0.75, 0);
+  } else if (kind === 4) { // ipê dourado
+    C(g, 0.12, 0.16, 0.9, P.brown, 0, 0, 0, 6);
+    const cc = [0xffc531, 0xff9f1c, 0xf2d024][Math.abs(Math.round(x * 3 + z)) % 3];
+    Sp(g, 0.8, cc, 0, 1.5, 0, 7); Sp(g, 0.55, 0xffe27a, 0.3, 1.9, 0.2, 7); Sp(g, 0.5, cc, -0.4, 1.3, -0.2, 7);
   } else if (kind === 2) { // palmeira
     const t = C(g, 0.1, 0.16, 2.6, 0xb58450, 0, 0, 0, 6); t.rotation.z = 0.12;
     for (let i = 0; i < 6; i++) { const l = B(g, 0.32, 0.06, 1.6, 0x2fb35a, 0, 2.55, 0.6); l.position.set(Math.sin(i) * 0.6, 2.55, Math.cos(i) * 0.6); l.rotation.y = i * 1.05; l.rotation.x = 0.35; }
@@ -548,6 +557,9 @@ const CITY = [
   { name: 'vale', grass: 0x6fb352, grass2: 0x68aa4d },
   { name: 'porto', grass: 0x6cae58, grass2: 0x65a552 },
   { name: 'intl', grass: 0x74b85a, grass2: 0x6daf54 },
+  { name: 'serra', grass: 0xbccbdc, grass2: 0xb0c1d4, tree: 3, bush: 0xc3d0de, shoulder: 0xc9d6e4 },
+  { name: 'rio', grass: 0x7aad50, grass2: 0x73a54a, tree: 4, bush: 0x659a40 },
+  { name: 'costa', grass: 0x66b86e, grass2: 0x5fb067, tree: 2, bush: 0x4aa05c },
 ];
 function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function dashedX(p, x0, x1, z, len, gap, w, c, y = 0.06) { for (let x = x0; x < x1 - len; x += len + gap) flat(p, len, w, c, x + len / 2, z, y); }
@@ -568,7 +580,7 @@ function background(city, phase = 2) {
     const crops = [0xe8c75a, 0x9bd65a, 0xd9a54a, 0x7ec850];
     for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) flat(g, 9, 7, crops[(i + j) % 4], -88 + i * 10, 40 + j * 8, -0.04);
     flat(g, 18, 12, 0x4fb8f0, 70, 36, -0.03); flat(g, 19.5, 13.5, 0xd9c48a, 70, 36, -0.05);
-    for (let i = 0; i < 120; i++) { const x = -100 + r() * 200, z = -70 + r() * 140; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; if (z > 34 && z < 62 && x < 10) continue; tree(g, x, z, 0.8 + r() * 0.9, r() < 0.4 ? 1 : 0); }
+    for (let i = 0; i < 120; i++) { const x = -100 + r() * 200, z = -70 + r() * 140; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (z > 34 && z < 62 && x < 10) continue; tree(g, x, z, 0.8 + r() * 0.9, r() < 0.4 ? 1 : 0); }
     // celeiro
     const bn = grp(g, 30, 0, 44); B(bn, 5, 3, 4, 0xd94b3a, 0, 0, 0); const rf = mesh(G.cone(3.8, 2, 4), M(0x8a3a2a), bn, 0, 4, 0); rf.rotation.y = Math.PI / 4; B(bn, 1.6, 2, 0.1, 0xffffff, 0, 0, 2.05);
   } else if (city === 1) {
@@ -579,27 +591,68 @@ function background(city, phase = 2) {
       const x = -110 + r() * 220, z = -72 + r() * 150;
       if (x > m.x0 - 4 && x < m.x1 + 4 && z > -48 && z < 26) continue;
       if (z > 50 && z < 66) continue;
-      if (z > 22 && z < 40 && x > -40 && x < -6) continue;
+      if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (z > 22 && z < 40 && x > -40 && x < -6) continue;
       const h = 2 + r() * (Math.abs(z) > 55 || Math.abs(x) > 95 ? 14 : 6), w = 3 + r() * 3, d = 3 + r() * 3;
       B(g, w, h, d, cols[Math.floor(r() * cols.length)], x, 0, z);
       B(g, w * 0.9, 0.2, d * 0.9, 0x8a93a6, x, h, z);
       for (let k = 1; k < h - 0.6; k += 1.2) { B(g, w + 0.02, 0.35, d * 0.8, 0x6a8fbf, x, k, z); }
     }
-    for (let i = 0; i < 40; i++) { const x = -100 + r() * 200, z = 26 + r() * 22; if (x > -40 && x < -6) continue; tree(g, x, z, 0.8 + r() * 0.5); }
+    for (let i = 0; i < 40; i++) { const x = -100 + r() * 200, z = 26 + r() * 22; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (x > -40 && x < -6) continue; tree(g, x, z, 0.8 + r() * 0.5); }
+  } else if (city === 3) {
+    // serra nevada: montanhas ao fundo, lago congelado, chalés e pinheiros
+    for (let i = 0; i < 16; i++) { const x = -120 + i * 16 + r() * 6, z = -70 - r() * 30, h = 14 + r() * 16, R0 = 11 + r() * 5; const mt = mesh(G.cone(R0, h, 5), M(0x7f8da6), g, x, h / 2, z); mt.rotation.y = r() * 3; const cap = mesh(G.cone(R0 * 0.47, h * 0.45, 5), M(0xffffff), g, x, h * 0.785, z); cap.rotation.y = mt.rotation.y; }
+    flat(g, 26, 16, 0xbfe6ff, 66, 40, -0.03); flat(g, 28, 18, 0xffffff, 66, 40, -0.05); for (let i = 0; i < 6; i++) flat(g, 4 + r() * 5, 0.2, 0xffffff, 58 + r() * 16, 34 + r() * 12, -0.02);
+    for (let i = 0; i < 170; i++) { const x = -105 + r() * 210, z = -62 + r() * 130; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; if (x > 50 && z > 30 && z < 50) continue; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (z > 22 && z < 40 && x > -40 && x < -6) continue; tree(g, x, z, 0.8 + r() * 1.0, 3); }
+    const ch = [0xb5653a, 0x8a4a2a, 0xc98a52];
+    for (let i = 0; i < 14; i++) { const x = -100 + i * 13 + r() * 4, z = 44 + r() * 16; const c = grp(g, x, 0, z); B(c, 3.6, 2.2, 3, ch[i % 3], 0, 0, 0); const rf = mesh(G.cone(3.1, 1.8, 4), M(0xffffff), c, 0, 3.1, 0); rf.rotation.y = Math.PI / 4; B(c, 0.5, 1.4, 0.5, 0x6b7280, 1, 2.6, -0.6); B(c, 0.9, 0.8, 0.08, M(0xffe9a0, { emissive: 0x806a20 }), 0, 0.9, 1.52); }
+    for (let i = 0; i < 40; i++) Sp(g, 0.5 + r() * 0.7, 0xffffff, -100 + r() * 200, 0.1, 26 + r() * 40, 7);
+  } else if (city === 4) {
+    // metrópole do rio dourado: rio largo com barcos, arranha-céus espelhados e ipês
+    flat(g, 400, 22, 0xcfa23c, 0, -62, -0.03); flat(g, 400, 26, 0xcfc39a, 0, -62, -0.05);
+    for (let i = 0; i < 24; i++) flat(g, 4 + r() * 6, 0.25, 0xe8c66a, -110 + r() * 220, -70 + r() * 16, -0.02);
+    for (let i = 0; i < 6; i++) { const b = grp(g, -90 + i * 34 + r() * 8, 0, -66 + r() * 8); B(b, 4, 0.7, 1.5, 0xffffff, 0, 0, 0); B(b, 1.6, 0.8, 1.1, [0xe8343b, 0x2f7bff, 0x2ec27e][i % 3], -0.4, 0.7, 0); }
+    B(g, 3, 0.5, 30, 0x8a93a6, 20, 1.2, -62); for (let z = -74; z <= -50; z += 8) B(g, 1, 1.4, 1, 0x6b7280, 20, 0, z);
+    const cols = [0x5b8cff, 0x3fb6f0, 0xffc531, 0x9aa3b4, 0x7c5cfa, 0x18b48d];
+    for (let i = 0; i < 120; i++) {
+      const x = -110 + r() * 220, z = 26 + r() * 46;
+      if (z < 42 && x > -42 && x < -4) continue; if (x > 28 && x < 48 && z < 36) continue;
+      const h = 4 + r() * (z > 50 ? 22 : 9), w = 3 + r() * 2.5;
+      B(g, w, h, w, cols[Math.floor(r() * cols.length)], x, 0, z); B(g, w * 0.5, 1.2, w * 0.5, 0x6b7280, x, h, z);
+      for (let k = 1; k < h - 0.5; k += 1.1) B(g, w + 0.03, 0.3, w + 0.03, 0xdff1ff, x, k, z);
+    }
+    for (let i = 0; i < 90; i++) { const x = -105 + r() * 210, z = -52 + r() * 76; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; tree(g, x, z, 0.8 + r() * 0.7, 4); }
+  } else if (city === 5) {
+    // costa esmeralda: mar dos dois lados, ilhas, recifes, bangalôs e coqueiros
+    flat(g, 400, 120, 0x2aa9a0, 0, -110, -0.02); flat(g, 400, 7, 0xf7e7b0, 0, -49, -0.04); flat(g, 400, 12, 0x66cfc0, 0, -56, -0.015);
+    flat(g, 400, 90, 0x2aa9a0, 0, 104, -0.02); flat(g, 400, 7, 0xf7e7b0, 0, 57, -0.04); flat(g, 400, 10, 0x66cfc0, 0, 63, -0.015);
+    for (let i = 0; i < 40; i++) flat(g, 3 + r() * 6, 0.25, 0xd8fff5, -110 + r() * 220, r() < 0.5 ? -60 - r() * 30 : 66 + r() * 20, 0.0);
+    for (let i = 0; i < 5; i++) { const x = -90 + i * 42 + r() * 10, z = -72 - r() * 14; flat(g, 9, 6, 0xf7e7b0, x, z, -0.01); flat(g, 6, 3.6, 0x62c27a, x, z, 0.0); tree(g, x - 1, z, 1.1, 2); tree(g, x + 1.4, z + 0.6, 0.9, 2); }
+    for (let i = 0; i < 12; i++) { const x = -100 + i * 17 + r() * 4, z = 60 + r() * 2; B(g, 0.4, 0.5, 8, 0xb58450, x, 0, z + 5); const b = grp(g, x, 0, z + 9); C(b, 1.5, 1.5, 1.5, 0xf7f9fc, 0, 0.5, 0, 8); mesh(G.cone(2.1, 1.5, 8), M(0xc98a52), b, 0, 2.75, 0); }
+    const hc = [0xffffff, 0xffe0b0, 0xbff5e6, 0xffc9d6];
+    for (let i = 0; i < 16; i++) { const x = -100 + i * 13.5 + r() * 3, z = 42 + r() * 8; if (x > -44 && x < -2) continue; if (x > 28 && x < 48) continue; const h = 3 + r() * 6; B(g, 5, h, 4, hc[i % 4], x, 0, z); B(g, 5.3, 0.3, 4.3, 0x14b8a6, x, h, z); for (let k = 1; k < h - 0.6; k += 1.3) B(g, 5.02, 0.4, 3.2, 0x7fe3d0, x, k, z); }
+    for (let i = 0; i < 130; i++) { const x = -105 + r() * 210, z = r() < 0.4 ? -50 + r() * 4 : 24 + r() * 32; if (x > m.x0 && x < m.x1 && z < -45) continue; if (x > -40 && x < -6 && z < 40 && z > 0) continue; if (x > 30 && x < 46 && z > 22 && z < 36) continue; tree(g, x, z, 0.9 + r() * 0.5, 2); }
   } else {
     // litoral: mar atrás da pista, praia e hotéis
     flat(g, 400, 120, 0x3fb6f0, 0, -110, -0.02); flat(g, 400, 6, 0xf2dc9e, 0, -48, -0.04);
     for (let i = 0; i < 30; i++) flat(g, 3 + r() * 6, 0.25, 0xbfe9ff, -110 + r() * 220, -54 - r() * 40, 0.0);
     for (let i = 0; i < 60; i++) { const x = -100 + r() * 200, z = -49 + r() * 4; if (x > m.x0 && x < m.x1 && z > -46) continue; tree(g, x, z, 0.8 + r() * 0.4, 2); }
     const hc = [0xffffff, 0xffe0b0, 0xbfe9ff, 0xffc9d6];
-    for (let i = 0; i < 26; i++) { const x = -105 + i * 8.5 + r() * 2, z = 40 + r() * 20; if (x > -40 && x < -6 && z < 42) continue; const h = 4 + r() * 12; B(g, 5, h, 4, hc[i % 4], x, 0, z); for (let k = 1; k < h - 0.6; k += 1.3) B(g, 5.02, 0.4, 3.2, 0x6ac0ff, x, k, z); }
-    for (let i = 0; i < 70; i++) { const x = -100 + r() * 200, z = 22 + r() * 40; if (x > -40 && x < -6 && z < 40) continue; tree(g, x, z, 0.9 + r() * 0.4, 2); }
+    for (let i = 0; i < 26; i++) { const x = -105 + i * 8.5 + r() * 2, z = 40 + r() * 20; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (x > -40 && x < -6 && z < 42) continue; const h = 4 + r() * 12; B(g, 5, h, 4, hc[i % 4], x, 0, z); for (let k = 1; k < h - 0.6; k += 1.3) B(g, 5.02, 0.4, 3.2, 0x6ac0ff, x, k, z); }
+    for (let i = 0; i < 70; i++) { const x = -100 + r() * 200, z = 22 + r() * 40; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (x > -40 && x < -6 && z < 40) continue; tree(g, x, z, 0.9 + r() * 0.4, 2); }
   }
+  // ===== detalhes do terreno: flores, pedras e moitas =====
+  { const r3 = rnd(555 + city * 13); const fc = city === 3 ? [0xffffff, 0xcfe0f0] : [0xffffff, 0xffe27a, 0xff9ac4, 0xff7a6a];
+    for (let i = 0; i < 260; i++) { const x = -105 + r3() * 210, z = -60 + r3() * 122; if (x > m.x0 + 4 && x < m.x1 - 4 && z > -47 && z < 23) continue; if (city !== 3 && city !== 5 && z > 38) continue; const k = r3();
+      if (k < 0.55) { for (let j = 0; j < 4; j++) Sp(g, 0.13, fc[(i + j) % fc.length], x + r3() * 1.6, 0.08, z + r3() * 1.6, 5).castShadow = false; }
+      else if (k < 0.8) { const b = Sp(g, 0.45 + r3() * 0.3, cfg.bush ?? 0x4fae4c, x, 0.2, z, 7); b.scale.y = 0.7; }
+      else { const st = Sp(g, 0.3 + r3() * 0.35, city === 3 ? 0xc5d0de : 0xa9b1bf, x, 0.1, z, 6); st.scale.y = 0.6; } } }
+  // lote do prédio exclusivo (ao lado da estrada)
+  if (phase >= 1) { flat(g, 11, 8.5, city === 3 ? 0xdfe6ee : 0xd9dde6, L.special.x, L.special.z, 0.01); flat(g, 3, 4, P.asph2, L.special.x - 4, L.special.z - 6, 0.005); }
   // ===== fase do aeroporto =====
   const ph = PH[phase], tx1 = ph.tx1, rx1 = ph.rx1;
   const wild = (x, z) => (x > tx1 + 4 && x < 80 && z > -29 && z < 16.5 && !(x > 40 && x < 56 && z > -20 && z < -9 && phase >= 3)) || (x > rx1 + 6 && x < 80 && z > -45 && z <= -29);
   // mato onde o aeroporto ainda vai crescer
-  if (phase < 2) { const r2 = rnd(99 + phase); for (let i = 0; i < (phase === 0 ? 150 : 70); i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (!wild(x, z)) continue; if (Math.abs(x - L.tower.x) < 4 && Math.abs(z - L.tower.z) < 4) continue; tree(g, x, z, 0.7 + r2() * 0.8, city === 2 ? 2 : r2() < 0.4 ? 1 : 0); } for (let i = 0; i < 40; i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (wild(x, z)) flat(g, 1.5 + r2() * 2, 1 + r2() * 1.5, city === 1 ? 0x5e9e4a : 0x5fa244, x, z, -0.03); } }
+  if (phase < 2) { const r2 = rnd(99 + phase); for (let i = 0; i < (phase === 0 ? 150 : 70); i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (!wild(x, z)) continue; if (Math.abs(x - L.tower.x) < 4 && Math.abs(z - L.tower.z) < 4) continue; tree(g, x, z, 0.7 + r2() * 0.8, cfg.tree ?? (city === 2 ? 2 : r2() < 0.4 ? 1 : 0)); } for (let i = 0; i < 40; i++) { const x = -20 + r2() * 100, z = -46 + r2() * 62; if (wild(x, z)) flat(g, 1.5 + r2() * 2, 1 + r2() * 1.5, cfg.bush ?? (city === 1 ? 0x5e9e4a : 0x5fa244), x, z, -0.03); } }
   // ===== cerca do sítio =====
   const fx1 = phase < 2 ? rx1 + 12 : m.x1 - 6;
   const fence = (x0, z0, x1, z1) => { const len = Math.hypot(x1 - x0, z1 - z0); const f = B(g, x0 === x1 ? 0.06 : len, 0.7, x0 === x1 ? len : 0.06, phase === 0 ? 0xa8875a : 0xc0c8d6, (x0 + x1) / 2, 0, (z0 + z1) / 2); f.castShadow = false; };
@@ -613,7 +666,7 @@ function background(city, phase = 2) {
     for (const dz of [-1.4, 1.4]) flat(g, rl - 6, 0.7, 0xb08c58, rc, rw.z + dz, 0.02);
     for (let x = rw.x0 + 1; x < rx1; x += 4) for (const sd of [-1, 1]) B(g, 0.35, 0.18, 0.35, 0xffffff, x, 0, rw.z + sd * (rwW / 2 + 0.3));
   } else {
-    flat(g, rl + 6, rwW + 4, 0xa9d48e, rc, rw.z, -0.02);
+    flat(g, rl + 6, rwW + 4, cfg.shoulder ?? 0xa9d48e, rc, rw.z, -0.02);
     flat(g, rl, rwW, P.asph, rc, rw.z, 0.0);
     dashedX(g, rw.x0 + 10, rx1 - 10, rw.z, 3, 2.4, 0.3, 0xffffff);
     flat(g, rl, 0.18, 0xffffff, rc, rw.z - rwW / 2 + 0.3, 0.05); flat(g, rl, 0.18, 0xffffff, rc, rw.z + rwW / 2 - 0.3, 0.05);
@@ -708,7 +761,7 @@ function background(city, phase = 2) {
     B(g, 0.3, 0.5, td, 0xe6eaf1, tm.x1 - 0.15, 0.3, tcz);
   }
   // ===== lado terra =====
-  for (let x = -86; x < 80; x += 7) { if (x > -42 && x < -4) continue; if (phase >= 3 && x > -4 && x < 30) continue; tree(g, x, 24 + (x % 2), 0.9, city === 2 ? 2 : 0); }
+  for (let x = -86; x < 80; x += 7) { if (x > -42 && x < -4) continue; if (phase >= 3 && x > -4 && x < 30) continue; if (x > 30 && x < 47) continue; tree(g, x, 24 + (x % 2), 0.9, cfg.tree ?? (city === 2 ? 2 : 0)); }
   if (phase >= 3) {
     // praça do hub: canteiros, palmeiras e letreiro
     for (let x = -2; x < 30; x += 4) { flat(g, 3, 1.2, 0x3fae5a, x, 23.6, 0.06); Sp(g, 0.5, 0xff7ab6, x - 0.8, 0.3, 23.6, 8); Sp(g, 0.5, 0xffc928, x + 0.8, 0.3, 23.6, 8); }
@@ -738,6 +791,82 @@ function airsideWall(x1 = L.term.x1, kind = 2) {
   B(g, tw0, 0.18, 0.44, 0x2f7bff, 0, 2.5, 0);
   return g;
 }
+/* ===== prédio exclusivo de cada aeroporto ===== */
+function espFeira() { // Vale Verde: feira da roça
+  const g = new THREE.Group();
+  B(g, 8, 0.1, 6, 0xd2b47e, 0, 0, 0).castShadow = false;
+  const cs = [0xe8343b, 0x2f7bff, 0xffc928];
+  for (let i = 0; i < 3; i++) { const x = -2.6 + i * 2.6; B(g, 2.0, 0.9, 1.2, 0xb88a56, x, 0, 0.6); [-0.9, 0.9].forEach(dx => C(g, 0.06, 0.06, 2.2, 0x8a6a40, x + dx, 0, 0.1, 6)); for (let k = 0; k < 4; k++) B(g, 0.55, 0.08, 1.7, k % 2 ? 0xffffff : cs[i], x - 0.83 + k * 0.55, 2.2, 0.5); for (let k = 0; k < 3; k++) Sp(g, 0.2, [0xff4e4e, 0xffc928, 0x3fae5a][(k + i) % 3], x - 0.5 + k * 0.5, 1.05, 0.7, 8); }
+  B(g, 4.4, 2.6, 2.6, 0xc0392b, 0, 0, -1.9); const rf = mesh(G.cone(2.9, 1.6, 4), M(0x8a3324), g, 0, 3.4, -1.9); rf.rotation.y = Math.PI / 4; rf.scale.set(1.1, 1, 0.7);
+  B(g, 1.3, 1.7, 0.08, 0xf7f9fc, 0, 0, -0.58);
+  sign(g, 'FEIRA DA ROÇA', 4.2, 0.6, '#3fae5a', '#ffffff', 0, 3.9, 1.3);
+  [-3.4, 3.4].forEach(x => C(g, 0.07, 0.07, 3.6, 0x8a6a40, x, 0, 1.3, 6));
+  return g;
+}
+function espHotel() { // Porto Azul: hotel do aeroporto
+  const g = new THREE.Group();
+  B(g, 7, 0.4, 5.4, 0xdfe3ea, 0, 0, 0);
+  B(g, 5.6, 9, 4, 0xf7f9fc, 0, 0.4, -0.3);
+  for (let f = 0; f < 5; f++) { for (let i = 0; i < 4; i++) B(g, 0.9, 1.0, 0.08, M(0x8fd6ff), -1.95 + i * 1.3, 1.5 + f * 1.6, 1.72); for (let i = 0; i < 3; i++) B(g, 0.08, 1.0, 0.9, M(0x8fd6ff), 2.82, 1.5 + f * 1.6, -1.5 + i * 1.3); B(g, 5.7, 0.12, 4.1, 0x2f7bff, 0, 2.75 + f * 1.6, -0.3); }
+  B(g, 5.8, 0.5, 4.2, 0x1e2a47, 0, 9.4, -0.3);
+  sign(g, 'HOTEL', 3.2, 0.9, '#1e2a47', '#ffc928', 0, 10.4, 1.8);
+  B(g, 3, 0.15, 1.6, 0xe8343b, 0, 1.9, 2.4); [-1.3, 1.3].forEach(x => C(g, 0.07, 0.07, 1.6, 0xb8c0cf, x, 0.4, 3.0, 6));
+  B(g, 1.4, 1.5, 0.08, M(0x5b8cff), 0, 0.4, 1.72);
+  return g;
+}
+function espAlfandega() { // SkyPort Internacional: terminal internacional
+  const g = new THREE.Group();
+  B(g, 8, 0.3, 6, 0xdfe3ea, 0, 0, 0);
+  B(g, 7, 3.2, 4.6, 0xf7f9fc, 0, 0.3, -0.3); B(g, 7.2, 0.35, 4.8, 0x7c5cfa, 0, 3.5, -0.3);
+  for (let i = 0; i < 5; i++) B(g, 1.0, 2.0, 0.08, M(0x8fd6ff), -2.8 + i * 1.4, 0.8, 2.02);
+  const gl = Sp(g, 1.5, 0x2f7bff, 0, 5.6, -0.3, 16); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Sp(g, 0.5, 0x3fae5a, Math.cos(a) * 1.15, 5.6 + Math.sin(a * 2) * 0.6, -0.3 + Math.sin(a) * 1.15, 8); }
+  C(g, 0.12, 0.12, 0.6, 0x9aa3b4, 0, 3.85, -0.3, 8);
+  const fl = [0xe8343b, 0x2ec27e, 0xffc928, 0x2f7bff, 0xff8a1f]; for (let i = 0; i < 5; i++) { C(g, 0.05, 0.05, 3.4, 0xffffff, -3.4 + i * 1.7, 0.3, 2.7, 5); B(g, 0.8, 0.5, 0.04, fl[i], -3.0 + i * 1.7, 3.1, 2.7); }
+  sign(g, 'INTERNACIONAL', 5.2, 0.6, '#7c5cfa', '#ffffff', 0, 3.0, 2.08);
+  return g;
+}
+function espDegelo() { // Serra Alta: estação de degelo
+  const g = new THREE.Group();
+  B(g, 8, 0.2, 6, 0xeef3fa, 0, 0, 0);
+  for (let i = 0; i < 2; i++) { C(g, 1.2, 1.2, 3.6, 0x8fd6ff, -2.2 + i * 2.8, 0.2, -1.2, 14); mesh(G.cone(1.2, 0.8, 14), M(0xffffff), g, -2.2 + i * 2.8, 4.2, -1.2); B(g, 0.2, 3.4, 0.2, 0x6b7280, -0.9 + i * 2.8, 0.2, -1.2); }
+  B(g, 2.6, 2.4, 2.2, 0xff8a1f, 2.6, 0.2, 1.2); B(g, 2.7, 0.3, 2.3, 0xffffff, 2.6, 2.6, 1.2); B(g, 1.2, 1.0, 0.08, M(0x8fd6ff), 2.6, 1.2, 2.32);
+  // caminhão de degelo com braço
+  B(g, 2.6, 0.9, 1.3, 0xffc928, -1.6, 0.5, 1.6); B(g, 0.9, 0.9, 1.2, 0xf7f9fc, -0.2, 0.9, 1.6); [-2.5, -0.7].forEach(x => [1.0, 2.2].forEach(z => { const w = C(g, 0.32, 0.32, 0.25, 0x2b3245, x, 0.52, z, 10); w.rotation.x = Math.PI / 2; }));
+  const arm = B(g, 0.18, 3.2, 0.18, 0x6b7280, -1.9, 1.4, 1.6); arm.rotation.z = 0.5; B(g, 0.7, 0.5, 0.7, 0xf7f9fc, -3.3, 4.0, 1.6);
+  for (let i = 0; i < 7; i++) Sp(g, 0.35 + (i % 3) * 0.12, 0xffffff, -3.6 + i * 1.2, 0.3, -2.7 + (i % 2) * 5.2, 8);
+  sign(g, 'DEGELO', 2.6, 0.6, '#2f7bff', '#ffffff', 2.6, 3.4, 2.36);
+  return g;
+}
+function helicopter(col = 0xe8343b) {
+  const g = new THREE.Group();
+  const b = Sp(g, 0.9, col, 0, 1.2, 0, 14); b.scale.set(1, 0.85, 1.4);
+  const w = Sp(g, 0.62, M(0x8fd6ff), 0, 1.3, 0.75, 12); w.scale.set(1, 0.8, 0.9);
+  const t = B(g, 0.25, 0.25, 2.2, col, 0, 1.25, -1.9); B(g, 0.08, 0.8, 0.4, 0xffffff, 0, 1.3, -2.9);
+  C(g, 0.08, 0.08, 0.5, 0x6b7280, 0, 1.9, 0, 6); B(g, 4.6, 0.05, 0.3, 0x2b3245, 0, 2.4, 0); B(g, 0.3, 0.05, 4.6, 0x2b3245, 0, 2.42, 0);
+  [-0.6, 0.6].forEach(x => { B(g, 0.1, 0.1, 2.2, 0x6b7280, x, 0.15, 0); B(g, 0.06, 0.5, 0.06, 0x6b7280, x, 0.2, 0.5); B(g, 0.06, 0.5, 0.06, 0x6b7280, x, 0.2, -0.5); });
+  return g;
+}
+function espHeli() { // Rio Dourado: heliponto executivo
+  const g = new THREE.Group();
+  C(g, 3.6, 3.8, 0.5, 0x6b7280, 0, 0, 0, 24); C(g, 3.3, 3.3, 0.06, 0x3b4558, 0, 0.5, 0, 24);
+  const ring = mesh(G.torus(2.5, 0.12, 6, 28), M(0xffc928), g, 0, 0.58, 0); ring.rotation.x = Math.PI / 2;
+  B(g, 0.35, 0.05, 2.2, 0xffffff, -0.8, 0.56, 0); B(g, 0.35, 0.05, 2.2, 0xffffff, 0.8, 0.56, 0); B(g, 1.6, 0.05, 0.35, 0xffffff, 0, 0.56, 0);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; Sp(g, 0.14, M(0x3fd46b, { emissive: 0x208040 }), Math.cos(a) * 3.3, 0.6, Math.sin(a) * 3.3, 6); }
+  B(g, 2.2, 2.2, 1.8, 0xf7f9fc, -4.6, 0, -1.5); B(g, 2.3, 0.3, 1.9, 0xffb627, -4.6, 2.2, -1.5); B(g, 1.0, 0.9, 0.08, M(0x8fd6ff), -4.6, 0.9, -0.58);
+  C(g, 0.05, 0.05, 3, 0xffffff, -4.6, 2.5, -1.5, 5); const ws = mesh(G.cone(0.25, 1.0, 8), M(0xff8a1f), g, -4.1, 5.3, -1.5); ws.rotation.z = Math.PI / 2;
+  return g;
+}
+function espResort() { // Costa Esmeralda: resort de praia
+  const g = new THREE.Group();
+  B(g, 9, 0.2, 6.4, 0xf3e2b0, 0, 0, 0);
+  B(g, 4.2, 0.12, 2.4, 0x49c5f5, 1.8, 0.2, 1.6); B(g, 4.5, 0.2, 2.7, 0xffffff, 1.8, 0.1, 1.6);
+  for (let i = 0; i < 2; i++) { const x = -2.6 + i * 3.2; C(g, 1.3, 1.3, 1.9, 0xf7f9fc, x, 0.2, -1.6, 10); mesh(G.cone(1.9, 1.5, 10), M(0xc98a52), g, x, 2.85, -1.6); B(g, 0.6, 1.1, 0.08, 0x8a5a34, x, 0.2, -0.3); }
+  for (const [x, z] of [[-3.8, 1.8], [3.9, -1.9], [-0.9, 2.6]]) { C(g, 0.1, 0.14, 2.6, 0x8a5a34, x, 0.2, z, 6); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const l = B(g, 1.4, 0.05, 0.36, 0x3fae5a, x + Math.cos(a) * 0.6, 2.8, z + Math.sin(a) * 0.6); l.rotation.y = -a; } }
+  for (let i = 0; i < 3; i++) { C(g, 0.04, 0.04, 1.4, 0xffffff, -1.6 + i * 1.1, 0.2, 0.6, 5); mesh(G.cone(0.6, 0.35, 8), M([0xe8343b, 0xffc928, 0x2f7bff][i]), g, -1.6 + i * 1.1, 1.75, 0.6); }
+  sign(g, 'RESORT', 2.8, 0.6, '#14b8a6', '#ffffff', -1.0, 4.3, -1.6);
+  return g;
+}
+const ESP = [espFeira, espHotel, espAlfandega, espDegelo, espHeli, espResort];
 /* ===== fase barracão e extras ===== */
 function checkinWood() {
   const g = new THREE.Group();
@@ -828,6 +957,8 @@ function iconShot(build, size = 192, rot = { x: 0.35, y: -0.6 }) {
   return { png: cnv.toDataURL('image/png') };
 }
 const ICONS = {
+  esp0: () => espFeira(), esp1: () => espHotel(), esp2: () => espAlfandega(), esp3: () => espDegelo(), esp4: () => espHeli(), esp5: () => espResort(), heli: () => helicopter(),
+  network: () => { const g = new THREE.Group(); Sp(g, 1.1, 0x2f7bff, 0, 0, 0, 16); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; Sp(g, 0.28, 0xffc928, Math.cos(a) * 1.1, Math.sin(a) * 1.1, 0.3, 8); } return g; },
   cargo: () => { const g = new THREE.Group(); B(g, 1.6, 1.2, 1.2, 0xff8a1f, 0, -0.8, 0); for (let i = 0; i < 4; i++) B(g, 0.06, 1.1, 1.22, 0xd86a10, -0.6 + i * 0.4, -0.75, 0); B(g, 1.0, 0.8, 0.9, 0x2f7bff, 0.2, 0.4, 0); return g; },
   decor: () => palmPot(),
   contract: () => { const g = new THREE.Group(); B(g, 1.5, 1.9, 0.1, 0xf7f9fc, 0, -0.95, 0); for (let i = 0; i < 4; i++) B(g, 1.0, 0.08, 0.12, 0x9aa3b4, -0.1, 0.5 - i * 0.3 - 0.95 + 1.0, 0.02); C(g, 0.32, 0.32, 0.12, 0xff4e4e, 0.45, -0.85, 0.08, 16).rotation.x = Math.PI / 2; return g; },
@@ -1034,6 +1165,8 @@ for (let t = 1; t <= 3; t++) def('aids' + t, () => runwayAids(t), { k: 0.6, W: 2
 def('wall', () => airsideWall(PH[2].tx1, 2), { k: 1, W: 2600, H: 1400, oy: 0.5 });
 def('wall1', () => airsideWall(PH[1].tx1, 1), { k: 1, W: 2000, H: 1100, oy: 0.5 });
 def('wall0', () => airsideWall(PH[0].tx1, 0), { k: 1, W: 1400, H: 800, oy: 0.5 });
+for (let i = 0; i < 6; i++) def('esp' + i, ESP[i], { k: 1.2, W: 700, H: 760, oy: 0.72 });
+def('heli', () => helicopter(), { W: 300, H: 260, oy: 0.7, shadow: false });
 def('checkin_w', checkinWood, { W: 300, H: 300, oy: 0.68 });
 def('security_w', securityWood, { W: 320, H: 320, oy: 0.62 });
 for (let n = 1; n <= 2; n++) def('gatew' + n, () => gateWood(n), { W: 420, H: 360, oy: 0.6 });

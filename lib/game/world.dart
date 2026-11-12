@@ -107,6 +107,8 @@ class AirWorld {
     return [for (var r = 0; r < rows; r++) for (var k = 0; k < nx; k++) (gx - 1.0 + k * 0.7, -2.0 + r * dz + 0.38)];
   }
   final List<Set<int>> _taken = List.generate(6, (_) => <int>{});
+  /// Limpa passageiros e filas (troca de aeroporto).
+  void resetPeople() { agents.clear(); cleaners.clear(); vehicles.clear(); for (final q in deskQ) { q.clear(); } for (final q in laneQ) { q.clear(); } for (final t in _taken) { t.clear(); } }
 
   void spawnAt(double x, double z) {
     if (agents.length >= maxAgents) return;
@@ -446,6 +448,7 @@ class AirWorld {
       case 'pista': return (-30.0, Lay.runwayZ, 1.0);
       case 'torre': return (Lay.tower.$1, Lay.tower.$2, 6.0);
       case 'cargas': return (Lay.cargo.$1, Lay.cargo.$2, 5.0);
+      case 'esp0': case 'esp1': case 'esp2': case 'esp3': case 'esp4': case 'esp5': return (Lay.special.$1, Lay.special.$2, id == 'esp1' ? 9.5 : 5.0);
       case 'hangar': return (Lay.hangar.$1, Lay.hangar.$2, 7.0);
       case 'combustivel': return (Lay.fuel.$1, Lay.fuel.$2, 5.0);
     }

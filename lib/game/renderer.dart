@@ -218,6 +218,21 @@ class SceneRenderer extends Component {
       if (!s.decor.contains(d.id)) continue;
       _add(3, d.x + d.z, (c) => spr(c, d.sprite, d.x, d.z, scale: _bounce(d.id)));
     }
+    // ---------- prédio exclusivo da cidade ----------
+    final esp = specialFor(s.city);
+    if (s.phase >= 1 && (s.built(esp.id) || s.starOk(esp))) {
+      final sx = Lay.special.$1, sz = Lay.special.$2, on = s.built(esp.id);
+      _add(3, sx + sz, (c) => spr(c, on ? esp.icon : 'obra_m', sx, sz, scale: _bounce(esp.id)));
+      _hitWorld(esp.id, sx - 4, sx + 4, sz - 3, sz + 3, h: 4);
+      if (on && s.kind6 == 1 && s.hotelPile > s.hotelRate * 20) {
+        final n = s.hotelPile > s.hotelRate * 300 ? 3 : s.hotelPile > s.hotelRate * 90 ? 2 : 1;
+        _add(3, sx + sz + 6, (c) { final r = spr(c, 'cash$n', sx - 1.5, sz + 4.6); if (r != null) hits.add(Hit(r.inflate(18), 'pile:hotel', 0)); });
+      }
+      if (on && s.heliOn) {
+        final hy = 1.2 + math.sin(w.t * 3) * 0.25;
+        _add(5, sx + sz, (c) { c.drawOval(Rect.fromCenter(center: iso(sx, sz, 0.6), width: 60, height: 22), Paint()..color = const Color(0x33000000)); final r = spr(c, 'heli', sx, sz, y: hy); if (r != null) hits.add(Hit(r.inflate(26), 'heli', 0)); });
+      }
+    }
     // ---------- terminal de cargas ----------
     if (s.built('cargas') || s.starOk(stationById('cargas'))) {
       _add(3, Lay.cargo.$1 + Lay.cargo.$2, (c) => spr(c, s.built('cargas') ? 'cargo' : 'obra_l', Lay.cargo.$1, Lay.cargo.$2, scale: _bounce('cargas')));
@@ -276,7 +291,8 @@ class SceneRenderer extends Component {
     _ds.sort((a, b) => a.layer != b.layer ? a.layer.compareTo(b.layer) : a.depth.compareTo(b.depth));
     for (final d in _ds) { d.f(c); }
     if (night > 0.01) _nightPass(c);
-    if (rain > 0.02 || s.fogOn) _weather(c);
+    if (s.snow) { _snow(c); } else if (rain > 0.02 || s.fogOn) { _weather(c); }
+    if (s.snow && s.fogOn) c.drawRect(view, Paint()..color = const Color(0x88E8EEF5));
     _overlays(c);
   }
 
@@ -334,6 +350,19 @@ class SceneRenderer extends Component {
     }
   }
 
+  /// Neve caindo (Serra Alta).
+  void _snow(Canvas c) {
+    final p = Paint()..color = const Color(0xDDFFFFFF);
+    final rr = math.Random(11);
+    final h = view.height, wd = view.width;
+    for (var i = 0; i < 110; i++) {
+      final sp = 0.5 + rr.nextDouble() * 0.7, ph0 = rr.nextDouble() * 6.28;
+      final x = view.left + ((rr.nextDouble() * wd + math.sin(w.t * 0.8 + ph0) * 26 / zoom) % wd);
+      final y = view.top + ((rr.nextDouble() * h + w.t * 120 * sp / zoom) % h);
+      c.drawCircle(Offset(x, y), (1.6 + sp * 1.6) / zoom, p);
+    }
+  }
+
   void _nightPass(Canvas c) {
     c.drawRect(view, Paint()..color = Color.fromRGBO(18, 28, 70, night * 0.62));
     final glow = Paint()..blendMode = BlendMode.plus;
@@ -370,7 +399,8 @@ class SceneRenderer extends Component {
     }
     // próxima estrela: nuvem + selo nas áreas que ela libera
     for (final st in stations) {
-      if (s.built(st.id) || s.starOk(st) || st.star != s.star + 1) continue;
+      if (!s.here(st) || s.built(st.id) || s.starOk(st) || st.star != s.star + 1) continue;
+      if (st.only >= 0 && phaseFor(s.city, st.star) < 1) continue;
       final cc = w.stationCenter(st.id);
       final o = iso(cc.$1, cc.$2, 1.5);
       if (!view.inflate(120).contains(o)) continue;

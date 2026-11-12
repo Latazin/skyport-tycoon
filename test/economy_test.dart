@@ -119,4 +119,27 @@ void main() {
     final t = GameState()..loadJson(s.toJson());
     expect(t.decor.contains('d1'), true);
   });
+
+  test('prédio exclusivo só existe na cidade dele', () {
+    final s = GameState()..star = 1..money = 1e9;
+    expect(s.starOk(stationById('esp0')), true);
+    expect(s.starOk(stationById('esp1')), false);
+    s.city = 1;
+    expect(s.starOk(stationById('esp1')), true);
+    s.lv['esp1'] = 5; s.estimate();
+    expect(s.hotelRate >= 0, true);
+    s.city = 3; expect(s.snowSpeed < 1, true);
+    s.lv['esp3'] = 20; expect(s.snowSpeed > 1, true);
+  });
+
+  test('comprar o próximo aeroporto exige 5 estrelas e dinheiro', () {
+    final s = GameState()..star = 5..money = 10;
+    expect(s.canPrestige, false);
+    s.money = s.nextPrice * 2;
+    expect(s.canPrestige, true);
+    s.prestige();
+    expect(s.city, 1);
+    expect(s.star, 0);
+    expect(s.phase, 1);
+  });
 }

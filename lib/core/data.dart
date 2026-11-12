@@ -16,6 +16,7 @@ class Lay {
   static const busStop = (-40.0, 18.4);
   static const tower = (-56.0, 5.0);
   static const cargo = (48.0, 3.0);
+  static const special = (38.0, 29.0);
   static const carousel = (-42.5, 1.4);
   static const fuel = (50.0, -15.0);
   static const hangar = (-60.0, -13.0);
@@ -35,7 +36,7 @@ class Phase {
 }
 const phases = [
   Phase('Aeroclube', 'Pista de terra e um barracão de madeira', 10, 2, -6, 2, -70, 20, -44, 34),
-  Phase('Terminal Regional', 'Pista asfaltada e terminal de verdade', 26, 14, 20, 3, -74, 36, -46, 36),
+  Phase('Terminal Regional', 'Pista asfaltada e terminal de verdade', 26, 14, 20, 3, -74, 46, -46, 38),
   Phase('Aeroporto Nacional', 'Terminal grande com pontes de embarque', 54, 38, 36, 6, -86, 62, -50, 40),
   Phase('Hub Internacional', 'Hub completo com terminal de cargas', 54, 38, 36, 6, -86, 66, -50, 40),
 ];
@@ -64,7 +65,8 @@ class St {
   final Kind kind;
   final double base, growth, unlock;
   final int gate, star; // índice do portão; estrelas necessárias para construir
-  const St(this.id, this.name, this.icon, this.desc, this.kind, {this.base = 10, this.growth = 1.13, this.unlock = 0, this.gate = -1, this.star = 0});
+  final int only; // prédio exclusivo: só existe na cidade (cidade % 6) == only
+  const St(this.id, this.name, this.icon, this.desc, this.kind, {this.base = 10, this.growth = 1.13, this.unlock = 0, this.gate = -1, this.star = 0, this.only = -1});
   bool get oneTime => kind == Kind.building;
 }
 
@@ -84,6 +86,13 @@ const stations = [
   St('vip', 'Sala VIP', 'crown', 'Passageiros premium: +4% no preço da passagem por nível.', Kind.boost, base: 5e4, growth: 1.2, unlock: 1e5, star: 2),
   St('hangar', 'Hangar', 'hangar', 'Manutenção própria dos aviões: receita x1,5.', Kind.building, unlock: 1e6, star: 3),
   St('combustivel', 'Combustível', 'fuel', 'Posto próprio vende querosene a cada voo: receita x1,5.', Kind.building, unlock: 3e7, star: 4),
+  // ----- prédio exclusivo de cada aeroporto -----
+  St('esp0', 'Feira da Roça', 'esp0', 'Só em Vale Verde. Produtores vendem na porta do aeroporto: lojas e gorjetas rendem +6% por nível.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 0),
+  St('esp1', 'Hotel do Aeroporto', 'esp1', 'Só em Porto Azul. Hóspedes em conexão pagam diárias o tempo todo, mesmo sem voo. Toque no hotel para recolher. Cada nível aumenta a diária.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 1),
+  St('esp2', 'Terminal Internacional', 'esp2', 'Só no SkyPort Internacional. Alguns voos viram internacionais e pagam 3x. Cada nível aumenta a chance (até 60%).', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 2),
+  St('esp3', 'Estação de Degelo', 'esp3', 'Só em Serra Alta. A neve deixa os aviões 40% mais lentos. O degelo recupera a velocidade e, em nível alto, deixa tudo mais rápido que o normal.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 3),
+  St('esp4', 'Heliponto Executivo', 'esp4', 'Só em Rio Dourado. Helicópteros de executivos pousam de tempos em tempos: toque para ganhar uma bolada. Cada nível traz mais helicópteros e paga mais.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 4),
+  St('esp5', 'Resort de Praia', 'esp5', 'Só em Costa Esmeralda. O resort manda ondas de turistas sozinho: movimento 3x por alguns segundos. Cada nível deixa a onda mais longa.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 5),
   St('cargas', 'Terminal de Cargas', 'cargo', 'Cada voo leva carga no porão: +5% de receita por nível. Trens de bagagem levam os contêineres.', Kind.boost, base: 2e7, growth: 1.2, unlock: 4e7, star: 4),
 ];
 St stationById(String id) => stations.firstWhere((s) => s.id == id);
@@ -176,6 +185,10 @@ const cityPerks = [
   CityPerk('Temporada de praia', 'Mais passageiros e lojas +25%', lambda: 1.15, shop: 1.25),
 ];
 CityPerk perkFor(int city) => cityPerks[city % cityPerks.length];
+/// Prédio exclusivo da cidade.
+St specialFor(int city) => stationById('esp${city % 6}');
+/// Preço para comprar o próximo aeroporto da rede.
+double airportPrice(int nextCity) => 2e9 * cityMult(nextCity - 1);
 
 /// Contratos com companhias aéreas.
 const airlines = [('SkyLink', 0), ('Laranja Air', 1), ('Verdemar', 2), ('Ouro Linhas', 3), ('Violeta Jet', 4), ('Rubra', 5)];
@@ -190,11 +203,11 @@ const cities = [
   City('Vale Verde', 'Aeroporto regional no interior', 0),
   City('Porto Azul', 'Capital movimentada à beira do rio', 1),
   City('SkyPort Internacional', 'Hub internacional no litoral', 2),
-  City('Serra Alta', 'Aeroporto da serra', 0),
-  City('Rio Dourado', 'Metrópole do norte', 1),
-  City('Costa Esmeralda', 'Paraíso turístico', 2),
+  City('Serra Alta', 'Aeroporto nevado no alto da serra', 3),
+  City('Rio Dourado', 'Metrópole à beira do rio dourado', 4),
+  City('Costa Esmeralda', 'Paraíso turístico entre dois mares', 5),
 ];
-City cityAt(int i) => i < cities.length ? cities[i] : City('Mega Hub ${i - cities.length + 2}', 'Rota global', i % 3);
+City cityAt(int i) => i < cities.length ? cities[i] : City('Mega Hub ${i - cities.length + 2}', 'Rota global', i % 6);
 double cityMult(int i) => math.pow(6, i).toDouble();
 
 /// Tarefas genéricas (missões, estrelas, diárias).

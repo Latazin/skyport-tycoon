@@ -25,7 +25,7 @@ const only = process.argv[2] || '';
     raw.sprites[name] = { ax: r.ax, ay: r.ay, w: r.w, h: r.h, k: r.k };
     if (++n % 40 === 0) console.log(n, name);
   }
-  for (let c = 0; c < 3; c++) for (let ph = c === 0 ? 0 : 1; ph < 4; ph++) {
+  for (let c = 0; c < 6; c++) for (let ph = c === 0 ? 0 : 1; ph < 4; ph++) {
     const key = `bg${c}_${ph}`;
     if (!want(key)) continue;
     const r = await p.evaluate(([ci, pi]) => STUDIO.bg(ci, pi), [c, ph]);

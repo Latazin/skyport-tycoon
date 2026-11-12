@@ -214,6 +214,21 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   @override
   void arrivals(int gate, int pax) => game.w.arrivals(gate, pax);
   @override
+  void special(String kind, int gate) {
+    switch (kind) {
+      case 'intl':
+        game.w.floaters.add(Floater(Lay.gates[gate], -14, 6, 'Internacional x3!', const Color(0xFFC9B8FF), 1.3));
+        break;
+      case 'heli':
+        Sfx.play('ding'); toast('Helicóptero executivo pousou! Toque nele.');
+        break;
+      case 'wave':
+        Sfx.play('boost'); game.w.spawnGroup(12);
+        banner('Onda de turistas!', 'O resort lotou o aeroporto por ${s.waveSecs.round()} s');
+        break;
+    }
+  }
+  @override
   void decorBought(Decor d) {
     game.w.bump[d.id] = game.w.t;
     game.w.burst(d.x, d.z, 1.5, 24, const [Color(0xFFFFE27A), Color(0xFF3FD46B), Color(0xFFFFFFFF)]);
@@ -273,7 +288,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           const SizedBox(height: 8),
           Text(starNames[math.min(n, 5)], style: body(22, color: K.purple, w: FontWeight.w900)),
           const SizedBox(height: 6),
-          Text('Toda a receita agora rende x${fmt(s.starMult)}!${n < 5 ? '\nNovas áreas liberadas: ${stations.where((st) => st.star == n).map((st) => st.name).join(', ')}.' : '\nPróxima cidade liberada!'}', textAlign: TextAlign.center, style: body(15)),
+          Text('Toda a receita agora rende x${fmt(s.starMult)}!${n < 5 ? '\nNovas áreas liberadas: ${stations.where((st) => st.star == n && s.here(st)).map((st) => st.name).join(', ')}.' : '\nPróxima cidade liberada!'}', textAlign: TextAlign.center, style: body(15)),
         ])));
     Sfx.play('level'); confetti(140); Sfx.haptic(60);
   }
@@ -303,20 +318,25 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void doPrestige() {
     if (!s.canPrestige) return;
     final next = cityAt(s.city + 1);
-    _showModal(GameModal(title: 'Voar para ${next.name}?', icon: 'globe', color: K.teal, actions: [
-      GBtn(color: K.grey, onTap: _closeModal, child: Text('AINDA NÃO', style: display(16))),
+    final e = specialFor(s.city + 1), pk = perkFor(s.city + 1);
+    _showModal(GameModal(title: 'Comprar ${next.name}?', icon: e.icon, color: K.teal, actions: [
+      GBtn(color: K.grey, onTap: _closeModal, child: Text('Ainda não', style: display(16))),
       GBtn(color: K.green, pulse: true, onTap: () async {
         _closeModal(); closePanel();
+        final old = cityAt(s.city).name;
         s.prestige();
         await Art.loadBg(Art.bgKey(cityAt(s.city).bg, s.phase));
-        game.w.agents.clear(); for (final q in game.w.deskQ) { q.clear(); } for (final q in game.w.laneQ) { q.clear(); }
+        Art.loadBg(Art.bgKey(cityAt(s.city).bg, s.phase + 1));
+        game.w.resetPeople();
         game.focusWorld(-20, 6, zoomTo: 0.6);
         Save.save(s);
-        banner(next.name.toUpperCase(), 'Novo aeroporto! Tudo rende ${fmt(cityMult(s.city))}x');
         Sfx.play('level'); confetti(120);
+        _holdUntil = nowMs() + 600;
+        _showModal(GameModal(title: next.name, icon: e.icon, color: K.teal, actions: [GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); showChests(); }, child: Text('Começar!', style: display(19)))],
+            child: Text('Aeroporto novo na rede! Tudo aqui rende ${fmt(cityMult(s.city))}x.\n\n${pk.name}: ${pk.desc}.\n\nExclusivo daqui: ${e.name}. Libera com a 1ª estrela.\n\n$old continua rendendo: recolha o lucro em Rede.', textAlign: TextAlign.center, style: body(14.5, w: FontWeight.w700))));
         setState(() {});
-      }, child: Text('VOAR!', style: display(18))),
-    ], child: Text('Você começa um aeroporto novo em ${next.name}, mas tudo rende ${fmt(cityMult(s.city + 1))}x. Pesquisa, rotas, frota, gemas e milhas vão com você. Melhorias, gerentes e estrelas ficam aqui.', textAlign: TextAlign.center, style: body(15))));
+      }, child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Comprar  ', style: display(17)), Price(fmt(s.nextPrice), size: 17)])),
+    ], child: Text('Você paga \$${fmt(s.nextPrice)} e começa um aeroporto novo em ${next.name}, onde tudo rende ${fmt(cityMult(s.city + 1))}x.\n\nNovidade de lá: ${e.name} e "${pk.name}".\n\nPesquisa, rotas, frota, gemas e milhas vão com você. ${cityAt(s.city).name} fica na sua rede rendendo lucro passivo.', textAlign: TextAlign.center, style: body(14.5, w: FontWeight.w700))));
   }
   @override
   void resetGame() async {
@@ -329,6 +349,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void _onWorldTap(String id) {
     if (id == 'none') { if (panel != null) closePanel(); return; }
     if (id == 'ev') { _tapEvent(); return; }
+    if (id == 'pile:hotel') {
+      final v = s.collectHotel(); if (v <= 0) return;
+      _flyFrom(game.worldToScreen(iso(Lay.special.$1 - 1.5, Lay.special.$2 + 4.6, 1)), v, 12); Sfx.play('cash'); Sfx.haptic();
+      game.w.floaters.add(Floater(Lay.special.$1, Lay.special.$2, 6, 'Diárias +\$${fmt(v)}', const Color(0xFFFFE27A), 1.2));
+      return;
+    }
+    if (id == 'heli') {
+      final v = s.tapHeli(); if (v <= 0) return;
+      final o = game.worldToScreen(iso(Lay.special.$1, Lay.special.$2, 3));
+      _flyFrom(o, v, 14); _flyGems(1, o); Sfx.play('gift'); Sfx.haptic(30);
+      game.w.floaters.add(Floater(Lay.special.$1, Lay.special.$2, 5, 'Executivos +\$${fmt(v)}', const Color(0xFFFFE27A), 1.4));
+      game.w.burst(Lay.special.$1, Lay.special.$2, 2, 20, const [Color(0xFFFFE27A), Color(0xFFFFFFFF)]);
+      return;
+    }
     if (id.startsWith('pile:')) { _collect(id == 'pile:shop' ? -1 : int.parse(id.substring(5))); return; }
     if (id.startsWith('vip:')) { final g = int.parse(id.substring(4)); final n = s.tapVip(g); if (n > 0) { _flyGems(n, game.worldToScreen(iso(Lay.gates[g], -10, 5))); Sfx.play('gift'); toast('Passageiro VIP deixou $n gemas!'); } return; }
     if (id.startsWith('plane:')) { final g = int.parse(id.substring(6)); s.hurry(g, 1.2); Sfx.play('tick', rate: 1.3); Sfx.haptic(); return; }
@@ -512,6 +546,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             if (s.turboOn) _chip('turbo', 'Turbo ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
             for (final a in abilities) if (s.abilOn(a.mgr)) _chip(a.icon, '${a.name} ${fmtTime(((s.abilUntil[a.mgr] ?? 0) - nowMs()) / 1000)}', K.purple),
             if (s.weekend) _chip('gift', 'Fim de semana +25%', K.orange),
+            if (s.clock < s.waveUntil) _chip('esp5', 'Onda de turistas ${(s.waveUntil - s.clock).ceil()}s', K.teal),
+            if (s.snow) _chip('esp3', 'Neve x${s.snowSpeed.toStringAsFixed(2)}', s.snowSpeed < 1 ? K.blue : K.green),
+            if (s.netReady) GestureDetector(onTap: () => openPanel('cities'), child: _chip('network', 'Rede: \$${fmt(s.netPile)}', K.green)),
             if (s.ctAir >= 0) GestureDetector(onTap: () => openPanel('fleet'), child: _chip('contract', '${airlines[s.ctAir].$1} ${math.min(s.ctDone, s.ctNeed)}/${s.ctNeed}', s.ctReady ? K.green : K.teal)),
           ])),
         ]),
@@ -554,10 +591,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   /// Habilidades dos gerentes contratados (lado esquerdo).
   Widget _abilities(EdgeInsets pad) {
     final list = s.myAbilities;
-    if (list.isEmpty || s.tut < 7) return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
+    if (s.tut < 7) return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
     return Positioned(
       left: 10, top: pad.top + 132,
       child: Column(children: [
+        if (s.city > 0 || s.star >= 3) Transform.translate(offset: const Offset(-3, 0), child: _RoundBtn(icon: 'network', label: 'Rede', ready: s.netReady || s.canPrestige, onTap: () => openPanel('cities'))),
         for (final a in list) _AbilityBtn(a: a, s: s, onTap: () {
           if (!s.abilReady(a)) { toast('${a.name} recarrega em ${fmtTime(s.abilLeft(a) / 1000)}'); return; }
           final t = s.useAbility(a);

@@ -13,6 +13,9 @@ const fs = require('fs');
     ['09_frota', '?auto=1&demo=1&panel=fleet', [30000]], ['10_equipe', '?auto=1&demo=1&panel=team', [30000]],
     ['11_loja', '?auto=1&demo=1&panel=shop', [30000]], ['12_bau', '?auto=1&demo=1&chest=1', [30000]],
     ['13_contratos', '?auto=1&demo=p1&panel=fleet', [30000]], ['14_decoracao', '?auto=1&demo=p1&panel=upgrades', [30000]], ['15_jogos', '?auto=1&demo=p1&panel=games', [30000]],
+    ['16_porto_azul', '?auto=1&demo=p1&city=1&panel=none', [32000]], ['17_serra_alta', '?auto=1&demo=1&city=3&panel=none', [32000]],
+    ['18_rio_dourado', '?auto=1&demo=p1&city=4&panel=none', [32000]], ['19_costa', '?auto=1&demo=1&city=5&panel=none', [32000]],
+    ['20_rede', '?auto=1&demo=1&city=2&star=5&panel=cities', [30000]],
   ];
   for (const [name, q, waits] of runs) {
     const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'pt-BR' });
