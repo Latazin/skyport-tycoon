@@ -254,7 +254,7 @@ class AirWorld {
       if (d > 0.01) { v.hx = dx / d; v.hz = dz / d; }
       if (d <= st) {
         v.x = tg.$1; v.z = tg.$2; v.path.removeAt(0);
-        if (v.kind == 'bus' && v.path.length == 1) { v.wait = 2.5; final n = 2 + r.nextInt(3 + math.min(5, el ~/ 15)); for (var i = 0; i < n; i++) { Future.delayed(Duration(milliseconds: 280 * i), () => spawnAt(Lay.busStop.$1 + r.nextDouble() * 2, Lay.busStop.$2 - 1.2)); } }
+        if (v.kind == 'bus' && v.path.length == 1) { v.wait = 2.5; final n = 1 + r.nextInt(2 + math.min(5, el ~/ 15)); for (var i = 0; i < n; i++) { Future.delayed(Duration(milliseconds: 280 * i), () => spawnAt(Lay.busStop.$1 + r.nextDouble() * 2, Lay.busStop.$2 - 1.2)); } }
         if ((v.kind == 'tug' || v.kind == 'fuel') && v.path.length == 1) v.wait = 3;
       } else { v.x += dx / d * st; v.z += dz / d * st; }
     }
@@ -348,7 +348,7 @@ class AirWorld {
     _spawnT -= dt;
     if (_spawnT <= 0) {
       _spawnT = 1 / _visRate * (0.7 + r.nextDouble() * 0.6);
-      if (r.nextDouble() < 0.7) spawnAt(Lay.parking.$1 + 10 + r.nextDouble() * 4, 23.5);
+      if (r.nextDouble() < 0.55) spawnAt(Lay.parking.$1 + 10 + r.nextDouble() * 4, 23.5);
     }
     _agentsTick(dt);
     _cleanersTick(dt);
