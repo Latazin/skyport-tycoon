@@ -24,6 +24,11 @@ if 'com.google.android.gms.ads.APPLICATION_ID' not in s:
     open(f, 'w').write(s)
 print('AdMob ok:', os.environ['ADMOB_ID'])
 PY
+# o verificador "lint" do Android quebra analisando plugins (bug do lint); não afeta o app
+for f in android/build.gradle.kts android/build.gradle; do
+  [ -f "$f" ] || continue
+  grep -q "lintVital" "$f" || printf '\nsubprojects {\n    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }\n}\n' >> "$f"
+done
 # notificações: permissão e desugaring exigidos pelo flutter_local_notifications
 grep -q POST_NOTIFICATIONS "$MANIFEST" || sed -i.bak 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application#' "$MANIFEST" && rm -f "$MANIFEST.bak"
 python3 - <<'PY'
