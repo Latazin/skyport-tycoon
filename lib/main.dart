@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'core/audio.dart';
 import 'core/data.dart';
+import 'core/notify.dart';
 import 'core/save.dart';
 import 'core/state.dart';
 import 'game/art.dart';
@@ -56,6 +57,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     Sfx.music = st.music; Sfx.sound = st.sound; Sfx.vibration = st.vibration;
     await Art.load((k) { if (mounted) setState(() => progress = k); });
     await Sfx.init();
+    Notify.init();
     final q = Uri.base.queryParameters;
     if (q['demo'] == '1') {
       st..money = 2e9..gems = 120..tut = 7..flightsAll = 300..flightsCity = 300..mission = 18..earnedCity = 1.2e9..star = 3..alv = 14..miles = 420;

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../core/audio.dart';
 import '../core/data.dart';
 import '../core/format.dart';
+import '../core/notify.dart';
 import '../core/save.dart';
 import '../core/state.dart';
 import '../game/art.dart';
@@ -96,12 +97,22 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   @override
   void didChangeAppLifecycleState(AppLifecycleState st) {
     if (st == AppLifecycleState.paused || st == AppLifecycleState.inactive || st == AppLifecycleState.detached) {
-      if (_pausedAt == 0) { _pausedAt = nowMs(); Save.save(s); Sfx.pauseMusic(); }
+      if (_pausedAt == 0) { _pausedAt = nowMs(); Save.save(s); Sfx.pauseMusic(); _scheduleReminders(); }
     } else if (st == AppLifecycleState.resumed) {
-      Sfx.resumeMusic();
+      Sfx.resumeMusic(); Notify.cancel();
       if (_pausedAt > 0) { final secs = (nowMs() - _pausedAt) / 1000; if (secs > 60) _offerOffline(secs); }
       _pausedAt = 0;
     }
+  }
+
+  void _scheduleReminders() {
+    final now = nowMs();
+    final items = <(int, String, String, Duration)>[
+      (1, 'Cofre cheio no ${cityAt(s.city).name}!', 'Seu aeroporto lotou o cofre. Venha coletar os lucros ✈️', Duration(seconds: s.offlineCapSecs.round())),
+      if (s.chestAt > now) (2, 'Baú grátis pronto!', 'Abra o baú e ganhe cartas de avião.', Duration(milliseconds: s.chestAt - now)),
+      (3, 'A roleta do dia voltou', 'Gire e ganhe gemas, dinheiro ou um baú de ouro.', const Duration(hours: 22)),
+    ];
+    Notify.schedule(items);
   }
 
   // ================= Fx =================

@@ -1,7 +1,7 @@
 name: skyport_tycoon
 description: "SkyPort Tycoon — construa e administre o aeroporto mais movimentado do mundo!"
 publish_to: 'none'
-version: 2.0.0+2
+version: 3.0.0+3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -12,6 +12,8 @@ dependencies:
   flame: ^1.18.0
   flame_audio: ^2.10.0
   shared_preferences: ^2.2.3
+  flutter_local_notifications: 17.2.4
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
