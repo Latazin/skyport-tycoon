@@ -7,9 +7,9 @@ flutter pub get
 dart run flutter_launcher_icons
 dart run flutter_native_splash:create
 MANIFEST=android/app/src/main/AndroidManifest.xml
-sed -i.bak 's/android:label="[^"]*"/android:label="SkyPort Tycoon"/' "$MANIFEST" && rm -f "$MANIFEST.bak"
+sed -i.bak 's/android:label="[^"]*"/android:label="SkyPort: Airport Tycoon"/' "$MANIFEST" && rm -f "$MANIFEST.bak"
 PLIST=ios/Runner/Info.plist
-if [ -f "$PLIST" ]; then sed -i.bak 's/<string>Skyport Tycoon<\/string>/<string>SkyPort Tycoon<\/string>/' "$PLIST" && rm -f "$PLIST.bak"; fi
+if [ -f "$PLIST" ]; then sed -i.bak 's/<string>Skyport Tycoon<\/string>/<string>SkyPort: Airport Tycoon<\/string>/' "$PLIST" && rm -f "$PLIST.bak"; fi
 # AdMob: o SDK fecha o app na abertura se o ID do aplicativo não estiver no manifesto.
 # admob_app_id.txt guarda o ID (o padrão é o ID de TESTE do Google).
 ADMOB_ID="$(tr -d ' \n\r' < admob_app_id.txt 2>/dev/null || true)"

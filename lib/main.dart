@@ -24,7 +24,7 @@ class SkyPortApp extends StatelessWidget {
   const SkyPortApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'SkyPort Tycoon',
+        title: 'SkyPort: Airport Tycoon',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(useMaterial3: true, fontFamily: 'Fredoka', colorScheme: ColorScheme.fromSeed(seedColor: K.blue)),
         home: const TitleScreen(),
