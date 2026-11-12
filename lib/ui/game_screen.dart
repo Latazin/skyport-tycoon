@@ -386,13 +386,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         if (s.turboOn) const IgnorePointer(child: _Vignette(color: Color(0xFF3E8BFF))),
         if (s.tut == 3 && panel == null && _modal == null) Positioned(top: pad.top + 160, left: 30, right: 30, child: IgnorePointer(child: _TipCard(text: 'Veja: mais balcões, fila andando mais rápido!'))),
         if (s.tut == 6 && panel == null && _modal == null) Positioned(bottom: pad.bottom + 150, left: 30, right: 30, child: IgnorePointer(child: _TipCard(text: 'Contrate a Lia na Equipe: ela coleta o dinheiro sozinha!'))),
-        RepaintBoundary(child: Stack(children: [
+        Positioned.fill(child: RepaintBoundary(child: Stack(children: [
           _topBar(pad),
           _sideButtons(pad),
           if (panel == null) _goal(pad),
           if (panel == null) _bestButton(pad),
           _bottomNav(pad),
-        ])),
+        ]))),
         if (nowMs() - _comboShow < 1200 && s.combo >= 2) Positioned(top: MediaQuery.of(context).size.height * 0.3, left: 0, right: 0, child: IgnorePointer(child: Center(child: TweenAnimationBuilder<double>(key: ValueKey(s.combo), tween: Tween(begin: 1.6, end: 1), duration: const Duration(milliseconds: 300), curve: Curves.easeOutBack, builder: (_, v, c) => Transform.scale(scale: v, child: c), child: Text('COMBO x${s.combo}', style: display(44, color: K.gold)))))),
         Positioned(left: 0, right: 0, bottom: 0, child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
@@ -482,7 +482,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 
   Widget _bestButton(EdgeInsets pad) {
     final b = s.bestBuy();
-    if (b == null || s.tut < 3) return const SizedBox.shrink();
+    if (b == null || s.tut < 3) return const Positioned(right: 0, bottom: 0, child: SizedBox.shrink());
     final can = s.money >= b.$2;
     final st = stationById(b.$1);
     return Positioned(
