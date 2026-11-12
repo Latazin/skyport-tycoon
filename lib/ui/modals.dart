@@ -122,7 +122,7 @@ class _ChestModalState extends State<ChestModal> with TickerProviderStateMixin {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: cols[m.rarity], width: 3)),
       child: Column(children: [
         Text(fresh ? 'NOVO!' : rarityNames[m.rarity], style: body(9, color: fresh ? K.red : cols[m.rarity], w: FontWeight.w900)),
-        Ico('pm_${m.tier}_${m.liv}', size: 46),
+        Container(width: 62, height: 46, decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF8FD0FF), Color(0xFF4F9BEA)])), child: Ico('pm_${m.tier}_${m.liv}', size: 46)),
         Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(9, w: FontWeight.w900)),
       ]),
     );

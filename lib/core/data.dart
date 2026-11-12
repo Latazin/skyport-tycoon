@@ -131,9 +131,9 @@ class Mission {
 /// Estrelas do aeroporto: tarefas de cada estrela (os níveis escalam por cidade só no texto).
 const starTasks = [
   [Mission('lvl', 'checkin', 10), Mission('lvl', 'entrada', 10), Mission('lvl', 'seguranca', 10), Mission('unlock', 'g1', 1), Mission('flights', '', 15)],
-  [Mission('lvl', 'g0', 25), Mission('unlock', 'lojas', 1), Mission('unlock', 'g2', 1), Mission('lvl', 'pista', 10), Mission('manager', '', 1)],
+  [Mission('lvl', 'g0', 30), Mission('lvl', 'lojas', 10), Mission('unlock', 'g2', 1), Mission('lvl', 'pista', 15), Mission('manager', '', 2)],
   [Mission('lvl', 'checkin', 50), Mission('unlock', 'vip', 1), Mission('unlock', 'g3', 1), Mission('lvl', 'torre', 25), Mission('flights', '', 120)],
-  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 75), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 75), Mission('lvl', 'lojas', 50)],
+  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 100), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 100), Mission('lvl', 'lojas', 60)],
   [Mission('unlock', 'combustivel', 1), Mission('unlock', 'g5', 1), Mission('lvl', 'pista', 50), Mission('lvl', 'entrada', 100), Mission('flights', '', 600)],
 ];
 const starNames = ['Aeródromo', 'Aeroporto Regional', 'Aeroporto Nacional', 'Aeroporto Internacional', 'Hub Global', 'Lenda dos Céus'];

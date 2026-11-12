@@ -507,7 +507,7 @@ class _FleetPanelState extends State<FleetPanel> {
         decoration: BoxDecoration(color: owned ? Colors.white : const Color(0xFFE9E4D6), borderRadius: BorderRadius.circular(14), border: Border.all(color: rarCol[m.rarity], width: 3)),
         child: Column(children: [
           Text(rarityNames[m.rarity].toUpperCase(), style: body(9, color: rarCol[m.rarity], w: FontWeight.w900)),
-          Opacity(opacity: owned ? 1 : 0.3, child: Ico('pm_${m.tier}_${m.liv}', size: 62)),
+          Container(height: 62, width: 86, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: owned ? [const Color(0xFF8FD0FF), const Color(0xFF4F9BEA)] : [const Color(0xFFB8BFCC), const Color(0xFF8A93A6)])), child: Opacity(opacity: owned ? 1 : 0.45, child: Ico('pm_${m.tier}_${m.liv}', size: 62))),
           Text(m.name, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(11, w: FontWeight.w900)),
           Text(owned ? 'Nv $l · +${(rarityBonus[m.rarity] * (1 + 0.5 * (l - 1)) * 100).round()}%' : 'Não tem', style: body(10, color: K.muted)),
           if (owned && l < cardsToLevel.length) Padding(padding: const EdgeInsets.only(top: 3), child: GBar(value: need == 0 ? 1 : cards / need, height: 12, color: can ? K.green : K.blue, label: can ? 'SUBIR!' : '$cards/$need')),
