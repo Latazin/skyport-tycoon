@@ -1095,6 +1095,59 @@ function keyart(W, H, city = 2) {
   const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(R.domElement, 0, 0);
   return { png: c.toDataURL('image/jpeg', 0.9) };
 }
+/* ícone novo: ilha do aeroporto (pista, terminal e torre) com jato decolando e moedas */
+function appIcon2(size, fg = false) {
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0d0, 0.72));
+  const d = new THREE.DirectionalLight(0xfff0d8, 0.78); d.position.set(-6, 12, 9); d.castShadow = true; d.shadow.mapSize.set(2048, 2048);
+  Object.assign(d.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 0.5, far: 50 }); d.shadow.bias = -0.0008; scene.add(d);
+  const isle = new THREE.Group(); scene.add(isle);
+  // ilha redonda: terra, grama, pista
+  C(isle, 6.2, 5.6, 1.1, 0x9a6a3e, 0, -1.45, 0, 40); C(isle, 6.25, 6.25, 0.34, 0x5fc04f, 0, -0.34, 0, 40);
+  const rw = B(isle, 11.4, 0.06, 2.3, 0x3a4253, 0, 0, 1.2); rw.receiveShadow = true;
+  for (let x = -4.6; x < 4.6; x += 1.4) flat(isle, 0.75, 0.14, 0xffffff, x, 1.2, 0.08);
+  for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) flat(isle, 0.55, 0.14, 0xffffff, sx * 5.1, 0.55 + k * 0.42, 0.08);
+  // terminal com vidro azul e telhado curvo
+  B(isle, 5.0, 1.3, 2.0, 0xf7f9fc, -0.8, 0, -2.6); for (let i = 0; i < 6; i++) B(isle, 0.62, 0.8, 0.05, M(0x5fb2ff), -3.0 + i * 0.85, 0.3, -1.58);
+  B(isle, 5.2, 0.24, 2.2, 0x2f6bff, -0.8, 1.3, -2.6);
+  // torre de controle alta
+  const tw = grp(isle, 3.3, 0, -2.4);
+  C(tw, 0.55, 0.7, 4.6, 0xf7f9fc, 0, 0, 0, 16); C(tw, 0.62, 0.62, 0.18, 0x2f6bff, 0, 2.2, 0, 16);
+  C(tw, 1.25, 0.9, 0.45, 0xf7f9fc, 0, 4.6, 0, 16); C(tw, 1.35, 1.35, 0.95, M(0x5fd0ff, { emissive: 0x1a4a70 }), 0, 5.05, 0, 16);
+  C(tw, 1.5, 1.4, 0.3, 0x2f6bff, 0, 6.0, 0, 16); C(tw, 0.06, 0.06, 0.9, 0xffffff, 0, 6.3, 0, 6); Sp(tw, 0.16, M(0xff4e4e, { emissive: 0xa02020 }), 0, 7.25, 0, 8);
+  // árvores e moedas
+  for (const [x, z] of [[-5.1, -1.6], [-4.2, -3.6], [5.0, -1.3], [-2.4, 4.4], [2.6, 4.6], [0.2, 4.9]]) tree(isle, x, z, 0.9, 0);
+  const coins = grp(isle, 4.3, 0.15, 3.6);
+  for (let i = 0; i < 9; i++) { const st = [[0, 0], [0.75, 0.25], [-0.6, 0.35]][i % 3]; const k = Math.floor(i / 3); C(coins, 0.42, 0.42, 0.18, M(0xffc531, { emissive: 0x6a4a00 }), st[0], k * 0.19, st[1], 20); }
+  const big = C(coins, 0.62, 0.62, 0.16, M(0xffc531, { emissive: 0x6a4a00 }), 0.1, 1.3, 0.2, 24); big.rotation.set(Math.PI / 2 - 0.35, 0, 0.25);
+  isle.rotation.y = -0.62;
+  // jato subindo na frente
+  const p = plane(2, 0); p.scale.setScalar(0.7); p.position.set(-1.9, 5.5, 3.2); p.rotation.set(-0.36, -Math.PI / 2 + 0.8, 0.3, 'YXZ'); p.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); scene.add(p);
+  const pl = new THREE.PointLight(0xffffff, 0.12, 30); pl.position.set(0, 10, 14); scene.add(pl);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.5, 200); cam.position.set(0, 13.5, 24); cam.lookAt(0, 1.6, 0);
+  R.shadowMap.enabled = true;
+  R.setSize(size, size); R.setClearColor(0, 0); R.render(scene, cam);
+  const c = document.createElement('canvas'); c.width = size; c.height = size; const x = c.getContext('2d');
+  if (!fg) {
+    const gr = x.createRadialGradient(size * 0.5, size * 0.42, size * 0.05, size * 0.5, size * 0.5, size * 0.75);
+    gr.addColorStop(0, '#9fe2ff'); gr.addColorStop(0.55, '#3d9bff'); gr.addColorStop(1, '#1e5ad8');
+    x.fillStyle = gr; x.fillRect(0, 0, size, size);
+    // raios suaves
+    x.save(); x.translate(size * 0.5, size * 0.45); x.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, 0); x.lineTo(size, -size * 0.09); x.lineTo(size, size * 0.09); x.closePath(); x.fill(); }
+    x.restore();
+    // nuvens
+    x.fillStyle = 'rgba(255,255,255,0.95)';
+    [[0.07, 0.36, 0.05], [0.13, 0.34, 0.07], [0.19, 0.37, 0.045], [0.8, 0.13, 0.06], [0.87, 0.11, 0.08], [0.94, 0.14, 0.05]].forEach(([cx, cy, r]) => { x.beginPath(); x.arc(cx * size, cy * size, r * size, 0, 7); x.fill(); });
+  }
+  x.drawImage(R.domElement, 0, 0);
+  return { png: c.toDataURL('image/png') };
+}
+/* capa da loja 1024x500: arte do aeroporto + logo à esquerda */
+function featureGraphic(W = 1024, H = 500) {
+  const art = keyart(W * 2, H * 2, 2);
+  return art;
+}
 function appIcon(size, fg = false) {
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0xa0b0d0, 0.75));
@@ -1160,7 +1213,7 @@ window.STUDIO = {
   },
   icon(name) { if (name.startsWith('pm_')) { const [, t, l] = name.split('_'); return iconShot(() => { const p = plane(+t, +l); p.rotation.y = Math.PI * 0.72; p.rotation.x = -0.15; const g = new THREE.Group(); g.add(p); return g; }); } return iconShot(ICONS[name]); },
   iconNames: () => [...Object.keys(ICONS), ...[0, 1, 2].flatMap(t => [0, 1, 2, 3, 4, 5].map(l => `pm_${t}_${l}`))],
-  keyart, appIcon,
+  keyart, appIcon, appIcon2,
 };
 /* catálogo de sprites */
 const BUILD = {}, OPTS = {};
