@@ -24,6 +24,8 @@ abstract class PanelHost {
   void openWheel();
   void showChests();
   void decorBought(Decor d);
+  List<(String, String, String, bool, int)> get games;
+  void playGame(String id);
 }
 
 Widget buildPanel(String p, GameState s, PanelHost h) {
@@ -37,6 +39,7 @@ Widget buildPanel(String p, GameState s, PanelHost h) {
     case 'shop': return ShopPanel(s: s, h: h);
     case 'cities': return CitiesPanel(s: s, h: h);
     case 'settings': return SettingsPanel(s: s, h: h);
+    case 'games': return GamesPanel(s: s, h: h);
   }
   return const SizedBox.shrink();
 }
@@ -867,6 +870,38 @@ class _SettingsPanelState extends State<SettingsPanel> {
       ])),
       const SizedBox(height: 8),
       Text('SkyPort Tycoon v3.0', style: body(12, color: K.muted)),
+    ]));
+  }
+}
+
+/// Minijogos: cada um rende dinheiro, gemas e baús; recarga de 4 minutos.
+class GamesPanel extends StatelessWidget {
+  final GameState s;
+  final PanelHost h;
+  const GamesPanel({super.key, required this.s, required this.h});
+  static const desc = {
+    'land': 'Segure para descer e solte no ponto certo da pista',
+    'xray': 'Ache os itens proibidos nas malas',
+    'bag': 'Arraste cada mala para o avião da cor dela',
+    'atc': 'Autorize os pousos um de cada vez',
+    'yard': 'Mande cada avião para o portão da cor certa',
+  };
+  @override
+  Widget build(BuildContext context) {
+    final list = h.games;
+    return Sheet(title: 'Minijogos', subtitle: 'Prêmios em dinheiro, gemas e baús', icon: 'landing', color: K.orange, onClose: h.closePanel, child: Column(children: [
+      for (final g in list) GCard(padding: const EdgeInsets.all(10), child: Row(children: [
+        IcoBox(g.$3, color: K.orange, size: 50, opacity: g.$4 ? 1 : 0.5),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(g.$2, style: body(16, w: FontWeight.w900)),
+          Text(desc[g.$1] ?? '', style: body(12.5, color: K.muted)),
+        ])),
+        const SizedBox(width: 8),
+        g.$4 ? GBtn(color: K.green, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), onTap: () => h.playGame(g.$1), child: Text('Jogar', style: display(14)))
+            : Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: K.track, borderRadius: BorderRadius.circular(10)), child: Text(fmtTime(math.max(0, g.$5 - nowMs()) / 1000), style: body(13, color: K.muted, w: FontWeight.w900))),
+      ])),
+      if (s.phase < 2) Text(s.phase < 1 ? 'Novos jogos chegam quando o aeroporto crescer: Torre (2ª fase) e Pátio (3ª fase).' : 'O jogo do Pátio chega na próxima fase do aeroporto.', textAlign: TextAlign.center, style: body(12.5, color: K.muted)),
     ]));
   }
 }

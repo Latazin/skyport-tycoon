@@ -33,7 +33,7 @@ class SkyGame extends FlameGame {
     camera.viewfinder.anchor = Anchor.center;
     final first = s.tut < 2;
     camera.viewfinder.zoom = (size.x / (first ? 760 : 980)).clamp(0.3, 0.9);
-    final o = first ? iso(-33, 9, 2) : iso(s.phase == 0 ? -28 : -14, 2);
+    final o = first ? iso(-33, 9, 2) : iso(s.phase == 0 ? -28 : -14, -1);
     camera.viewfinder.position = Vector2(o.dx, o.dy);
     for (var i = 0; i < 6; i++) { Future.delayed(Duration(milliseconds: 400 * i), () => w.spawnAt(Lay.door.$1 + i * 0.5, 17)); }
   }
@@ -77,7 +77,7 @@ class SkyGame extends FlameGame {
   /// Visão geral (dois toques).
   void overview() {
     final ph = s.ph, cx = (ph.camX0 + ph.camX1) / 2;
-    if (zoom < 0.36) { focusWorld(-24, 6, zoomTo: 0.6); } else { focusWorld(cx, -6, zoomTo: (size.x / (ph.camX1 - ph.camX0) / 20).clamp(0.2, 0.45).toDouble()); }
+    if (zoom < 0.36) { focusWorld(-24, 6, zoomTo: 0.6); } else { focusWorld(cx, -6, zoomTo: (size.x / (ph.camX1 - ph.camX0) / 12).clamp(0.22, 0.5).toDouble()); }
   }
 
   /// Toque no mundo: escolhe o alvo mais importante e menor sob o dedo.

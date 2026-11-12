@@ -12,7 +12,7 @@ const fs = require('fs');
     ['07_estrelas', '?auto=1&demo=1&panel=stars', [30000]], ['08_missoes', '?auto=1&demo=1&panel=missions', [30000]],
     ['09_frota', '?auto=1&demo=1&panel=fleet', [30000]], ['10_equipe', '?auto=1&demo=1&panel=team', [30000]],
     ['11_loja', '?auto=1&demo=1&panel=shop', [30000]], ['12_bau', '?auto=1&demo=1&chest=1', [30000]],
-    ['13_contratos', '?auto=1&demo=p1&panel=fleet', [30000]], ['14_decoracao', '?auto=1&demo=p1&panel=upgrades', [30000]],
+    ['13_contratos', '?auto=1&demo=p1&panel=fleet', [30000]], ['14_decoracao', '?auto=1&demo=p1&panel=upgrades', [30000]], ['15_jogos', '?auto=1&demo=p1&panel=games', [30000]],
   ];
   for (const [name, q, waits] of runs) {
     const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'pt-BR' });

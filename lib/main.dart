@@ -116,7 +116,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
                 Transform.translate(offset: Offset(-40 + ease(0, 0.8) * 40, -a.value * 6), child: Transform.scale(scale: el(0.05, 0.6), child: const Ico('plane', size: 110))),
                 Transform.scale(scale: el(0.12, 0.65), child: Text('SKYPORT', style: display(62).copyWith(shadows: const [Shadow(color: Color(0x661F2A44), offset: Offset(0, 4), blurRadius: 10)]))),
                 Transform.scale(scale: el(0.2, 0.75), child: Stack(children: [
-                  Text('TYCOON', style: display(70).copyWith(color: const Color(0xFF1F2A44), shadows: const [Shadow(color: Color(0x661F2A44), offset: Offset(0, 4), blurRadius: 10)])),
+                  Text('TYCOON', style: display(70).copyWith(color: const Color(0x00000000), shadows: const [Shadow(color: Color(0x661F2A44), offset: Offset(0, 4), blurRadius: 10)])),
                   ShaderMask(
                     shaderCallback: (r) => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFFFF4B0), Color(0xFFFFC531), Color(0xFFFF8F00)]).createShader(r),
                     blendMode: BlendMode.srcIn,

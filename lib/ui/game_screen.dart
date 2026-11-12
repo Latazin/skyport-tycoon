@@ -533,14 +533,23 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         _RoundBtn(icon: 'bolt', label: s.freeReady ? 'x2 grátis' : 'Turbinas', ready: s.freeReady, onTap: () { if (s.freeReady) { s.claimFree(); Sfx.play('boost'); banner('Lucro x2!', 'Por 10 minutos'); setState(() {}); } else { openPanel('shop'); } }),
         if (s.spinReady) _RoundBtn(icon: 'wheel', label: 'Roleta', ready: true, onTap: openWheel),
         _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, dim: !s.chestReady, onTap: () { if (s.chestReady) { s.takeFreeChest(); showChests(); } else { toast('Baú grátis em ${cd(s.chestAt)}'); } }),
-        _RoundBtn(icon: 'landing', label: s.landReady ? 'Pouso' : cd(s.landAt), ready: s.landReady, dim: !s.landReady, onTap: () => _playGame('land')),
-        _RoundBtn(icon: 'xray', label: s.xrayReady ? 'Raio-X' : cd(s.xrayAt), ready: s.xrayReady, dim: !s.xrayReady, onTap: () => _playGame('xray')),
-        _RoundBtn(icon: 'bags', label: s.bagReady ? 'Malas' : cd(s.bagAt), ready: s.bagReady, dim: !s.bagReady, onTap: () => _playGame('bag')),
-        if (s.phase >= 1) _RoundBtn(icon: 'tower', label: s.atcReady ? 'Torre' : cd(s.atcAt), ready: s.atcReady, dim: !s.atcReady, onTap: () => _playGame('atc')),
-        if (s.phase >= 2) _RoundBtn(icon: 'route', label: s.yardReady ? 'Pátio' : cd(s.yardAt), ready: s.yardReady, dim: !s.yardReady, onTap: () => _playGame('yard')),
+        _RoundBtn(icon: 'landing', label: 'Jogos', ready: _games.any((g) => g.$4), onTap: () => openPanel('games')),
       ]),
     );
   }
+
+  /// Minijogos disponíveis: (id, nome, ícone, pronto, recarga).
+  List<(String, String, String, bool, int)> get _games => [
+        ('land', 'Pouso perfeito', 'landing', s.landReady, s.landAt),
+        ('xray', 'Raio-X', 'xray', s.xrayReady, s.xrayAt),
+        ('bag', 'Esteira de malas', 'bags', s.bagReady, s.bagAt),
+        if (s.phase >= 1) ('atc', 'Torre de controle', 'tower', s.atcReady, s.atcAt),
+        if (s.phase >= 2) ('yard', 'Pátio', 'route', s.yardReady, s.yardAt),
+      ];
+  @override
+  List<(String, String, String, bool, int)> get games => _games;
+  @override
+  void playGame(String id) { closePanel(); _playGame(id); }
 
   /// Habilidades dos gerentes contratados (lado esquerdo).
   Widget _abilities(EdgeInsets pad) {
