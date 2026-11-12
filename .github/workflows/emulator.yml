@@ -1,0 +1,50 @@
+name: Teste no emulador Android
+
+on:
+  workflow_run:
+    workflows: ["Build Android (APK + AAB)"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Baixar APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download latest -R "$GITHUB_REPOSITORY" -p SkyPortTycoon.apk
+      - name: Abrir o jogo no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r SkyPortTycoon.apk
+            adb logcat -c
+            adb shell am start -n com.skyporttycoon.skyport_tycoon/.MainActivity
+            sleep 40
+            adb shell pidof com.skyporttycoon.skyport_tycoon > alive.txt || echo MORREU > alive.txt
+            adb logcat -d > logcat.txt || true
+            adb logcat -d -b crash > crash.txt || true
+            adb exec-out screencap -p > tela.png || true
+      - name: Publicar resultado
+        if: always()
+        run: |
+          mkdir -p out && cp -f alive.txt logcat.txt crash.txt tela.png out/ 2>/dev/null || true
+          grep -E "FATAL|AndroidRuntime|E flutter|Exception|Error" out/logcat.txt | head -200 > out/erros.txt || true
+          cd out && git init -q && git checkout -q -b emulador
+          git config user.name ci && git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "emulador ${GITHUB_SHA}" && git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" emulador
