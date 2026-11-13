@@ -29,6 +29,27 @@ for f in android/build.gradle.kts android/build.gradle; do
   [ -f "$f" ] || continue
   grep -q "lintVital" "$f" || printf '\nsubprojects {\n    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }\n}\n' >> "$f"
 done
+# R8 apagava o banco do WorkManager (usado pelo SDK de anúncios) e o app fechava ao abrir
+cat >> android/app/proguard-rules.pro <<'PRO'
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.room.** { *; }
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.play.core.**
+PRO
+for f in android/app/build.gradle.kts android/app/build.gradle; do
+  [ -f "$f" ] || continue
+  grep -q "proguard-rules.pro" "$f" || python3 - "$f" <<'PY'
+import sys
+f = sys.argv[1]; s = open(f).read(); kts = f.endswith('.kts')
+i = s.find('release {', s.find('buildTypes'))
+if i > 0:
+    line = '\n            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")' if kts else "\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'"
+    s = s[:i + len('release {')] + line + s[i + len('release {'):]
+    open(f, 'w').write(s)
+print('proguard ok', f)
+PY
+done
 # notificações: permissão e desugaring exigidos pelo flutter_local_notifications
 grep -q POST_NOTIFICATIONS "$MANIFEST" || sed -i.bak 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application#' "$MANIFEST" && rm -f "$MANIFEST.bak"
 python3 - <<'PY'

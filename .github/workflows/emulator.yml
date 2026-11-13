@@ -3,7 +3,6 @@ name: Teste no emulador Android
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/emulator.yml', 'emulator.trigger']
   workflow_dispatch:
 
 permissions:
@@ -20,7 +19,14 @@ jobs:
       - name: Baixar APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download latest -R "$GITHUB_REPOSITORY" -p SkyPortTycoon.apk
+        run: |
+          # espera o build deste mesmo commit publicar o APK
+          for i in $(seq 1 60); do
+            T=$(gh release view latest -R "$GITHUB_REPOSITORY" --json targetCommitish -q .targetCommitish 2>/dev/null || true)
+            [ "$T" = "$GITHUB_SHA" ] && break
+            sleep 30
+          done
+          gh release download latest -R "$GITHUB_REPOSITORY" -p SkyPortTycoon.apk
       - name: Abrir o jogo no emulador
         uses: reactivecircus/android-emulator-runner@v2
         with:
