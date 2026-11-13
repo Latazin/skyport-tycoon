@@ -93,7 +93,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     if (s.tut == 3) { _tut3 += 0.1; if (_tut3 > 6) { s.tut = 4; toast('Quando um avião decolar, toque no dinheiro!'); } }
     if (s.tut == 4 && s.pile[0] <= 0 && s.pilesTotal <= 0 && s.flightsAll > 2) s.tut = 5;
     game.scene.hint = _hint();
-    if (_modal == null && s.chestsQ.isNotEmpty && panel == null && s.tut >= 7 && nowMs() > _holdUntil) showChests();
+    if (_modal == null && s.chestsQ.isNotEmpty && panel == null && s.tut >= 7 && nowMs() > _holdUntil && s.c('firstChest') == 0) { s.inc('firstChest'); showChests(); }
     s.ensurePeriods();
     setState(() {});
   }
@@ -197,6 +197,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   @override
   void levelUp(int lvl) {
     Sfx.play('level'); Sfx.haptic(40);
+    if (lvl % 5 != 0) { toast('Nível $lvl!  +${2 + lvl ~/ 4} gemas'); return; }
     if (_modal != null || s.tut < 7) { banner('Nível $lvl!', 'Ganhou um baú'); return; }
     final chest = s.chestsQ.isNotEmpty ? s.chestsQ.last : 'chest';
     _showModal(LevelUpModal(level: lvl, gems: 2 + lvl ~/ 4, chest: chest, onDone: () { _closeModal(); _flyGems(2 + lvl ~/ 4, Offset(MediaQuery.of(context).size.width / 2, MediaQuery.of(context).size.height * 0.5)); showChests(); }));
@@ -319,6 +320,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     _adOffer('Lucro x2', 'Dobre todo o lucro do aeroporto por 10 minutos.', 'bolt', give, color: K.gold);
   }
   void _chestTap() {
+    if (s.chestsQ.isNotEmpty) { showChests(); return; }
     if (s.chestReady) { s.takeFreeChest(); showChests(); return; }
     _adOffer('Baú agora?', 'O baú grátis fica pronto em ${fmtTime(math.max(0, (s.chestAt - nowMs()) / 1000))}. Quer abrir um agora?', 'chest', () { s.chestsQ.add('chest'); showChests(); }, color: K.orange);
   }
@@ -607,7 +609,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           _topBar(pad),
           _sideButtons(pad),
           if (panel == null) _abilities(pad),
-          if (panel == null && s.tut >= 7) _frenzy(pad),
+          if (panel == null && s.tut >= 7 && (s.frenzyOn || s.frenzy > 0.05)) _frenzy(pad),
           if (panel == null) _goal(pad),
           if (panel == null) _bestButton(pad),
           _bottomNav(pad),
@@ -662,7 +664,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             ),
           ),
           const SizedBox(width: 6),
-          Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: [
+          Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: <Widget>[
             if (s.boostOn) _chip('bolt', 'x2 ${fmtTime((s.boostUntil - nowMs()) / 1000)}', K.gold),
             if (s.rushOn) _chip('rush', 'Rush ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
             if (s.turboOn) _chip('turbo', 'Turbo ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
@@ -675,7 +677,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             if (s.snow) _chip('esp3', 'Neve x${s.snowSpeed.toStringAsFixed(2)}', s.snowSpeed < 1 ? K.blue : K.green),
             if (s.netReady) GestureDetector(onTap: () => openPanel('cities'), child: _chip('network', 'Rede: \$${fmt(s.netPile)}', K.green)),
             if (s.ctAir >= 0) GestureDetector(onTap: () => openPanel('fleet'), child: _chip('contract', '${airlines[s.ctAir].$1} ${math.min(s.ctDone, s.ctNeed)}/${s.ctNeed}', s.ctReady ? K.green : K.teal)),
-          ])),
+          ].take(3).toList())),
         ]),
       ]),
     );
@@ -687,19 +689,30 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       );
 
   Widget _sideButtons(EdgeInsets pad) {
-    final now = nowMs();
-    String cd(int at) => fmtTime(math.max(0, (at - now) / 1000));
     return Positioned(
       right: 10, top: pad.top + 74,
       child: Column(children: [
-        if (s.tut >= 7) _GiftBtn(s: s, onTap: _giftTap),
-        _RoundBtn(icon: 'bolt', label: s.boostOn ? fmtTime((s.boostUntil - nowMs()) / 1000) : 'Lucro x2', ready: !s.boostOn, onTap: _boostTap),
-        _RoundBtn(icon: 'wheel', label: 'Roleta', ready: s.spinReady, onTap: _wheelTap),
-        _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, onTap: _chestTap),
-        if (s.tut >= 7) _RoundBtn(icon: 'cash', label: 'Cofrinho', ready: s.piggyFull, fill: s.piggy / s.piggyCap, onTap: _piggyTap),
-        _RoundBtn(icon: 'landing', label: 'Jogos', ready: _games.any((g) => g.$4), onTap: () => openPanel('games')),
+        if (s.tut >= 7 && s.giftReady) _GiftBtn(s: s, onTap: _giftTap),
+        if (s.tut >= 7) _RoundBtn(icon: 'bolt', label: s.boostOn ? fmtTime((s.boostUntil - nowMs()) / 1000) : 'Lucro x2', ready: !s.boostOn, onTap: _boostTap),
+        if (s.tut >= 7) _RoundBtn(icon: 'chest', label: _rewardsReady > 0 ? 'Prêmios ($_rewardsReady)' : 'Prêmios', ready: _rewardsReady > 0, onTap: _openRewards),
       ]),
     );
+  }
+
+  /// Quantos prêmios estão prontos (roleta, baú, cofrinho, jogos).
+  int get _rewardsReady => (s.spinReady ? 1 : 0) + ((s.chestReady || s.chestsQ.isNotEmpty) ? 1 : 0) + (s.piggyFull ? 1 : 0) + (_games.any((g) => g.$4) ? 1 : 0);
+  void _openRewards() {
+    Sfx.click();
+    final now = nowMs();
+    String cd(int at) => fmtTime(math.max(0, (at - now) / 1000));
+    void go(VoidCallback f) { _closeModal(); Future.delayed(const Duration(milliseconds: 120), f); }
+    final gReady = _games.where((g) => g.$4).length;
+    _showModal(_RewardsCard(onClose: _closeModal, tiles: [
+      ('wheel', 'Roleta', s.spinReady ? 'Giro grátis!' : 'Giro extra', s.spinReady, K.purple, () => go(_wheelTap)),
+      ('chest', 'Baú', s.chestsQ.isNotEmpty ? '${s.chestsQ.length} para abrir' : s.chestReady ? 'Grátis!' : cd(s.chestAt), s.chestReady || s.chestsQ.isNotEmpty, K.orange, () => go(_chestTap)),
+      ('cash', 'Cofrinho', s.piggyFull ? 'Cheio!' : '${(s.piggy / s.piggyCap * 100).clamp(0, 100).round()}%', s.piggyFull, K.green, () => go(_piggyTap)),
+      ('landing', 'Minijogos', gReady > 0 ? '$gReady grátis' : 'Jogar', gReady > 0, K.blue, () => go(() => openPanel('games'))),
+    ]));
   }
 
   /// Minijogos disponíveis: (id, nome, ícone, pronto, recarga).
@@ -747,8 +760,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       left: 10, top: pad.top + 132,
       child: Column(children: [
         if (s.city > 0 || s.star >= 3) Transform.translate(offset: const Offset(-3, 0), child: _RoundBtn(icon: 'network', label: 'Rede', ready: s.netReady || s.canPrestige, onTap: () => openPanel('cities'))),
-        if (list.length > 2) _RoundBtn(icon: 'cap', label: _abilOpen ? 'Fechar' : 'Poderes', ready: !_abilOpen && list.any(s.abilReady), onTap: () { Sfx.click(); setState(() => _abilOpen = !_abilOpen); }),
-        for (final a in (list.length <= 2 || _abilOpen) ? list : const <Ability>[]) _AbilityBtn(a: a, s: s, onTap: () {
+        if (list.length >= 2) _RoundBtn(icon: 'cap', label: _abilOpen ? 'Fechar' : 'Poderes', ready: !_abilOpen && list.any(s.abilReady), onTap: () { Sfx.click(); setState(() => _abilOpen = !_abilOpen); }),
+        for (final a in (list.length < 2 || _abilOpen) ? list : const <Ability>[]) _AbilityBtn(a: a, s: s, onTap: () {
           if (!s.abilReady(a)) { toast('${a.name} recarrega em ${fmtTime(s.abilLeft(a) / 1000)}'); return; }
           final t = s.useAbility(a);
           Sfx.play('boost'); Sfx.haptic(20);
@@ -826,7 +839,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   Widget _bottomNav(EdgeInsets pad) {
     final anyUp = stations.any((st) => (s.built(st.id) && !st.oneTime && s.canUp(st)) || s.canUnlock(st));
     final team = managers.any((m) => !s.hasMgr(m.id) && s.money >= s.mgrCost(m)) || researchList.any(s.canResearch);
-    final fleet = planeModels.any((m) => s.canLevelModel(m.id)) || routes.any((r) => !s.routesOwned.contains(r.id) && s.routeReqOk(r) && s.money >= s.routeCost(r)) || s.ctReady || s.ctOfferReady;
     final cl = s.claimables + (s.dailyReady ? 1 : 0) + (s.wkReady ? 1 : 0);
     return Positioned(
       left: 10, right: 10, bottom: pad.bottom + 10,
@@ -835,12 +847,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Color(0x261F2A44), blurRadius: 20, offset: Offset(0, 6))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          _NavBtn(icon: 'up', label: 'Melhorar', dot: anyUp, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
+          _NavBtn(icon: 'up', label: 'Melhorar', dot: anyUp && s.tut < 7, active: panel == 'upgrades', onTap: () => openPanel('upgrades')),
           _NavBtn(icon: 'star', label: 'Estrelas', dot: s.starReady, active: panel == 'stars', onTap: () => openPanel('stars')),
           _NavBtn(icon: 'mission', label: 'Missões', badge: cl > 0 ? '$cl' : null, active: panel == 'missions', onTap: () => openPanel('missions')),
-          _NavBtn(icon: 'plane', label: 'Frota', dot: fleet, active: panel == 'fleet', onTap: () => openPanel('fleet')),
-          _NavBtn(icon: 'pax', label: 'Equipe', dot: team, active: panel == 'team', onTap: () => openPanel('team')),
-          _NavBtn(icon: 'bag', label: 'Loja', dot: s.chestReady || s.spinReady, active: panel == 'shop', onTap: () => openPanel('shop')),
+          _NavBtn(icon: 'plane', label: 'Frota', dot: s.ctReady || s.ctOfferReady, active: panel == 'fleet', onTap: () => openPanel('fleet')),
+          _NavBtn(icon: 'pax', label: 'Equipe', dot: s.tut == 6 || (team && s.mgr.isEmpty), active: panel == 'team', onTap: () => openPanel('team')),
+          _NavBtn(icon: 'bag', label: 'Loja', dot: false, active: panel == 'shop', onTap: () => openPanel('shop')),
         ]),
       )),
     );
@@ -848,6 +860,52 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 }
 
 // ================= widgets do HUD =================
+/// Cartão "Prêmios": roleta, baú, cofrinho e minijogos num lugar só (tira 4 botões da tela).
+class _RewardsCard extends StatelessWidget {
+  final List<(String, String, String, bool, Color, VoidCallback)> tiles;
+  final VoidCallback onClose;
+  const _RewardsCard({required this.tiles, required this.onClose});
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(maxWidth: 380),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26), boxShadow: K.shadow),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            const Ico('chest', size: 34), const SizedBox(width: 8),
+            Expanded(child: Text('Prêmios', style: display(22).copyWith(color: K.navy))),
+            CloseBtn(onTap: onClose),
+          ]),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.15,
+            children: [
+              for (final t in tiles) GestureDetector(
+                onTap: t.$6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: t.$4 ? t.$5.withValues(alpha: 0.12) : const Color(0xFFF3F5FA),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: t.$4 ? t.$5 : const Color(0xFFE3E7F0), width: 2),
+                  ),
+                  child: Stack(children: [
+                    Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Ico(t.$1, size: 54),
+                      const SizedBox(height: 4),
+                      Text(t.$2, style: body(15, w: FontWeight.w900)),
+                      Text(t.$3, style: body(12.5, color: t.$4 ? t.$5 : K.muted, w: FontWeight.w800)),
+                    ])),
+                    if (t.$4) Positioned(top: 8, right: 8, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: K.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+        ]),
+      );
+}
+
 class _TipCard extends StatelessWidget {
   final String text;
   const _TipCard({required this.text});

@@ -376,7 +376,8 @@ class GameState {
     xp += v;
     while (xp >= needXp()) {
       xp -= needXp(); alv++;
-      chestsQ.add(alv % 10 == 0 ? 'chest_epic' : alv % 5 == 0 ? 'chest_gold' : 'chest');
+      // baú só nos níveis marcantes (a cada 5); nos outros, só gemas — menos baú na tela
+      if (alv % 5 == 0) chestsQ.add(alv % 10 == 0 ? 'chest_epic' : 'chest_gold');
       gems += 2 + alv ~/ 4;
       sPts += 10;
       fx?.levelUp(alv);

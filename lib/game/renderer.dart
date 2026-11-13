@@ -498,7 +498,7 @@ class SceneRenderer extends Component {
       final bott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate && st.gate == 0);
       // longe: só o essencial (selecionado, melhor compra e gargalo); o resto vira um selo pequeno de "dá pra melhorar"
       if (!near && !sel && !isBest && !(bott && s.rate > 0)) {
-        if (up) {
+        if (up && s.tut < 7) {
           c.drawCircle(at + Offset(0, 1.5 * k), 10 * k, Paint()..color = const Color(0x33141A33));
           c.drawCircle(at, 10 * k, Paint()..color = Colors.white);
           c.drawCircle(at, 7.8 * k, Paint()..color = const Color(0xFF22B573));
