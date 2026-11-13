@@ -108,7 +108,7 @@ class SkyGame extends FlameGame {
     final vf = camera.viewfinder;
     // câmera de filmagem: começa quando a tecla C é apertada
     if (Cine.a != null && Cine.b != null) {
-      if (_cineT < 0 && HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.keyC)) _cineT = 0;
+      if (_cineT < 0 && HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.keyC)) { _cineT = 0; w.t = 13.2; }
       if (_cineT >= 0) {
         _cineT += step;
         final k = (_cineT / Cine.dur).clamp(0.0, 1.0), e = k < 0.5 ? 2 * k * k : 1 - math.pow(-2 * k + 2, 2) / 2;
