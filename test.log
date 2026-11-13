@@ -1,0 +1,22 @@
+
+::group::✅ Passing tests
+✅ estado inicial opera e gera receita
+✅ voos acontecem e pagam passagens
+✅ melhorar custa e sobe o nível
+✅ portões abrem em ordem e pedem estrelas
+✅ dinheiro dos voos cai na pilha e pode ser coletado
+✅ baú dá cartas e recompensas
+✅ estrela exige tarefas
+✅ modo MÁX compra vários níveis
+✅ salvar e carregar
+✅ aeroporto cresce em fases com as estrelas
+✅ rotas existem em todas as fases e o ciclo é finito
+✅ decoração, contrato e habilidade
+✅ salvar e carregar mantém os dados novos
+✅ prédio exclusivo só existe na cidade dele
+✅ comprar o próximo aeroporto exige 5 estrelas e dinheiro
+✅ lojas são construídas uma a uma e somam no gasto
+✅ frenesi, cofrinho e oferta
+::endgroup::
+
+🎉 17 tests passed.

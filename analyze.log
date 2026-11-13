@@ -1,0 +1,22 @@
+Analyzing skyport-tycoon...                                     
+
+   info • Use the null-aware operator '?.' rather than an explicit 'null' comparison. Try using '?.' • lib/core/cine.dart:7:44 • prefer_null_aware_operators
+warning • The value of the local variable 'gold' isn't used. Try removing the variable or using it • lib/core/state.dart:576:11 • unused_local_variable
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/game/renderer.dart:5:1 • deprecated_member_use
+   info • The parameter name 'c' doesn't match the name 'canvas' in the overridden method. Try changing the name to 'canvas' • lib/game/renderer.dart:127:22 • avoid_renaming_method_parameters
+   info • Use 'const' for final variables initialized to a constant value. Try replacing 'final' with 'const' • lib/game/renderer.dart:133:5 • prefer_const_declarations
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/game/renderer.dart:343:18 • curly_braces_in_flow_control_structures
+   info • Use 'const' for final variables initialized to a constant value. Try replacing 'final' with 'const' • lib/game/world.dart:127:5 • prefer_const_declarations
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:3:1 • deprecated_member_use
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/effects.dart:4:1 • deprecated_member_use
+warning • The declaration '_Rays' isn't referenced. Try removing the declaration of '_Rays' • lib/ui/effects.dart:132:7 • unused_element
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/game_screen.dart:6:1 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/ui/game_screen.dart:65:67 • curly_braces_in_flow_control_structures
+warning • A value for optional parameter 'dim' isn't ever given. Try removing the unused parameter • lib/ui/game_screen.dart:973:107 • unused_element_parameter
+warning • A value for optional parameter 'fill' isn't ever given. Try removing the unused parameter • lib/ui/game_screen.dart:973:125 • unused_element_parameter
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/kit.dart:3:1 • deprecated_member_use
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/minigames.dart:4:1 • deprecated_member_use
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/modals.dart:3:1 • deprecated_member_use
+   info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/ui/panels.dart:3:1 • deprecated_member_use
+
+18 issues found. (ran in 7.6s)
