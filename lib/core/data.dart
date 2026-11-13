@@ -20,6 +20,13 @@ class Lay {
   static const carousel = (-42.5, 1.4);
   static const fuel = (50.0, -15.0);
   static const hangar = (-60.0, -13.0);
+  // construções extras
+  static const fire = (-77.0, -22.0);
+  static const radar = (-70.0, 5.0);
+  static const catering = (62.0, 4.0);
+  static const trainSt = (-62.0, 31.0);
+  static const trainZ = 29.3;
+  static const solar = (66.0, -24.0);
   static const floorY = 0.35;
   static const termX0 = -48.0, termX1 = 36.0;
 }
@@ -91,6 +98,11 @@ const stations = [
   St('vip', 'Sala VIP', 'crown', 'Passageiros premium: +4% no preço da passagem por nível.', Kind.boost, base: 5e4, growth: 1.2, unlock: 1e5, star: 2),
   St('hangar', 'Hangar', 'hangar', 'Manutenção própria dos aviões: receita x1,5.', Kind.building, unlock: 1e6, star: 3),
   St('combustivel', 'Combustível', 'fuel', 'Posto próprio vende querosene a cada voo: receita x1,5.', Kind.building, unlock: 3e7, star: 4),
+  St('bombeiros', 'Corpo de Bombeiros', 'bombeiros', 'Pista sempre segura: os voos ficam 15% mais rápidos.', Kind.building, unlock: 2.5e4, star: 1),
+  St('radar', 'Radar Meteorológico', 'radar', 'Prevê o tempo: eventos aparecem 60% mais e a receita sobe 15%.', Kind.building, unlock: 6e5, star: 2),
+  St('catering', 'Cozinha de Bordo', 'catering', 'Refeições a bordo: todas as passagens ficam 30% mais caras.', Kind.building, unlock: 5e6, star: 2),
+  St('trem', 'Estação de Trem', 'trem', 'O trem traz passageiros direto da cidade: chegam 50% mais pessoas.', Kind.building, unlock: 2.5e7, star: 3),
+  St('solar', 'Usina Solar', 'solar', 'Energia própria: receita +40% e ganhos offline +50%.', Kind.building, unlock: 4e8, star: 4),
   // ----- prédio exclusivo de cada aeroporto -----
   St('esp0', 'Feira da Roça', 'esp0', 'Só em Vale Verde. Produtores vendem na porta do aeroporto: lojas e gorjetas rendem +6% por nível.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 0),
   St('esp1', 'Hotel do Aeroporto', 'esp1', 'Só em Porto Azul. Hóspedes em conexão pagam diárias o tempo todo, mesmo sem voo. Toque no hotel para recolher. Cada nível aumenta a diária.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 1),

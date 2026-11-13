@@ -596,6 +596,10 @@ const CITY = [
   { name: 'rio', grass: 0x7aad50, grass2: 0x73a54a, tree: 4, bush: 0x659a40 },
   { name: 'costa', grass: 0x66b86e, grass2: 0x5fb067, tree: 2, bush: 0x4aa05c },
 ];
+function shadeHex(c, f) { const k = v => Math.max(0, Math.min(255, Math.round(v * f))); return (k((c >> 16) & 255) << 16) | (k((c >> 8) & 255) << 8) | k(c & 255); }
+/* lotes das construções extras: o fundo fica livre (árvores e prédios saem) */
+const LOTS = [[-83, -71, -27, -17], [-74, -66, 1.5, 8.5], [56, 68, -0.5, 8.5], [-73, -51, 25.5, 35.5], [-140, -72, 27.4, 31.2], [58.5, 73.5, -29.5, -18.5]];
+function clearLots(g) { for (const o of [...g.children]) { if (!(o.isGroup || o.position.y > 0.07)) continue; const x = o.position.x, z = o.position.z; if (LOTS.some(([a, b, c, d]) => x > a - 1 && x < b + 1 && z > c - 1 && z < d + 1)) g.remove(o); } }
 function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function dashedX(p, x0, x1, z, len, gap, w, c, y = 0.06) { for (let x = x0; x < x1 - len; x += len + gap) flat(p, len, w, c, x + len / 2, z, y); }
 function dashedZ(p, z0, z1, x, len, gap, w, c, y = 0.06) { for (let z = z0; z < z1 - len; z += len + gap) flat(p, w, len, c, x, z + len / 2, y); }
@@ -609,13 +613,15 @@ function background(city, phase = 2) {
   flat(g, 400, 400, cfg.grass, 0, 0, -0.1);
   // faixas de grama mais escura (corte)
   for (let i = 0; i < 26; i++) flat(g, 6, 160, i % 2 ? cfg.grass : cfg.grass2, -80 + i * 6.4, -6, -0.06).castShadow = false;
+  // manchas de grama (variação de tom fora do sítio)
+  { const rp = rnd(4242 + city * 31); for (let i = 0; i < 110; i++) { const x = -112 + rp() * 224, z = -78 + rp() * 156; if (x > -90 && x < 80 && z > -50 && z < 25) continue; const rr = 3 + rp() * 8; const d = mesh(G.cyl(rr, rr, 0.02, 16), M(shadeHex(cfg.grass, rp() < 0.55 ? 0.92 : 1.07)), g, x, -0.055, z); d.scale.z = 0.5 + rp() * 0.6; d.rotation.y = rp() * 3; d.castShadow = false; } }
   // ===== cenário por cidade =====
   if (city === 0) {
     // plantações e lago
     const crops = [0xe8c75a, 0x9bd65a, 0xd9a54a, 0x7ec850];
     for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) flat(g, 9, 7, crops[(i + j) % 4], -88 + i * 10, 40 + j * 8, -0.04);
     flat(g, 18, 12, 0x4fb8f0, 70, 36, -0.03); flat(g, 19.5, 13.5, 0xd9c48a, 70, 36, -0.05);
-    for (let i = 0; i < 120; i++) { const x = -100 + r() * 200, z = -70 + r() * 140; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (z > 34 && z < 62 && x < 10) continue; tree(g, x, z, 0.8 + r() * 0.9, r() < 0.4 ? 1 : 0); }
+    for (let i = 0; i < 190; i++) { const x = -100 + r() * 200, z = -70 + r() * 140; if (x > m.x0 - 2 && x < m.x1 + 2 && z > -46 && z < 24) continue; if (x > 29 && x < 47 && z > 22 && z < 37) continue; if (z > 34 && z < 62 && x < 10) continue; tree(g, x, z, 0.8 + r() * 0.9, r() < 0.4 ? 1 : 0); }
     // celeiro
     const bn = grp(g, 30, 0, 44); B(bn, 5, 3, 4, 0xd94b3a, 0, 0, 0); const rf = mesh(G.cone(3.8, 2, 4), M(0x8a3a2a), bn, 0, 4, 0); rf.rotation.y = Math.PI / 4; B(bn, 1.6, 2, 0.1, 0xffffff, 0, 0, 2.05);
   } else if (city === 1) {
@@ -805,6 +811,9 @@ function background(city, phase = 2) {
   }
   // biruta
   C(g, 0.06, 0.06, 3, 0xffffff, rx1 - 6, 0, rw.z + 7, 6); const ws = mesh(G.cone(0.35, 1.6, 8), M(0xff8a1f), g, rx1 - 5.3, 2.8, rw.z + 7); ws.rotation.z = Math.PI / 2;
+  clearLots(g);
+  // ferrovia que vem da cidade (a estação de trem é construída no fim dela)
+  { const tz = 31 + TRAIN_Z; flat(g, 70, 2.6, city === 3 ? 0xb8b0a4 : 0xa89a86, -106, tz, 0.015); for (let x = -140; x < -71.6; x += 0.8) B(g, 0.22, 0.06, 2.0, 0x7a5a3a, x, 0.03, tz).castShadow = false; for (const dz of [-0.55, 0.55]) B(g, 70, 0.08, 0.1, 0x9aa3b4, -106, 0.1, tz + dz).castShadow = false; }
   return g;
 }
 /* parede airside: sobreposição desenhada depois dos aviões estacionados */
@@ -978,6 +987,134 @@ function artwall() { const g = new THREE.Group(); B(g, 3.6, 2.6, 0.25, 0xf7f9fc,
 /* ===================================================================
    ÍCONES 3D (câmera em perspectiva)
    =================================================================== */
+/* ===== construções extras (v3.4) ===== */
+function wheelX(g, x, z, r = 0.3) { const w = mesh(G.cyl(r, r, 0.22, 12), M(0x1e2230), g, x, r, z); w.rotation.z = Math.PI / 2; return w; }
+function fireTruck() {
+  const g = new THREE.Group();
+  B(g, 1.7, 1.3, 3.8, 0xe8343b, 0, 0.4, -0.3); B(g, 1.72, 0.18, 3.82, 0xffffff, 0, 0.95, -0.3);
+  B(g, 1.7, 1.25, 1.3, 0xe8343b, 0, 0.4, 2.15); B(g, 1.6, 0.55, 0.06, M(0x8fd6ff), 0, 1.0, 2.82);
+  B(g, 0.08, 0.5, 0.9, M(0x8fd6ff), 0.86, 1.0, 2.1); B(g, 0.08, 0.5, 0.9, M(0x8fd6ff), -0.86, 1.0, 2.1);
+  B(g, 1.0, 0.2, 0.32, 0x2f7bff, -0.3, 1.65, 2.2); B(g, 0.4, 0.2, 0.32, 0xff4e4e, 0.45, 1.65, 2.2);
+  for (const x of [-0.45, 0.45]) B(g, 0.1, 0.1, 3.4, 0xdfe5ee, x, 1.85, -0.4);
+  for (let i = 0; i < 9; i++) B(g, 1.0, 0.06, 0.1, 0xdfe5ee, 0, 1.88, -2.0 + i * 0.4);
+  C(g, 0.18, 0.18, 0.2, 0xffc928, 0, 1.7, -2.2, 10);
+  for (let i = 0; i < 3; i++) B(g, 0.06, 0.6, 0.5, 0xb8c0cf, 0.87, 0.6, -1.6 + i * 0.7);
+  wheelX(g, -0.8, 2.0); wheelX(g, 0.8, 2.0); wheelX(g, -0.8, -1.2); wheelX(g, 0.8, -1.2); wheelX(g, -0.8, -0.4); wheelX(g, 0.8, -0.4);
+  return g;
+}
+function fireStation() {
+  const g = new THREE.Group();
+  B(g, 11, 0.12, 9, 0xc5cbd5, 0, 0, 0);
+  for (let i = 0; i < 2; i++) flat(g, 3.0, 4.0, 0xb3bac6, -2.4 + i * 3.4, 2.3, 0.13);
+  B(g, 7.4, 3.6, 4.4, 0xe8343b, -0.7, 0.12, -1.9);
+  B(g, 7.6, 0.4, 4.6, 0xf7f9fc, -0.7, 3.72, -1.9);
+  for (let i = 0; i < 2; i++) { const x = -2.4 + i * 3.4; B(g, 2.7, 2.6, 0.08, 0xdfe3ea, x, 0.12, 0.33); for (let k = 0; k < 5; k++) B(g, 2.7, 0.05, 0.12, 0xb8c0cf, x, 0.45 + k * 0.48, 0.36); }
+  sign(g, 'BOMBEIROS', 5.2, 0.8, '#ffffff', '#e8343b', -0.7, 3.25, 0.42);
+  for (let i = 0; i < 3; i++) B(g, 0.08, 0.7, 0.9, M(0x8fd6ff), 3.02, 1.6, -3.2 + i * 1.3);
+  // torre de treino
+  B(g, 1.8, 6.4, 1.8, 0xf7f9fc, 4.3, 0.12, -2.6); B(g, 2.0, 0.3, 2.0, 0xe8343b, 4.3, 6.52, -2.6);
+  for (let f = 0; f < 3; f++) { B(g, 0.9, 0.8, 0.08, M(0x8fd6ff), 4.3, 1.4 + f * 1.8, -1.66); B(g, 0.08, 0.8, 0.9, M(0x8fd6ff), 5.24, 1.4 + f * 1.8, -2.6); }
+  Sp(g, 0.22, M(0xff4e4e, { emissive: 0xa02020 }), 4.3, 7.05, -2.6, 8);
+  const t = fireTruck(); t.position.set(-2.4, 0.13, 2.6); g.add(t);
+  C(g, 0.2, 0.24, 0.7, 0xe8343b, 3.8, 0.12, 3.4, 10); Sp(g, 0.2, 0xe8343b, 3.8, 0.85, 3.4, 8);
+  for (let i = 0; i < 3; i++) { mesh(G.cone(0.22, 0.55, 8), M(0xff8a1f), g, 1.6 + i * 0.7, 0.4, 4.0); }
+  return g;
+}
+function radarStation(frame) {
+  const g = new THREE.Group();
+  B(g, 7, 0.12, 7, 0xc5cbd5, 0, 0, 0);
+  B(g, 3.0, 2.2, 2.4, 0xf7f9fc, 1.6, 0.12, 1.6); B(g, 3.1, 0.25, 2.5, 0x2f7bff, 1.6, 2.32, 1.6);
+  B(g, 0.9, 1.4, 0.06, 0x2b3245, 1.6, 0.12, 2.83); B(g, 0.06, 0.6, 1.2, M(0x8fd6ff), 3.12, 1.2, 1.6);
+  // torre treliçada
+  for (const [x, z] of [[-1.4, -1.4], [0.2, -1.4], [-1.4, 0.2], [0.2, 0.2]]) C(g, 0.09, 0.09, 4.6, 0xdfe5ee, x, 0.12, z, 6);
+  for (let y = 0.9; y < 4.6; y += 1.1) { B(g, 1.7, 0.08, 0.08, 0xb8c0cf, -0.6, y, -1.4); B(g, 1.7, 0.08, 0.08, 0xb8c0cf, -0.6, y, 0.2); B(g, 0.08, 0.08, 1.7, 0xb8c0cf, -1.4, y, -0.6); B(g, 0.08, 0.08, 1.7, 0xb8c0cf, 0.2, y, -0.6); }
+  C(g, 1.25, 1.25, 0.3, 0x9aa3b4, -0.6, 4.72, -0.6, 18);
+  C(g, 0.3, 0.3, 0.6, 0x6b7280, -0.6, 5.0, -0.6, 10);
+  const d = grp(g, -0.6, 5.55, -0.6, frame * Math.PI / 4);
+  const a = B(d, 3.6, 1.0, 0.16, 0xf7f9fc, 0, 0, 0.35); a.rotation.x = -0.32;
+  B(d, 3.7, 0.12, 0.2, 0x2f7bff, 0, 0.98, 0.18).rotation.x = -0.32;
+  B(d, 0.16, 0.5, 0.7, 0x9aa3b4, -1.0, 0.2, 0.0); B(d, 0.16, 0.5, 0.7, 0x9aa3b4, 1.0, 0.2, 0.0);
+  B(d, 0.5, 0.35, 0.5, 0x6b7280, 0, 0.1, -0.35);
+  Sp(g, 0.18, M(0xff4e4e, { emissive: 0xa02020 }), -0.6, 6.85, -0.6, 8);
+  // radome meteorológico
+  C(g, 0.6, 0.7, 1.4, 0xf7f9fc, -2.4, 0.12, 2.2, 12); Sp(g, 0.95, 0xf7f9fc, -2.4, 2.2, 2.2, 14);
+  return g;
+}
+function cateringTruck() {
+  const g = new THREE.Group();
+  B(g, 1.5, 1.2, 1.3, 0xf7f9fc, 0, 0.35, 1.7); B(g, 1.4, 0.5, 0.06, M(0x8fd6ff), 0, 1.0, 2.36);
+  B(g, 1.5, 0.25, 3.0, 0x6b7280, 0, 0.35, -0.5);
+  for (const s of [-1, 1]) { const b = B(g, 0.08, 0.08, 2.2, 0xb8c0cf, s * 0.62, 0.45, -0.5); b.rotation.x = 0.28; const b2 = B(g, 0.08, 0.08, 2.2, 0xb8c0cf, s * 0.62, 0.45, -0.5); b2.rotation.x = -0.28; }
+  B(g, 1.7, 1.5, 3.0, 0xffffff, 0, 1.1, -0.5); B(g, 1.72, 0.3, 3.02, 0xff8a1f, 0, 2.1, -0.5); B(g, 1.0, 1.0, 0.06, 0xdfe5ee, 0, 1.25, -2.02);
+  wheelX(g, -0.7, 1.6, 0.26); wheelX(g, 0.7, 1.6, 0.26); wheelX(g, -0.7, -1.4, 0.26); wheelX(g, 0.7, -1.4, 0.26);
+  return g;
+}
+function cateringKitchen() {
+  const g = new THREE.Group();
+  B(g, 11, 0.12, 9, 0xc5cbd5, 0, 0, 0);
+  B(g, 7.4, 3.2, 4.8, 0xf7f9fc, -0.8, 0.12, -1.8);
+  B(g, 7.6, 0.35, 5.0, 0xff8a1f, -0.8, 3.32, -1.8);
+  B(g, 7.4, 0.9, 1.4, 0xd0d6e0, -0.8, 0.12, 1.3);
+  for (let i = 0; i < 3; i++) { B(g, 1.5, 1.8, 0.08, 0x3b4558, -3.0 + i * 2.2, 1.02, 0.62); B(g, 1.6, 0.14, 0.4, 0xffc928, -3.0 + i * 2.2, 2.92, 0.8); }
+  for (let i = 0; i < 3; i++) B(g, 0.08, 0.8, 1.0, M(0x8fd6ff), 2.92, 1.6, -3.3 + i * 1.5);
+  for (const x of [-3.4, -1.4]) { C(g, 0.32, 0.32, 1.1, 0xb8c0cf, x, 3.67, -2.8, 10); C(g, 0.42, 0.42, 0.14, 0x9aa3b4, x, 4.77, -2.8, 10); }
+  sign(g, 'CATERING', 4.2, 0.75, '#ff8a1f', '#ffffff', 0.6, 4.4, 0.6);
+  // carrinhos de bordo
+  for (let i = 0; i < 4; i++) { B(g, 0.45, 0.9, 0.6, 0xdfe5ee, 3.6 + (i % 2) * 0.55, 0.12, 2.0 + Math.floor(i / 2) * 0.75); B(g, 0.47, 0.08, 0.62, 0x2f7bff, 3.6 + (i % 2) * 0.55, 0.7, 2.0 + Math.floor(i / 2) * 0.75); }
+  const t = cateringTruck(); t.position.set(-0.8, 0.12, 2.9); g.add(t);
+  return g;
+}
+const TRAIN_Z = -1.7;
+function trainStation() {
+  const g = new THREE.Group();
+  // trilhos (parte de dentro da estação)
+  flat(g, 16, 2.6, 0xa89a86, -1, TRAIN_Z, 0.02);
+  for (let x = -8.6; x < 7; x += 0.8) B(g, 0.22, 0.08, 2.0, 0x7a5a3a, x, 0.04, TRAIN_Z);
+  for (const dz of [-0.55, 0.55]) B(g, 16, 0.1, 0.1, 0x9aa3b4, -1, 0.12, TRAIN_Z + dz);
+  B(g, 0.5, 0.8, 1.8, 0xe8343b, 7.1, 0, TRAIN_Z); B(g, 0.52, 0.18, 1.82, 0xffffff, 7.1, 0.5, TRAIN_Z);
+  // plataforma
+  B(g, 13, 0.7, 2.6, 0xd7dde8, -1.5, 0, 0.6); B(g, 13, 0.04, 0.22, 0xffc928, -1.5, 0.7, -0.6);
+  // cobertura
+  for (let x = -7; x <= 4; x += 2.75) C(g, 0.09, 0.09, 2.9, 0x6b7280, x, 0.7, 1.4, 6);
+  const roof = B(g, 13.4, 0.2, 2.9, 0x2f7bff, -1.5, 3.65, 0.9); roof.rotation.x = 0.1;
+  B(g, 13.4, 0.12, 0.2, 0xffc928, -1.5, 3.55, 2.35);
+  for (let i = 0; i < 3; i++) { B(g, 1.8, 0.15, 0.45, 0xff8a1f, -5 + i * 3.6, 1.05, 1.3); B(g, 1.8, 0.45, 0.1, 0xff8a1f, -5 + i * 3.6, 1.15, 1.52); }
+  // bilheteria
+  B(g, 3.4, 2.8, 2.8, 0xffd38a, 5.8, 0, 1.6); B(g, 3.6, 0.3, 3.0, 0xe8343b, 5.8, 2.8, 1.6);
+  B(g, 1.2, 1.6, 0.06, M(0x8fd6ff), 5.8, 0.6, 3.02); B(g, 0.06, 1.0, 1.4, M(0x8fd6ff), 7.52, 1.1, 1.6);
+  sign(g, 'ESTAÇÃO', 3.0, 0.6, '#e8343b', '#ffffff', 5.8, 3.6, 3.1);
+  C(g, 0.06, 0.06, 2.6, 0x6b7280, -8.2, 0, 2.2, 6); const ck = mesh(G.cyl(0.4, 0.4, 0.12, 16), M(0xffffff), g, -8.2, 2.7, 2.2); ck.rotation.x = Math.PI / 2;
+  return g;
+}
+function trainSet() {
+  const g = new THREE.Group();
+  const car = (x0, lead) => {
+    B(g, 5.0, 1.9, 1.9, 0xf7f9fc, x0, 0.35, 0); B(g, 5.02, 0.4, 1.92, 0x2f7bff, x0, 0.5, 0);
+    B(g, 5.02, 0.12, 1.92, 0xffc928, x0, 0.95, 0);
+    for (let i = 0; i < 4; i++) { B(g, 0.8, 0.55, 1.94, M(0x5b8cff), x0 - 1.8 + i * 1.2, 1.25, 0); }
+    B(g, 4.6, 0.22, 1.6, 0xd7dde8, x0, 2.25, 0);
+    for (const dx of [-1.8, 1.8]) for (const dz of [-0.75, 0.75]) { const w = mesh(G.cyl(0.28, 0.28, 0.14, 10), M(0x1e2230), g, x0 + dx, 0.32, dz); w.rotation.x = Math.PI / 2; }
+    if (lead) { B(g, 1.1, 1.0, 1.9, 0xf7f9fc, x0 + 3.0, 0.35, 0); B(g, 1.12, 0.4, 1.92, 0x2f7bff, x0 + 3.0, 0.5, 0); const ws = B(g, 1.3, 0.12, 1.7, M(0x2b3245), x0 + 2.95, 1.75, 0); ws.rotation.z = -0.75; const nt = B(g, 1.3, 0.1, 1.9, 0xf7f9fc, x0 + 3.0, 1.62, 0); nt.rotation.z = -0.75; nt.position.y = 1.5; Sp(g, 0.12, M(0xfff6b0, { emissive: 0x908040 }), x0 + 3.56, 0.95, 0.55, 6); Sp(g, 0.12, M(0xfff6b0, { emissive: 0x908040 }), x0 + 3.56, 0.95, -0.55, 6); }
+  };
+  car(0, true); car(-5.3, false); car(-10.6, false);
+  return g;
+}
+function solarFarm() {
+  const g = new THREE.Group();
+  B(g, 14, 0.1, 10, 0xc9cfd8, 0, 0, 0);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    const x = -4.8 + c * 2.9, z = -3.4 + r * 2.7;
+    for (const dx of [-0.9, 0.9]) C(g, 0.06, 0.06, 0.9, 0x9aa3b4, x + dx, 0.1, z, 5);
+    const fr = B(g, 2.6, 0.08, 1.7, 0xdfe5ee, x, 0.95, z); fr.rotation.x = 0.42;
+    const p = B(g, 2.45, 0.1, 1.55, M(0x2a56c6, { emissive: 0x0a1844 }), x, 0.98, z); p.rotation.x = 0.42;
+    for (let k = 1; k < 4; k++) { const l = B(g, 0.03, 0.11, 1.56, 0x8fb4ff, x - 1.22 + k * 0.61, 0.99, z); l.rotation.x = 0.42; }
+  }
+  B(g, 2.2, 1.8, 1.6, 0xf7f9fc, 5.6, 0.1, 3.6); B(g, 2.3, 0.2, 1.7, 0x2ec27e, 5.6, 1.9, 3.6);
+  sign(g, 'SOLAR', 1.9, 0.5, '#2ec27e', '#ffffff', 5.6, 1.35, 4.45);
+  for (let i = 0; i < 2; i++) { B(g, 1.0, 1.2, 1.8, 0x2ec27e, -6.1 + i * 1.2, 0.1, 4.0); B(g, 1.02, 0.08, 1.82, 0xffffff, -6.1 + i * 1.2, 1.0, 4.0); }
+  C(g, 0.08, 0.08, 4, 0x6b7280, 6.6, 0.1, -3.8, 6); B(g, 1.6, 0.06, 0.06, 0x6b7280, 6.6, 3.8, -3.8);
+  return g;
+}
 function iconShot(build, size = 192, rot = { x: 0.35, y: -0.6 }) {
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0xb0b8d0, 0.75));
@@ -1036,6 +1173,7 @@ const ICONS = {
   chest: () => chestModel(0, false), chest_gold: () => chestModel(1, false), chest_epic: () => chestModel(2, false),
   chest_open: () => chestModel(0, true), chest_gold_open: () => chestModel(1, true), chest_epic_open: () => chestModel(2, true),
   esp0: () => espFeira(), esp1: () => espHotel(), esp2: () => espAlfandega(), esp3: () => espDegelo(), esp4: () => espHeli(), esp5: () => espResort(), heli: () => helicopter(),
+  bombeiros: () => fireStation(), radar: () => radarStation(1), catering: () => cateringKitchen(), trem: () => { const g = new THREE.Group(); const t = trainSet(); t.position.x = 4; t.scale.setScalar(0.9); g.add(t); return g; }, solar: () => solarFarm(),
   network: () => { const g = new THREE.Group(); Sp(g, 1.1, 0x2f7bff, 0, 0, 0, 16); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; Sp(g, 0.28, 0xffc928, Math.cos(a) * 1.1, Math.sin(a) * 1.1, 0.3, 8); } return g; },
   cargo: () => { const g = new THREE.Group(); B(g, 1.6, 1.2, 1.2, 0xff8a1f, 0, -0.8, 0); for (let i = 0; i < 4; i++) B(g, 0.06, 1.1, 1.22, 0xd86a10, -0.6 + i * 0.4, -0.75, 0); B(g, 1.0, 0.8, 0.9, 0x2f7bff, 0.2, 0.4, 0); return g; },
   decor: () => palmPot(),
@@ -1308,4 +1446,10 @@ def('statue', statue, { W: 200, H: 260, oy: 0.75 });
 def('flowerbed', flowerbed, { W: 260, H: 180, oy: 0.65 });
 def('palm_pot', palmPot, { W: 200, H: 260, oy: 0.8 });
 def('artwall', artwall, { W: 260, H: 260, oy: 0.75 });
+def('bombeiros', fireStation, { k: 1.2, W: 620, H: 560, oy: 0.62 });
+for (let f = 0; f < 8; f++) def('radar_' + f, () => radarStation(f), { k: 1.2, W: 420, H: 520, oy: 0.72 });
+def('catering', cateringKitchen, { k: 1.2, W: 620, H: 520, oy: 0.6 });
+def('trem', trainStation, { k: 1.2, W: 760, H: 520, oy: 0.55 });
+def('train', trainSet, { k: 1.2, W: 760, H: 420, oy: 0.55, catcher: 0.15 });
+def('solar', solarFarm, { k: 1.2, W: 760, H: 520, oy: 0.55 });
 window.STUDIO.spriteNames = () => Object.keys(BUILD);

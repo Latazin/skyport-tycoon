@@ -16,6 +16,7 @@ const fs = require('fs');
     ['21_roleta', '?auto=1&demo=1&panel=wheel', [24000, 25000, 33000], [[1, 195, 600]]], ['22_bau_epico', '?auto=1&demo=1&panel=chest', [24000, 27000, 34000], [[1, 195, 330], [1, 195, 330], [1, 195, 330]]], ['23_nivel', '?auto=1&demo=1&panel=levelup', [25000]], ['24_diario', '?auto=1&demo=1&panel=daily', [25000]],
     ['16_porto_azul', '?auto=1&demo=p1&city=1&panel=none', [32000]], ['17_serra_alta', '?auto=1&demo=1&city=3&panel=none', [32000]],
     ['18_rio_dourado', '?auto=1&demo=p1&city=4&panel=none', [32000]], ['19_costa', '?auto=1&demo=1&city=5&panel=none', [32000]],
+    ['25_obras', '?auto=1&demo=1&star=5&extras=1&panel=none', [30000, 42000]], ['26_trem', '?auto=1&demo=1&star=5&extras=1&panel=st:trem', [28000, 33000]], ['27_bombeiros', '?auto=1&demo=1&star=5&extras=1&panel=st:bombeiros', [30000]], ['28_obra_nova', '?auto=1&demo=p1&panel=st:bombeiros', [30000]],
     ['20_rede', '?auto=1&demo=1&city=2&star=5&panel=cities', [30000]],
   ];
   for (const [name, q, waits, clicks] of runs) {

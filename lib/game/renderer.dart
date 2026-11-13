@@ -265,6 +265,28 @@ class SceneRenderer extends Component {
       _add(3, Lay.fuel.$1 + Lay.fuel.$2, (c) => spr(c, s.built('combustivel') ? 'fuel' : 'obra_m', Lay.fuel.$1, Lay.fuel.$2, scale: _bounce('combustivel')));
       _hitWorld('combustivel', Lay.fuel.$1 - 4.5, Lay.fuel.$1 + 4.5, Lay.fuel.$2 - 3.5, Lay.fuel.$2 + 3.5, h: 3);
     }
+    // ---------- construções extras ----------
+    void extra(String id, (double, double) p, String obra, double hw, double hd, double h, void Function(Canvas) draw) {
+      if (!s.built(id) && !s.starOk(stationById(id))) return;
+      _add(3, p.$1 + p.$2, s.built(id) ? draw : (c) => spr(c, obra, p.$1, p.$2));
+      _hitWorld(id, p.$1 - hw, p.$1 + hw, p.$2 - hd, p.$2 + hd, h: h);
+    }
+    extra('bombeiros', Lay.fire, 'obra_m', 5.5, 4.5, 5, (c) {
+      spr(c, 'bombeiros', Lay.fire.$1, Lay.fire.$2, scale: _bounce('bombeiros'));
+      if ((w.t * 1.6) % 1 < 0.5) { final o = iso(Lay.fire.$1 + 4.3, Lay.fire.$2 - 2.6, 7.1); c.drawCircle(o, 7, Paint()..color = const Color(0x66FF4E4E)); c.drawCircle(o, 3, Paint()..color = const Color(0xFFFF6B6B)); }
+    });
+    extra('radar', Lay.radar, 'obra_s', 3.5, 3.5, 6, (c) => spr(c, 'radar_${(w.t * 5).floor() % 8}', Lay.radar.$1, Lay.radar.$2, scale: _bounce('radar')));
+    extra('catering', Lay.catering, 'obra_m', 5.5, 4.5, 4, (c) => spr(c, 'catering', Lay.catering.$1, Lay.catering.$2, scale: _bounce('catering')));
+    extra('trem', Lay.trainSt, 'obra_m', 9, 4, 3.5, (c) => spr(c, 'trem', Lay.trainSt.$1, Lay.trainSt.$2, scale: _bounce('trem')));
+    if (w.trainX > -900) {
+      final tx = w.trainX, a = ((tx + 134) / 18).clamp(0.0, 1.0).toDouble();
+      _add(3, tx + Lay.trainZ, (c) => spr(c, 'train', tx, Lay.trainZ, alpha: a));
+    }
+    extra('solar', Lay.solar, 'obra_l', 7, 5, 2, (c) {
+      spr(c, 'solar', Lay.solar.$1, Lay.solar.$2, scale: _bounce('solar'));
+      final g = (w.t * 0.25) % 1;
+      if (g < 0.3) { final o = iso(Lay.solar.$1 - 6 + g / 0.3 * 12, Lay.solar.$2 - 1, 1.2); c.drawCircle(o, 10, Paint()..color = const Color(0x33FFFFFF)); c.drawCircle(o, 4, Paint()..color = const Color(0x88FFFFFF)); }
+    });
     // ---------- passageiros ----------
     for (final a in w.agents) {
       final down = a.hx + a.hz >= 0, flip = a.hx - a.hz < 0;
@@ -304,10 +326,36 @@ class SceneRenderer extends Component {
     }
     _ds.sort((a, b) => a.layer != b.layer ? a.layer.compareTo(b.layer) : a.depth.compareTo(b.depth));
     for (final d in _ds) { d.f(c); }
+    _ambient(c);
     if (night > 0.01) _nightPass(c);
     if (s.snow) { _snow(c); } else if (rain > 0.02 || s.fogOn) { _weather(c); }
     if (s.snow && s.fogOn) c.drawRect(view, Paint()..color = const Color(0x88E8EEF5));
     _overlays(c);
+  }
+
+  /// Sombras de nuvens passando e bandos de pássaros (baratos: poucos desenhos por quadro).
+  void _ambient(Canvas c) {
+    final day = (1 - night * 1.2).clamp(0.0, 1.0).toDouble();
+    if (day <= 0.02) return;
+    for (var i = 0; i < 4; i++) {
+      const span = 5200.0;
+      final x = -2600 + ((w.t * (16 + i * 5) + i * 1370) % span);
+      final y = -1100 + i * 520 + math.sin(w.t * 0.05 + i) * 80;
+      final rect = Rect.fromCenter(center: Offset(x, y), width: 1000 + i * 140, height: 420 + i * 50);
+      if (!rect.overlaps(view)) continue;
+      c.drawOval(rect, Paint()..shader = RadialGradient(colors: [Color.fromRGBO(16, 34, 64, 0.11 * day), Color.fromRGBO(16, 34, 64, 0.06 * day), const Color(0x00102240)], stops: const [0, 0.55, 1]).createShader(rect));
+    }
+    final cyc = w.t % 45;
+    if (cyc < 18 && !s.snow) {
+      final k = cyc / 18, x0 = -2800 + k * 5600, y0 = -1500 + k * 1100 + math.sin(k * 6) * 40;
+      final p = Paint()..color = Color.fromRGBO(43, 50, 69, 0.75 * day)..strokeWidth = 2.6..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+      for (var i = 0; i < 6; i++) {
+        final o = Offset(x0 - i * 38, y0 + (i.isEven ? i * 16 : -i * 13));
+        if (!view.inflate(40).contains(o)) continue;
+        final f = math.sin(w.t * 9 + i * 1.3) * 6;
+        c.drawPath(Path()..moveTo(o.dx - 11, o.dy - f)..quadraticBezierTo(o.dx - 5, o.dy - 4, o.dx, o.dy)..quadraticBezierTo(o.dx + 5, o.dy - 4, o.dx + 11, o.dy - f), p);
+      }
+    }
   }
 
   void _plane(int g, Pose pose) {
@@ -432,8 +480,10 @@ class SceneRenderer extends Component {
       final at = o - Offset(0, (bb - 1) * 90 * k);
       if (!view.inflate(80).contains(at)) continue;
       final isBest = best != null && best.$1 == st.id;
+      final near = zoom >= 0.6;
       if (!s.built(st.id)) {
         final can = s.canUnlock(st);
+        if (!can && !near && !isBest) continue;
         final r = plate(c, '\$${fmt(st.unlock)}', at, 13 * k, can ? const Color(0xFF22B573) : const Color(0xFF7A8499), ico: can ? 'coin' : 'lock', solid: can);
         hits.add(Hit(r.inflate(12), st.id, 1));
         if (can) { final bob = math.sin(t * 4) * 3 * k; _arrow(c, Offset(at.dx, r.top - 14 * k + bob), 11 * k, const Color(0xFF22B573)); }
@@ -442,6 +492,18 @@ class SceneRenderer extends Component {
       if (st.oneTime) continue;
       final up = s.canUp(st);
       final sel = selected == st.id;
+      final bott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate && st.gate == 0);
+      // longe: só o essencial (selecionado, melhor compra e gargalo); o resto vira um selo pequeno de "dá pra melhorar"
+      if (!near && !sel && !isBest && !(bott && s.rate > 0)) {
+        if (up) {
+          c.drawCircle(at + Offset(0, 1.5 * k), 10 * k, Paint()..color = const Color(0x33141A33));
+          c.drawCircle(at, 10 * k, Paint()..color = Colors.white);
+          c.drawCircle(at, 7.8 * k, Paint()..color = const Color(0xFF22B573));
+          _arrow(c, at, 5 * k, Colors.white);
+          hits.add(Hit(Rect.fromCircle(center: at, radius: 22 * k), st.id, 1));
+        }
+        continue;
+      }
       final r = plate(c, 'Nv ${s.lvl(st.id)}', at, 11.5 * k, sel ? const Color(0xFFFF9F1C) : isBest ? const Color(0xFF22B573) : const Color(0xFF2F6BFF), solid: sel || isBest);
       hits.add(Hit(r.inflate(14), st.id, 1));
       // quanto falta para o próximo marco (x2 e evolução visual)
@@ -459,7 +521,6 @@ class SceneRenderer extends Component {
         _arrow(c, uo, 5.5 * k, Colors.white);
       }
       if (isBest && hint == null) { final bob = math.sin(t * 4) * 4 * k; _arrow(c, Offset(r.center.dx, r.top - 16 * k + bob), 12 * k, const Color(0xFF22B573), down: true); }
-      final bott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate && st.gate == 0);
       if (bott && s.rate > 0) {
         final bo = Offset(r.left - 1 * k, r.top + 1 * k);
         c.drawCircle(bo, 8 * k, Paint()..color = Colors.white);

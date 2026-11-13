@@ -454,6 +454,11 @@ class AirWorld {
       case 'esp0': case 'esp1': case 'esp2': case 'esp3': case 'esp4': case 'esp5': return (Lay.special.$1, Lay.special.$2, id == 'esp1' ? 9.5 : 5.0);
       case 'hangar': return (Lay.hangar.$1, Lay.hangar.$2, 7.0);
       case 'combustivel': return (Lay.fuel.$1, Lay.fuel.$2, 5.0);
+      case 'bombeiros': return (Lay.fire.$1, Lay.fire.$2, 6.0);
+      case 'radar': return (Lay.radar.$1, Lay.radar.$2, 7.5);
+      case 'catering': return (Lay.catering.$1, Lay.catering.$2, 5.0);
+      case 'trem': return (Lay.trainSt.$1, Lay.trainSt.$2, 4.5);
+      case 'solar': return (Lay.solar.$1, Lay.solar.$2, 3.5);
     }
     if (id.startsWith('g')) { final g = int.parse(id.substring(1)); return (Lay.gates[g] - 1, -1.5, 4.2); }
     return (0.0, 0.0, 0.0);
@@ -473,8 +478,29 @@ class AirWorld {
   }
 
   // ---------- passo ----------
+  // ---------- trem (chega, desembarca passageiros e volta) ----------
+  double trainX = -999;
+  bool _trainSpawned = false;
+  void _trainTick() {
+    if (!s.built('trem')) { trainX = -999; return; }
+    final c = (t + 20) % 34;
+    final stop = Lay.trainSt.$1 + 3;
+    const far = -134.0;
+    if (c < 7) {
+      final k = c / 7; trainX = far + (stop - far) * (1 - math.pow(1 - k, 3)); _trainSpawned = false;
+    } else if (c < 17) {
+      trainX = stop;
+      if (!_trainSpawned) { _trainSpawned = true; for (var i = 0; i < 6; i++) { Future.delayed(Duration(milliseconds: 260 * i), () => spawnAt(Lay.trainSt.$1 - 4 + r.nextDouble() * 8, Lay.trainSt.$2 + 2.8)); } }
+    } else if (c < 24) {
+      final k = (c - 17) / 7; trainX = stop + (far - stop) * k * k;
+    } else {
+      trainX = -999;
+    }
+  }
+
   void update(double dt) {
     t += dt;
+    _trainTick();
     _spawnT -= dt;
     if (_spawnT <= 0) {
       _spawnT = 1 / _visRate * (0.7 + r.nextDouble() * 0.6);

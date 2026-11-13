@@ -147,6 +147,16 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
       return [('Velocidade na neve', 'x${s.snowSpeed.toStringAsFixed(2)}', nx(() => 'x${s.snowSpeed.toStringAsFixed(2)}'))];
     case 'esp4':
       return [('Helicóptero a cada', '${s.heliEvery.round()} s', nx(() => '${s.heliEvery.round()} s')), ('Cada pouso paga', '\$${fmt(s.heliValue)}', nx(() => '\$${fmt(s.heliValue)}'))];
+    case 'bombeiros':
+      return [('Velocidade dos voos', '+15%', null), ('Velocidade total agora', 'x${s.speed.toStringAsFixed(2)}', null)];
+    case 'radar':
+      return [('Eventos', '+60% mais frequentes', null), ('Receita', '+15%', null)];
+    case 'catering':
+      return [('Passagens', '+30%', null)];
+    case 'trem':
+      return [('Chegada de passageiros', '+50%', null), ('Agora chegam', perMin(s.lambda), null)];
+    case 'solar':
+      return [('Receita', '+40%', null), ('Ganhos offline', '+50%', null)];
     case 'esp5':
       return [('Onda de turistas', '${s.waveSecs.round()} s', nx(() => '${s.waveSecs.round()} s')), ('Intervalo', '110 s', null)];
   }
@@ -211,7 +221,17 @@ class _StationPanelState extends State<StationPanel> {
       ]));
     }
     if (st.oneTime) {
-      return Sheet(title: st.name, subtitle: 'Construído', icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: GCard(child: Text(st.desc, style: body(15, w: FontWeight.w700))));
+      final ss = stationStats(s, st, 0);
+      return Sheet(title: st.name, subtitle: 'Construído', icon: st.icon, color: stColor(st), onClose: widget.h.closePanel, child: Column(children: [
+        GCard(child: Text(st.desc, style: body(15, w: FontWeight.w700))),
+        if (ss.isNotEmpty) const SizedBox(height: 8),
+        if (ss.isNotEmpty) GCard(child: Column(children: [
+          for (final r in ss) Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
+            Expanded(child: Text(r.$1, style: body(14, color: K.muted, w: FontWeight.w800))),
+            Text(r.$2, style: body(15, color: K.greenD, w: FontWeight.w900)),
+          ])),
+        ])),
+      ]));
     }
     final b = s.buyInfo(st);
     final can = b.$1 > 0 && s.money >= b.$2;
@@ -944,7 +964,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v3.3', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v3.4', style: body(12, color: K.muted)),
     ]));
   }
 }

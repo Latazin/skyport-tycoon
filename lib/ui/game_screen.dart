@@ -35,6 +35,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   final fly = FlyController(), conf = ConfettiController();
   final moneyKey = GlobalKey(), gemKey = GlobalKey();
   String? panel;
+  bool _abilOpen = false;
   final List<(String, String)> _bq = [];
   (String, String)? _banner;
   final List<(int, String)> _toasts = [];
@@ -743,7 +744,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       left: 10, top: pad.top + 132,
       child: Column(children: [
         if (s.city > 0 || s.star >= 3) Transform.translate(offset: const Offset(-3, 0), child: _RoundBtn(icon: 'network', label: 'Rede', ready: s.netReady || s.canPrestige, onTap: () => openPanel('cities'))),
-        for (final a in list) _AbilityBtn(a: a, s: s, onTap: () {
+        if (list.length > 2) _RoundBtn(icon: 'cap', label: _abilOpen ? 'Fechar' : 'Poderes', ready: !_abilOpen && list.any(s.abilReady), onTap: () { Sfx.click(); setState(() => _abilOpen = !_abilOpen); }),
+        for (final a in (list.length <= 2 || _abilOpen) ? list : const <Ability>[]) _AbilityBtn(a: a, s: s, onTap: () {
           if (!s.abilReady(a)) { toast('${a.name} recarrega em ${fmtTime(s.abilLeft(a) / 1000)}'); return; }
           final t = s.useAbility(a);
           Sfx.play('boost'); Sfx.haptic(20);
@@ -911,7 +913,7 @@ class _RoundBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: 56, child: Column(children: [
+        child: Padding(padding: const EdgeInsets.only(bottom: 4), child: SizedBox(width: 56, child: Column(children: [
           Stack(clipBehavior: Clip.none, children: [
             Container(
               width: 48, height: 48,
@@ -922,12 +924,11 @@ class _RoundBtn extends StatelessWidget {
             if (fill != null) Positioned.fill(child: Padding(padding: const EdgeInsets.all(1.5), child: CircularProgressIndicator(value: fill!.clamp(0.0, 1.0), strokeWidth: 3.5, color: K.gold, backgroundColor: K.track))),
             if (ready) Positioned(right: -1, top: -1, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: K.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
           ]),
-          const SizedBox(height: 3),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(8)),
-            child: FittedBox(child: Text(label, style: body(10.5, color: ready ? K.greenD : K.navy2, w: FontWeight.w900))),
-          ),
+          Transform.translate(offset: const Offset(0, -5), child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: ready ? K.green : Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: K.shadowS),
+            child: FittedBox(child: Text(label, style: body(10, color: ready ? Colors.white : K.navy2, w: FontWeight.w900))),
+          )),
         ]))),
       );
 }
@@ -1016,18 +1017,19 @@ class _GiftBtn extends StatefulWidget {
 }
 
 class _GiftBtnState extends State<_GiftBtn> with SingleTickerProviderStateMixin {
-  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
   @override
   void dispose() { a.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
     final s = widget.s, ready = s.giftReady;
+    if (ready && !a.isAnimating) { a.repeat(); } else if (!ready && a.isAnimating) { a.stop(); }
     final total = GameState.giftWait[math.min(s.giftN, GameState.giftWait.length - 1)] * 1000;
     final k = ready ? 1.0 : 1 - s.giftLeft / total;
     final kind = s.giftKind;
     return GestureDetector(
       onTap: widget.onTap,
-      child: Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: 56, child: Column(children: [
+      child: Padding(padding: const EdgeInsets.only(bottom: 4), child: SizedBox(width: 56, child: Column(children: [
         AnimatedBuilder(animation: a, builder: (_, c) {
           final w = ready ? math.sin(a.value * math.pi * 2 * 3) * (a.value < 0.35 ? 0.18 : 0.0) : 0.0;
           return Transform.rotate(angle: w, child: Transform.scale(scale: ready ? 1 + math.sin(a.value * math.pi * 2) * 0.05 : 1, child: c));
@@ -1036,12 +1038,11 @@ class _GiftBtnState extends State<_GiftBtn> with SingleTickerProviderStateMixin 
           SizedBox(width: 50, height: 50, child: CircularProgressIndicator(value: k.clamp(0.0, 1.0), strokeWidth: 3.5, color: ready ? Colors.white : K.gold, backgroundColor: K.track)),
           Ico(kind.startsWith('chest') ? kind : 'gift', size: 34),
         ])),
-        const SizedBox(height: 3),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-          decoration: BoxDecoration(color: ready ? K.gold : Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(8)),
-          child: FittedBox(child: Text(ready ? 'Pegar!' : fmtTime(s.giftLeft / 1000), style: body(10.5, color: ready ? Colors.white : K.navy2, w: FontWeight.w900))),
-        ),
+        Transform.translate(offset: const Offset(0, -5), child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(color: ready ? K.gold : Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: K.shadowS),
+          child: FittedBox(child: Text(ready ? 'Pegar!' : fmtTime(s.giftLeft / 1000), style: body(10, color: ready ? Colors.white : K.navy2, w: FontWeight.w900))),
+        )),
       ]))),
     );
   }

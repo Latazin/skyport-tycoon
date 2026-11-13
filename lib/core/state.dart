@@ -184,14 +184,14 @@ class GameState {
   bool canUnlock(St s) => !built(s.id) && money >= s.unlock && unlockOk(s);
 
   // ---------- multiplicadores ----------
-  double get speed => (1 + 0.035 * (lvl('pista') - 1)).clamp(1.0, 4.0).toDouble() * (hasMgr('diego') ? 1.3 : 1.0) * (has('embarque') ? 1.15 : 1.0) * (turboOn ? 2.0 : 1.0) * snowSpeed;
-  double get lambda => 0.5 * power(lvl('entrada')) * (hasMgr('carla') ? 2 : 1) * (has('expresso') ? 1.5 : 1) * (rushOn || clock < waveUntil ? 3 : 1) * perk.lambda * (weekend ? 1.25 : 1);
+  double get speed => (1 + 0.035 * (lvl('pista') - 1)).clamp(1.0, 4.0).toDouble() * (hasMgr('diego') ? 1.3 : 1.0) * (has('embarque') ? 1.15 : 1.0) * (turboOn ? 2.0 : 1.0) * snowSpeed * (built('bombeiros') ? 1.15 : 1.0);
+  double get lambda => 0.5 * power(lvl('entrada')) * (hasMgr('carla') ? 2 : 1) * (has('expresso') ? 1.5 : 1) * (rushOn || clock < waveUntil ? 3 : 1) * perk.lambda * (weekend ? 1.25 : 1) * (built('trem') ? 1.5 : 1);
   double get muC => 0.6 * power(lvl('checkin')) * (hasMgr('ana') ? 2 : 1) * (has('online') ? 1.5 : 1) * (has('bio') ? 2 : 1) * (abilOn('ana') ? 3 : 1);
   double get muS => 0.55 * power(lvl('seguranca')) * (hasMgr('bruno') ? 2 : 1) * (has('scan') ? 1.5 : 1) * (has('bio') ? 2 : 1) * (abilOn('bruno') ? 3 : 1);
   double get shopSpend { var t = 0.0; for (var i = 0; i < shopIds.length; i++) { t += shopSpendOf(i); } return t * (hasMgr('elisa') ? 3 : 1) * (has('premium') ? 2 : 1) * perk.shop * (abilOn('elisa') ? 5 : 1) * (kind6 == 0 ? 1 + 0.06 * esp : 1); }
   double get starMult => math.pow(2, star).toDouble();
   double get tipMult => 0.85 + sat / 100 * 0.3;
-  double get revMult => cityMult(city) * (1 + 0.06 * (lvl('torre') - 1)) * (built('hangar') ? 1.5 : 1) * (built('combustivel') ? 1.5 : 1) * (hasMgr('hugo') ? 2 : 1) * (boostOn ? 2 : 1) * starMult * (has('verde') ? 1.5 : 1) * (has('mega') ? 2 : 1) * tipMult * decorMult * (1 + 0.05 * lvl('cargas')) * (abilOn('hugo') ? 3 : 1) * (frenzyOn ? 2 : 1) * (tripleOn ? 3 : 1);
+  double get revMult => cityMult(city) * (1 + 0.06 * (lvl('torre') - 1)) * (built('hangar') ? 1.5 : 1) * (built('combustivel') ? 1.5 : 1) * (hasMgr('hugo') ? 2 : 1) * (boostOn ? 2 : 1) * starMult * (has('verde') ? 1.5 : 1) * (has('mega') ? 2 : 1) * tipMult * decorMult * (1 + 0.05 * lvl('cargas')) * (abilOn('hugo') ? 3 : 1) * (frenzyOn ? 2 : 1) * (tripleOn ? 3 : 1) * (built('radar') ? 1.15 : 1) * (built('solar') ? 1.4 : 1);
   double get routeBonus => routes.where((r) => routesOwned.contains(r.id)).fold(0.0, (a, r) => a + r.bonus);
   double fleetBonus(int tier) {
     var b = 0.0;
@@ -203,7 +203,7 @@ class GameState {
   double seatsFor(int g) { final l = lvl('g$g'); return planeTypes[tierFor(g)].seats * (1 + 0.02 * (l - 1)); }
   double ticketFor(int g) {
     final l = lvl('g$g'), t = tierFor(g);
-    return 4 * (1 + 0.2 * (l - 1)) * math.pow(2, milestonesPassed(l)) * planeTypes[t].ticketMul * (1 + 0.04 * lvl('vip')) * (hasMgr('fabio') ? 1.5 : 1) * (has('tarifa') ? 1.3 : 1) * (1 + routeBonus) * (1 + fleetBonus(t)) * perk.ticket * (abilOn('fabio') ? 2 : 1);
+    return 4 * (1 + 0.2 * (l - 1)) * math.pow(2, milestonesPassed(l)) * planeTypes[t].ticketMul * (1 + 0.04 * lvl('vip')) * (hasMgr('fabio') ? 1.5 : 1) * (has('tarifa') ? 1.3 : 1) * (1 + routeBonus) * (1 + fleetBonus(t)) * perk.ticket * (abilOn('fabio') ? 2 : 1) * (built('catering') ? 1.3 : 1);
   }
   double boardRate(double seats) => math.max(4.0, seats / 5);
   double durLanding() => 7 / speed;
@@ -537,7 +537,7 @@ class GameState {
       return;
     }
     if (tut < 7 || clock < evNext) return;
-    evNext = clock + (70 + _r.nextDouble() * 80) / (has('satelite') ? 2 : 1) / perk.events;
+    evNext = clock + (70 + _r.nextDouble() * 80) / (has('satelite') ? 2 : 1) / perk.events / (built('radar') ? 1.6 : 1);
     final types = ['vip', 'celeb', 'bag', 'tourists', if (gatesOpen >= 1) 'fog', if (city % 6 == 0) 'tourists', if (city % 6 == 3) 'fog', if (city % 6 == 2) 'vip'];
     final t = types[_r.nextInt(types.length)];
     switch (t) {
@@ -824,7 +824,7 @@ class GameState {
 
   // ---------- offline ----------
   double get offlineCapSecs => (hasMgr('gabi') ? 8 * 3600.0 : 4 * 3600.0) + (has('cofre') ? 4 * 3600.0 : 0.0);
-  double offlineFor(double secs) { _estimate(); return rate / (boostOn ? 2 : 1) * math.min(secs, offlineCapSecs) * (hasMgr('gabi') ? 1.0 : 0.5); }
+  double offlineFor(double secs) { _estimate(); return rate / (boostOn ? 2 : 1) * math.min(secs, offlineCapSecs) * (hasMgr('gabi') ? 1.0 : 0.5) * (built('solar') ? 1.5 : 1.0); }
 
   // ---------- diário (login) ----------
   bool get dailyReady => dailyLast != dayKey();
