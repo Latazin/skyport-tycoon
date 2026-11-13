@@ -1,0 +1,200 @@
+11-13 18:14:38.062   522   559 W ProcessCpuTracker: Failed to stat(/proc/2705): android.system.ErrnoException: stat failed: ENOENT (No such file or directory)
+11-13 18:14:38.063   522   559 W ProcessCpuTracker: Failed to stat(/proc/2713): android.system.ErrnoException: stat failed: ENOENT (No such file or directory)
+11-13 18:14:38.320  1639  2392 W ModernMediaScanner: Failed to visit /system/media: java.nio.file.NoSuchFileException: /system/media
+11-13 18:14:38.335  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.335  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.493  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.493  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.560  1746  2723 W ProviderInstaller: Failed to report request stats: java.lang.NoSuchMethodException: com.google.android.gms.common.security.ProviderInstallerImpl.reportRequestStats2 [class android.content.Context, long, long]
+11-13 18:14:38.774  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.778  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:38.960  1639  2392 W ModernMediaScanner: Failed to visit /oem/media: java.nio.file.NoSuchFileException: /oem/media
+11-13 18:14:39.169  2516  2898 W WPCategoryProvider: android.content.pm.PackageManager$NameNotFoundException: com.google.pixel.livewallpaper
+11-13 18:14:39.305  1664  2507 E AwarenessRouterSyncMgr: Exception while syncing fences
+11-13 18:14:39.305  1664  2507 E AwarenessRouterSyncMgr: java.util.concurrent.ExecutionException: java.lang.IllegalStateException: Account associated with identity was null
+11-13 18:14:39.305  1664  2507 E AwarenessRouterSyncMgr: Caused by: java.lang.IllegalStateException: Account associated with identity was null
+11-13 18:14:39.382  1610  1978 W SnapshotHandler: java.io.FileNotFoundException: /data/user/0/com.google.android.googlequicksearchbox/files/phenotype/shared/com.google.android.libraries.consentverifier#com.google.android.googlequicksearchbox.pb: open failed: ENOENT (No such file or directory)
+11-13 18:14:39.382  1610  1978 W SnapshotHandler: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:14:39.449  1597  2523 W AiAiFed : java.lang.IllegalArgumentException: Unsupported response code3
+11-13 18:14:39.630  1597  2012 W SP.AiAi : Error downloading: manifests:webref-2-en-us-19071200
+11-13 18:14:39.639  1397  1461 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:39.904  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:39.905  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:40.134  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:40.364  1597  2841 W AiAiAutofill: java.lang.SecurityException: caller is not user's Augmented Autofill Service
+11-13 18:14:40.440  1597  2523 W AiAiFed : java.lang.IllegalArgumentException: Unsupported response code3
+11-13 18:14:40.952  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:40.952  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:41.134  1397  1461 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:41.140   999  1020 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-13 18:14:41.296  2549  2955 I VoiceDataManager: Caused by: java.util.concurrent.CancellationException: Task was cancelled.
+11-13 18:14:41.456  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:41.457  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:41.780  1700  2298 W A       : Exception while fetching versionCode for package[com.google.android.apps.tv.dreamx].
+11-13 18:14:41.780  1700  2298 W A       : android.content.pm.PackageManager$NameNotFoundException: com.google.android.apps.tv.dreamx
+11-13 18:14:41.781  1700  2298 W A       : Exception while fetching versionCode for package[com.google.android.apps.tv.launcherx].
+11-13 18:14:41.781  1700  2298 W A       : android.content.pm.PackageManager$NameNotFoundException: com.google.android.apps.tv.launcherx
+11-13 18:14:42.274  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:42.945  1597  2523 W AiAiFed : java.lang.IllegalArgumentException: Unsupported response code3
+11-13 18:14:43.359  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:43.400  1397  1455 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:44.176  1088  2570 E OneSearchSuggestProvider: io.grpc.StatusRuntimeException: UNKNOWN
+11-13 18:14:44.850  3154  3222 E PhenotypeFlagCommitter: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:14:44.987  1397  1455 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:44.994  1397  1455 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:44.996  1397  1455 W AsyncOperation: OperationException[Status{statusCode=unknown status code: 29503, resolution=null}]
+11-13 18:14:45.114  1450  3281 W ConfigFileUtils: Failed to read asset ChimeraModuleSetList.pb: java.io.FileNotFoundException: ChimeraModuleSetList.pb
+11-13 18:14:45.187  1397  1397 E GmsCoreLogger: java.util.concurrent.ExecutionException: java.util.concurrent.TimeoutException
+11-13 18:14:45.187  1397  1397 E GmsCoreLogger: Caused by: java.util.concurrent.TimeoutException
+11-13 18:14:46.465  1397  3227 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:46.491  1397  3227 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:48.575  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:48.576  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:48.947  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:48.947  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:49.030   335   365 I netd    : networkAddInterface(101, eth0) -> ServiceSpecificException(64, "Machine is not on the network") <0.03ms>
+11-13 18:14:49.034   522   763 W ConnectivityService: Exception adding interface: android.os.ServiceSpecificException: Machine is not on the network (code 64)
+11-13 18:14:49.036   335   365 I netd    : networkAddRouteParcel(101, RouteInfoParcel{destination: 10.0.2.0/24, ifName: eth0, nextHop: , mtu: 0}) -> ServiceSpecificException(64, "Machine is not on the network") <0.02ms>
+11-13 18:14:49.037   522   763 E ConnectivityService: Exception in networkAddRouteParcel for non-gateway: android.os.ServiceSpecificException: Machine is not on the network (code 64)
+11-13 18:14:49.038   335   365 I netd    : networkAddRouteParcel(101, RouteInfoParcel{destination: 0.0.0.0/0, ifName: eth0, nextHop: 10.0.2.2, mtu: 1500}) -> ServiceSpecificException(64, "Machine is not on the network") <0.02ms>
+11-13 18:14:49.038   522   763 E ConnectivityService: Exception in networkAddRouteParcel for gateway: android.os.ServiceSpecificException: Machine is not on the network (code 64)
+11-13 18:14:49.576  1450  3623 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.os.Parcel.readExceptionCode(Parcel.java:3002)
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.os.Parcel.readExceptionCode(Parcel.java:3002)
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.os.Parcel.readExceptionCode(Parcel.java:3002)
+11-13 18:14:49.797  1746  2105 D StrictMode: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-13 18:14:49.802  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:49.879  1450  3623 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:50.433  1450  3281 W ConfigFileUtils: Failed to read asset ChimeraModuleSetList.pb: java.io.FileNotFoundException: ChimeraModuleSetList.pb
+11-13 18:14:51.169  1450  3755 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:51.689  1450  3755 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:52.222  2170  3889 E TaskWorkerFactory: java.lang.NoSuchMethodException: com.android.devicelockcontroller.provision.worker.DeviceCheckInWorker.<init> [class android.content.Context, class androidx.work.WorkerParameters, interface com.google.common.util.concurrent.ListeningExecutorService]
+11-13 18:14:52.508  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:52.508  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:52.595  1450  1550 E PhenotypeFlagCommitter: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:14:52.789   522   548 E PackageManager: java.util.concurrent.TimeoutException: [Optimistic Bind] Didn't bind to resolver in time!
+11-13 18:14:52.840  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:52.842  1046  1046 W Telephony: registerImsRegistrationCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:53.458  1597  3102 W AiAiAutofill: java.lang.SecurityException: caller is not user's Augmented Autofill Service
+11-13 18:14:53.631  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:53.787   999  1020 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-13 18:14:53.973  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:54.076   999  1020 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-13 18:14:54.330  1046  1046 W Telephony: registerMmTelCapabilityCallback: registration failed, no ImsService available. Exception: code: 1
+11-13 18:14:54.977  1450  3749 E constellation: java.io.IOException: AUTHENTICATION_FAILED
+11-13 18:14:55.887  1450  1492 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:56.178  1450  1492 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:56.384  1597  1994 I AiAiTextClassifier: java.lang.RuntimeException: Request of 1 packs for text-classifier-actions failed
+11-13 18:14:56.451  1397  4029 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:56.806  1397  4029 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:57.100  1639  2392 W ModernMediaScanner: android.database.sqlite.SQLiteConstraintException: UNIQUE constraint failed: files._data (code 2067 SQLITE_CONSTRAINT_UNIQUE)
+11-13 18:14:57.427  4136  4242 W cr_AWNetworkFetcherTask: IOException during downloadToFile.
+11-13 18:14:57.427  4136  4242 W cr_AWNetworkFetcherTask: java.io.IOException: Cleartext HTTP traffic to edgedl.me.gvt1.com not permitted
+11-13 18:14:57.511  1397  2200 E dlpn    : RuntimeException while executing runnable dlqc{qze@85cf3ae} with executor MoreExecutors.directExecutor()
+11-13 18:14:57.511  1397  2200 E dlpn    : java.lang.NullPointerException: Attempt to get length of null array
+11-13 18:14:57.575  1397  3468 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:57.668  1397  3468 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:14:58.419  1048  1071 W BaseSearchIndex: Error initial controller
+11-13 18:14:58.670  1700  1700 W SnapshotHandler: java.io.FileNotFoundException: /data/user/0/com.google.android.googlequicksearchbox/files/phenotype/shared/com.google.android.libraries.notifications#com.google.android.googlequicksearchbox.pb: open failed: ENOENT (No such file or directory)
+11-13 18:14:58.670  1700  1700 W SnapshotHandler: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:14:58.713  1048  1071 W BaseSearchIndex: Error initial controller
+11-13 18:14:58.741  1700  2749 W SnapshotHandler: java.io.FileNotFoundException: /data/user/0/com.google.android.googlequicksearchbox/files/phenotype/shared/com.google.android.libraries.notifications.platform#com.google.android.googlequicksearchbox.pb: open failed: ENOENT (No such file or directory)
+11-13 18:14:58.741  1700  2749 W SnapshotHandler: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:14:58.751   522   536 W FileUtils: android.system.ErrnoException: chmod failed: ENOENT (No such file or directory)
+11-13 18:14:59.458  1046  1046 E PhoneInterfaceManager: isVoNrEnabled: CommandException: com.android.internal.telephony.CommandException: REQUEST_NOT_SUPPORTED
+11-13 18:14:59.501  1046  1046 E PhoneInterfaceManager: isVoNrEnabled: CommandException: com.android.internal.telephony.CommandException: REQUEST_NOT_SUPPORTED
+11-13 18:14:59.523  1397  4064 I NearbyDiscovery: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:14:59.599  1048  1071 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+11-13 18:14:59.607  1048  1071 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-13 18:14:59.812  1700  2410 E cr_CronetUrlRequestContext: Exception in upload method
+11-13 18:14:59.812  1700  2410 E cr_CronetUrlRequestContext: com.google.android.apps.gsa.shared.r.d: Error code: 262182
+11-13 18:14:59.826  4086  4294 E PhenotypeFlagCommitter: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:14:59.918  1700  1700 E A       : onError
+11-13 18:15:00.020  1450  1492 W GCM-GMS : Failed to get direct boot token: java.io.IOException: AUTHENTICATION_FAILED
+11-13 18:15:00.367  1397  2769 W SemanticLocation: java.util.concurrent.TimeoutException: Waited 5000 milliseconds (plus 281582 nanoseconds delay) for dlnx@7bceb91[status=PENDING, info=[function=[bzrs@e5caaf6]]]
+11-13 18:15:00.791  1397  4064 I NearbyDiscovery: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:15:01.001  4477  4543 E IndexablesProvider: java.lang.IllegalStateException: We should initialize FormFactorUtils before getting instance.
+11-13 18:15:01.864  4456  4658 W BugleRcs: android.content.pm.PackageManager$NameNotFoundException: com.google.android.ims
+11-13 18:15:01.902  1397  3468 E bwel    : java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:15:02.230  1397  4064 I NearbyDiscovery: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:15:02.299  1450  3621 W GCM-GMS : Failed to get registration: java.io.IOException: AUTHENTICATION_FAILED
+11-13 18:15:03.428  1397  4064 I NearbyDiscovery: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:15:03.980  1397  3444 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:03.980  1397  2408 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:03.980  1397  2408 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:03.983  1397  2558 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:04.224  1397  2605 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:04.224  1397  2605 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:04.224  1397  2605 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:04.224  1397  2605 W Looper  : java.lang.RuntimeException: Handler (acdu) {38d4906} sendMessageAtTime() called with no mQueue
+11-13 18:15:05.369  1450  1544 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:15:05.380  1450  1544 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:15:06.482  1397  4669 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:15:06.544  1397  4669 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:15:06.632  1397  2200 I SemanticLocation: java.io.FileNotFoundException: /data/user/0/com.google.android.gms/files/default_model_bundle_metadata.pb: open failed: ENOENT (No such file or directory)
+11-13 18:15:06.632  1397  2200 I SemanticLocation: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:06.733  1397  4669 W GLSUser : [AppCertManager] Exception while requesting key: 
+11-13 18:15:06.733  1397  4669 W GLSUser : java.io.IOException: Invalid device key response.
+11-13 18:15:06.822  1397  2200 I SemanticLocation: java.io.FileNotFoundException: /data/user/0/com.google.android.gms/files/model_bundle_metadata.pb: open failed: ENOENT (No such file or directory)
+11-13 18:15:06.822  1397  2200 I SemanticLocation: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:07.177  1397  2200 I SemanticLocation: java.io.FileNotFoundException: /data/user/0/com.google.android.gms/files/model_bundle_metadata.pb: open failed: ENOENT (No such file or directory)
+11-13 18:15:07.177  1397  2200 I SemanticLocation: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:09.028  1450  3750 W PhenotypeRegOp: java.util.concurrent.TimeoutException: Timed out waiting for Task
+11-13 18:15:09.745   522  2065 E RecoverySnapshotStorage: Error reading snapshot for 10131 from disk
+11-13 18:15:09.745   522  2065 E RecoverySnapshotStorage: java.io.FileNotFoundException: /data/system/recoverablekeystore/snapshots/10131.xml: open failed: ENOENT (No such file or directory)
+11-13 18:15:09.745   522  2065 E RecoverySnapshotStorage: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:10.385  1450  4806 E Vision  : Couldn't read checkbot setting: android.provider.Settings$SettingNotFoundException: multi_cb
+11-13 18:15:10.499   522  1983 E RecoverySnapshotStorage: Error reading snapshot for 10131 from disk
+11-13 18:15:10.499   522  1983 E RecoverySnapshotStorage: java.io.FileNotFoundException: /data/system/recoverablekeystore/snapshots/10131.xml: open failed: ENOENT (No such file or directory)
+11-13 18:15:10.499   522  1983 E RecoverySnapshotStorage: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:10.507   159   159 E keystore2:     3: Error::Rc(r#SYSTEM_ERROR)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: [WrappingKeyManager] InternalRecoveryServiceException during wrapping key generation [CONTEXT service_id=172 ]
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: android.security.keystore.recovery.InternalRecoveryServiceException: Failed to import secret key.
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: 	at android.security.keystore.recovery.RecoveryController.wrapUnexpectedServiceSpecificException(RecoveryController.java:783)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: Caused by: android.os.ServiceSpecificException: Failed to import secret key. (code 22)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3071)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: 	at android.os.Parcel.createException(Parcel.java:3041)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: 	at android.os.Parcel.readException(Parcel.java:3024)
+11-13 18:15:10.509  1450  4550 W RecoverableKeyStoreGms: 	at android.os.Parcel.readException(Parcel.java:2966)
+11-13 18:15:10.548   522  1983 E RecoverySnapshotStorage: Error reading snapshot for 10131 from disk
+11-13 18:15:10.548   522  1983 E RecoverySnapshotStorage: java.io.FileNotFoundException: /data/system/recoverablekeystore/snapshots/10131.xml: open failed: ENOENT (No such file or directory)
+11-13 18:15:10.548   522  1983 E RecoverySnapshotStorage: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+11-13 18:15:10.549   159   159 E keystore2:     3: Error::Rc(r#SYSTEM_ERROR)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: [WrappingKeyManager] InternalRecoveryServiceException during wrapping key generation [CONTEXT service_id=172 ]
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: android.security.keystore.recovery.InternalRecoveryServiceException: Failed to import secret key.
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: 	at android.security.keystore.recovery.RecoveryController.wrapUnexpectedServiceSpecificException(RecoveryController.java:783)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: Caused by: android.os.ServiceSpecificException: Failed to import secret key. (code 22)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3071)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: 	at android.os.Parcel.createException(Parcel.java:3041)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: 	at android.os.Parcel.readException(Parcel.java:3024)
+11-13 18:15:10.549  1450  4824 W RecoverableKeyStoreGms: 	at android.os.Parcel.readException(Parcel.java:2966)
+11-13 18:15:11.104  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.credentials.CredentialManagerPreferenceController
+11-13 18:15:11.104  1048  1082 W SliceDataConverter: Caused by: java.lang.reflect.InvocationTargetException
+11-13 18:15:11.104  1048  1082 W SliceDataConverter: Caused by: java.lang.RuntimeException: Can't create handler inside thread Thread[binder:1048_3,5,main] that has not called Looper.prepare()
+11-13 18:15:11.120  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.telephony.CallsDefaultSubscriptionController
+11-13 18:15:11.120  1048  1082 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.telephony.CallsDefaultSubscriptionController.<init> [class android.content.Context, class java.lang.String]
+11-13 18:15:11.122  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.NetworkProviderSimsCategoryController
+11-13 18:15:11.122  1048  1082 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.NetworkProviderSimsCategoryController.<init> [class android.content.Context, class java.lang.String]
+11-13 18:15:11.129  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.telephony.CallsDefaultSubscriptionController
+11-13 18:15:11.129  1048  1082 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.telephony.CallsDefaultSubscriptionController.<init> [class android.content.Context, class java.lang.String]
+11-13 18:15:11.134  1048  1082 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-13 18:15:11.158  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.fuelgauge.batteryusage.BatteryChartPreferenceController
+11-13 18:15:11.158  1048  1082 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.fuelgauge.batteryusage.BatteryChartPreferenceController.<init> [class android.content.Context, class java.lang.String]
+11-13 18:15:11.169  1048  1082 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+11-13 18:15:11.170  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.170  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.170  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.189  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.189  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.189  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-13 18:15:11.226  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.accessibility.VibrationMainSwitchPreferenceController
+11-13 18:15:11.226  1048  1082 W SliceDataConverter: Caused by: java.lang.reflect.InvocationTargetException
+11-13 18:15:11.226  1048  1082 W SliceDataConverter: Caused by: java.lang.RuntimeException: Can't create handler inside thread Thread[binder:1048_3,5,main] that has not called Looper.prepare()
+11-13 18:15:11.244  1397  4322 W NetworkScheduler: java.lang.IllegalArgumentException: Only the following extra parameter types are supported: Integer, Long, Double, String, Boolean, and nested Bundles with the same restrictions.
+11-13 18:15:11.304  1048  1082 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-13 18:15:11.304  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-13 18:15:11.304  1048  1082 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-13 18:15:11.555  1397  1462 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+11-13 18:15:11.715  1397  1462 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
