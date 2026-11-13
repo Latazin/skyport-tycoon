@@ -12,6 +12,7 @@ import 'core/state.dart';
 import 'game/art.dart';
 import 'ui/game_screen.dart';
 import 'ui/kit.dart';
+import 'core/cine.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +88,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     if (q['star'] != null) st.star = int.parse(q['star']!);
     if (q['city'] != null) { st.city = int.parse(q['city']!); st.lv['esp${st.city % 6}'] = 8; st.hotelPile = 1e6; st.netPile = 5e6; st.estimate(); }
     if (q['extras'] == '1') { for (final id in ['bombeiros', 'radar', 'catering', 'trem', 'solar']) { st.lv[id] = 1; } st.estimate(); }
+    Cine.clean = q['clean'] == '1'; Cine.a = Cine.parse(q['cam']); Cine.b = Cine.parse(q['cam2']); if (q['camT'] != null) Cine.dur = double.parse(q['camT']!);
     if (q['chest'] == '1') st.chestsQ.add('chest_gold');
     if (q['tut'] != null) st.tut = int.parse(q['tut']!);
     await Art.loadBg(Art.bgKey(cityAt(st.city).bg, st.phase));

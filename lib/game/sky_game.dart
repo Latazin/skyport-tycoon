@@ -8,6 +8,8 @@ import '../core/data.dart';
 import '../core/state.dart';
 import 'renderer.dart';
 import 'world.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard, LogicalKeyboardKey;
+import '../core/cine.dart';
 
 /// Jogo Flame: câmera isométrica, simulação e desenho do aeroporto.
 class SkyGame extends FlameGame {
@@ -35,6 +37,7 @@ class SkyGame extends FlameGame {
     camera.viewfinder.zoom = (size.x / (first ? 760 : 980)).clamp(0.3, 0.9);
     final o = first ? iso(-33, 9, 2) : iso(s.phase == 0 ? -28 : -14, -1);
     camera.viewfinder.position = Vector2(o.dx, o.dy);
+    if (Cine.a != null) { final c = iso(Cine.a![0], Cine.a![1]); camera.viewfinder.position = Vector2(c.dx, c.dy); camera.viewfinder.zoom = Cine.a![2]; }
     for (var i = 0; i < 6; i++) { Future.delayed(Duration(milliseconds: 400 * i), () => w.spawnAt(Lay.door.$1 + i * 0.5, 17)); }
   }
 
@@ -94,6 +97,7 @@ class SkyGame extends FlameGame {
   }
 
   double _saveT = 0;
+  double _cineT = -1;
 
   @override
   void update(double dt) {
@@ -102,6 +106,17 @@ class SkyGame extends FlameGame {
     s.tick(step);
     w.update(step);
     final vf = camera.viewfinder;
+    // câmera de filmagem: começa quando a tecla C é apertada
+    if (Cine.a != null && Cine.b != null) {
+      if (_cineT < 0 && HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.keyC)) _cineT = 0;
+      if (_cineT >= 0) {
+        _cineT += step;
+        final k = (_cineT / Cine.dur).clamp(0.0, 1.0), e = k < 0.5 ? 2 * k * k : 1 - math.pow(-2 * k + 2, 2) / 2;
+        final pa = iso(Cine.a![0], Cine.a![1]), pb = iso(Cine.b![0], Cine.b![1]);
+        vf.position = Vector2(pa.dx + (pb.dx - pa.dx) * e, pa.dy + (pb.dy - pa.dy) * e);
+        vf.zoom = Cine.a![2] * math.pow(Cine.b![2] / Cine.a![2], e);
+      }
+    }
     if (_zoomTarget != null) {
       final dz = _zoomTarget! - vf.zoom;
       if (dz.abs() < 0.005) { _zoomTarget = null; } else { vf.zoom = vf.zoom + dz * math.min(1.0, step * 5); }

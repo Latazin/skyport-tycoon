@@ -19,6 +19,7 @@ import 'kit.dart';
 import 'minigames.dart';
 import 'modals.dart';
 import 'panels.dart';
+import '../core/cine.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState s;
@@ -571,6 +572,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   // ================= construção =================
   @override
   Widget build(BuildContext context) {
+    if (Cine.clean) return Scaffold(body: RepaintBoundary(child: GameWidget(game: game)));
     final pad = MediaQuery.of(context).padding;
     return Scaffold(
       backgroundColor: const Color(0xFF86C963),

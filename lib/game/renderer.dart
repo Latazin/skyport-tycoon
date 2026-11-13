@@ -9,6 +9,7 @@ import '../core/paths.dart';
 import '../core/state.dart';
 import 'art.dart';
 import 'world.dart';
+import '../core/cine.dart';
 
 class _D {
   final int layer;
@@ -330,7 +331,7 @@ class SceneRenderer extends Component {
     if (night > 0.01) _nightPass(c);
     if (s.snow) { _snow(c); } else if (rain > 0.02 || s.fogOn) { _weather(c); }
     if (s.snow && s.fogOn) c.drawRect(view, Paint()..color = const Color(0x88E8EEF5));
-    _overlays(c);
+    if (!Cine.clean) _overlays(c);
   }
 
   /// Sombras de nuvens passando e bandos de pássaros (baratos: poucos desenhos por quadro).
