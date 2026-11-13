@@ -346,7 +346,7 @@ class GameState {
   double mgrCost(Manager m) => m.cost * cityMult(city) / (city == 0 ? 1 : 2);
   bool hire(Manager m) {
     if (hasMgr(m.id) || !spend(mgrCost(m))) { fx?.sfx('nope'); return false; }
-    mgr.add(m.id); if (tut == 6) tut = 7; _estimate(); return true;
+    mgr.add(m.id); if (tut == 6) { tut = 7; chestsQ.add('chest_gold'); giftAt = nowMs() + 30000; } _estimate(); return true;
   }
 
   /// Melhor compra agora: a mais barata que ataca o gargalo.
@@ -376,7 +376,8 @@ class GameState {
     xp += v;
     while (xp >= needXp()) {
       xp -= needXp(); alv++;
-      chestsQ.add(alv % 5 == 0 ? 'chest_gold' : 'chest');
+      chestsQ.add(alv % 10 == 0 ? 'chest_epic' : alv % 5 == 0 ? 'chest_gold' : 'chest');
+      gems += 2 + alv ~/ 4;
       sPts += 10;
       fx?.levelUp(alv);
     }
@@ -570,15 +571,19 @@ class GameState {
 
   // ---------- baús e frota ----------
   Loot openChest(String type) {
-    final gold = type == 'chest_gold';
+    final tier = type == 'chest_epic' ? 2 : type == 'chest_gold' ? 1 : 0;
+    final gold = tier >= 1;
     final l = Loot();
-    l.coins = math.max(rate * (gold ? 480 : 120), (gold ? 1500.0 : 300.0) * cityMult(city));
-    l.gems = gold ? 10 + _r.nextInt(6) : 2 + _r.nextInt(3);
-    l.miles = gold ? 40 : 12;
-    final w = gold ? [40, 35, 20, 5] : [62, 27, 9, 2];
-    for (var i = 0; i < (gold ? 6 : 3); i++) {
+    l.coins = math.max(rate * const [120, 480, 1500][tier], const [300.0, 1500.0, 6000.0][tier] * cityMult(city));
+    l.gems = const [2, 10, 28][tier] + _r.nextInt(const [3, 6, 10][tier]);
+    l.miles = const [12.0, 40.0, 120.0][tier];
+    final w = const [[62, 27, 9, 2], [40, 35, 20, 5], [10, 40, 35, 15]][tier];
+    final n = const [3, 6, 9][tier];
+    for (var i = 0; i < n; i++) {
       var roll = _r.nextInt(100), rar = 0;
       while (rar < 3 && roll >= w[rar]) { roll -= w[rar]; rar++; }
+      if (tier == 2 && i == 0) rar = 2 + (_r.nextDouble() < 0.35 ? 1 : 0);
+      if (tier == 1 && i == 0 && rar < 1) rar = 1;
       final pool = planeModels.where((m) => m.rarity == rar).toList();
       final m = pool[_r.nextInt(pool.length)];
       if ((mlv[m.id] ?? 0) == 0) { mlv[m.id] = 1; l.fresh.add(m.id); } else { cards[m.id] = (cards[m.id] ?? 0) + 1; }
@@ -594,6 +599,29 @@ class GameState {
     final l = mlv[id]!; cards[id] = cards[id]! - cardsToLevel[l]; mlv[id] = l + 1; _estimate(); return true;
   }
   bool get chestReady => nowMs() >= chestAt;
+
+  // ---------- presentes da sessão (intervalos curtos no começo, depois maiores) ----------
+  int giftAt = 0, giftN = 0, giftDay = 0;
+  static const giftWait = [30, 60, 120, 180, 300, 480, 720, 1200, 1800];
+  bool get giftReady => tut >= 7 && nowMs() >= giftAt;
+  int get giftLeft => math.max(0, giftAt - nowMs());
+  /// Próximo presente: 'coins', 'gems', 'chest', 'chest_gold', 'boost'.
+  String get giftKind => const ['coins', 'gems', 'coins', 'chest', 'gems', 'coins', 'chest_gold', 'boost', 'gems', 'chest_epic'][giftN % 10];
+  (String, double) claimGift() {
+    if (!giftReady) return ('', 0);
+    if (giftDay != dayKey()) { giftDay = dayKey(); giftN = 0; }
+    final k = giftKind;
+    double v = 0;
+    switch (k) {
+      case 'coins': v = math.max(rate * (45 + giftN * 20), 120.0 * cityMult(city) * (giftN + 1)); earn(v); break;
+      case 'gems': v = (3 + giftN).toDouble(); gems += v.toInt(); break;
+      case 'boost': v = 600; boostUntil = math.max(nowMs(), boostUntil) + 600000; _estimate(); break;
+      default: chestsQ.add(k); v = 1;
+    }
+    giftN++; inc('gifts');
+    giftAt = nowMs() + giftWait[math.min(giftN, giftWait.length - 1)] * 1000;
+    return (k, v);
+  }
   void takeFreeChest() { chestAt = nowMs() + 4 * 3600000; chestsQ.add('chest'); }
 
   // ---------- pesquisa e rotas ----------
@@ -771,7 +799,9 @@ class GameState {
   double cashPack(double hours) => math.max(500.0 * cityMult(city), rate * 3600 * hours);
   bool buyCash(int gemsCost, double hours) { if (gems < gemsCost) return false; gems -= gemsCost; earn(cashPack(hours)); return true; }
   bool get spinReady => spinDay != dayKey();
-  int spin() { spinDay = dayKey(); return _r.nextInt(wheelPrizes.length); }
+  int spin() { spinDay = dayKey(); var r = _r.nextInt(wheelWeights.fold(0, (a, b) => a + b)); for (var i = 0; i < wheelWeights.length; i++) { if (r < wheelWeights[i]) return i; r -= wheelWeights[i]; } return 0; }
+  /// Texto do prêmio de cada setor (para desenhar na roleta).
+  String wheelLabel(int i) { final p = wheelPrizes[i]; switch (p.$1) { case 'coins': return '\$${_short(math.max(p.$2 * cityMult(city), rate * p.$2 / 3))}'; case 'gems': return '${p.$2.toInt()}'; case 'miles': return '${p.$2.toInt()}'; case 'boost': return 'x2 ${p.$2 ~/ 60}m'; case 'chest_epic': return 'ÉPICO'; } return ''; }
   (String, double) applyWheel(int i) {
     final p = wheelPrizes[i];
     switch (p.$1) {
@@ -804,7 +834,7 @@ class GameState {
     if (r.$1 == 'coins') { v = math.max(r.$2 * cityMult(city), rate * 60 * (dailyDay % 7 + 1)); earn(v); }
     if (r.$1 == 'gems') gems += r.$2.toInt();
     if (r.$1 == 'boost') { boostUntil = math.max(nowMs(), boostUntil) + r.$2.toInt() * 1000; }
-    if (r.$1 == 'chest') chestsQ.add('chest_gold');
+    if (r.$1 == 'chest') chestsQ.add('chest_epic');
     final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
     dailyDay = dailyLast == yesterday || dailyLast == 0 ? dailyDay + 1 : 1;
     dailyLast = dayKey();
@@ -832,7 +862,7 @@ class GameState {
         'tut': tut, 'ls': nowMs(), 'bm': buyMode, 'mu': music, 'so': sound, 'vi': vibration, 'au': autoUp,
         'res': research.toList(), 'rot': routesOwned.toList(), 'ach': achClaimed.toList(), 'cards': cards, 'mlv': mlv, 'cnt': cnt,
         'dk': dKey, 'wk': wKey, 'db': dBase, 'wb': wBase, 'dt': dTasks, 'wt': wTasks, 'dc': dClaimed, 'wc': wClaimed, 'dbo': dBonus,
-        'si': sId, 'sp': sPts, 'sc': sClaimed.toList(), 'cq': chestsQ,
+        'si': sId, 'sp': sPts, 'sc': sClaimed.toList(), 'cq': chestsQ, 'gf': [giftAt, giftN, giftDay],
         'pg': piggy, 'on': offerNext, 'tru': tripleUntil, 'hp': hotelPile, 'np': netPile, 'dec': decor.toList(), 'aa': abilAt, 'ct': [ctAir, ctNeed, ctUntil, ctGems, ctBase, ctNext], 'wke': [wkEnd, wkBase, wkClaimed ? 1 : 0],
       };
   void loadJson(Map<String, dynamic> j) {
@@ -863,6 +893,8 @@ class GameState {
     dBonus = j['dbo'] as bool? ?? false;
     sId = i('si', -1); sPts = i('sp', 0); sClaimed..clear()..addAll(((j['sc'] as List?) ?? []).map((e) => (e as num).toInt()));
     chestsQ..clear()..addAll(ls0('cq'));
+    final gf = ((j['gf'] as List?) ?? []).map((e) => (e as num).toInt()).toList();
+    if (gf.length == 3) { giftAt = gf[0]; giftN = gf[1]; giftDay = gf[2]; }
     decor..clear()..addAll(ls0('dec'));
     piggy = ((j['pg'] as num?) ?? 0).toDouble(); offerNext = ((j['on'] as num?) ?? 0).toInt(); tripleUntil = ((j['tru'] as num?) ?? 0).toInt();
     hotelPile = ((j['hp'] as num?) ?? 0).toDouble(); netPile = ((j['np'] as num?) ?? 0).toDouble();

@@ -944,7 +944,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v3.2', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v3.3', style: body(12, color: K.muted)),
     ]));
   }
 }

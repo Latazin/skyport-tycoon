@@ -991,7 +991,50 @@ function iconShot(build, size = 192, rot = { x: 0.35, y: -0.6 }) {
   const cnv = document.createElement('canvas'); cnv.width = size; cnv.height = size; cnv.getContext('2d').drawImage(R.domElement, 0, 0);
   return { png: cnv.toDataURL('image/png') };
 }
+/* ===== baús (3 níveis, fechado e aberto) ===== */
+const CHEST = [
+  { body: 0xa8683a, dark: 0x7a4626, band: 0x7a8496, lock: 0xffc531, lid: 0xb8763f },
+  { body: 0xffbe2e, dark: 0xd98a00, band: 0xff5a4e, lock: 0xffffff, lid: 0xffcf4a, gem: [0x3e8bff, 0x3fd46b] },
+  { body: 0x7c5cfa, dark: 0x4c34b8, band: 0xffc531, lock: 0xffe27a, lid: 0x8f72ff, gem: [0x5fe6ff, 0xff7ab6] },
+];
+function chestModel(tier, open) {
+  const t = CHEST[tier], g = new THREE.Group();
+  const W = 2.4, D = 1.6, H = 1.25, Rl = D / 2;
+  // corpo com tábuas
+  B(g, W, H, D, t.body, 0, -H, 0);
+  for (let k = 1; k < 4; k++) B(g, W + 0.02, 0.05, D + 0.02, t.dark, 0, -H + k * H / 4, 0);
+  B(g, W + 0.06, 0.12, D + 0.06, t.dark, 0, -H, 0);
+  // faixas e cantos
+  [-0.8, 0.8].forEach(x => B(g, 0.26, H + 0.02, D + 0.08, t.band, x, -H - 0.01, 0));
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => B(g, 0.2, H + 0.04, 0.2, t.band, sx * (W / 2 - 0.06), -H - 0.02, sz * (D / 2 - 0.06)));
+  for (const x of [-0.8, 0.8]) for (const y of [-0.95, -0.35]) Sp(g, 0.06, 0xf1f4f9, x, y, D / 2 + 0.05, 6);
+  // fechadura
+  if (!open) { B(g, 0.5, 0.62, 0.1, t.lock, 0, -0.62, D / 2 + 0.03); C(g, 0.08, 0.08, 0.12, 0x2b3245, 0, -0.42, D / 2 + 0.09, 10).rotation.x = Math.PI / 2; B(g, 0.06, 0.16, 0.12, 0x2b3245, 0, -0.62, D / 2 + 0.09); }
+  else B(g, 0.5, 0.36, 0.1, t.lock, 0, -0.42, D / 2 + 0.03);
+  // tampa curva (pivô na borda de trás)
+  const lid = new THREE.Group(); lid.position.set(0, 0, -D / 2); g.add(lid);
+  const L = new THREE.Group(); L.position.set(0, 0, D / 2); lid.add(L);
+  const cyl = mesh(new THREE.CylinderGeometry(Rl, Rl, W, 20, 1, false, 0, Math.PI), M(t.lid), L, 0, 0, 0); cyl.rotation.set(0, 0, Math.PI / 2);
+  const flatB = B(L, W, 0.04, D, t.dark, 0, -0.02, 0);
+  const cap = new THREE.CylinderGeometry(Rl + 0.02, Rl + 0.02, 0.27, 20, 1, false, 0, Math.PI);
+  [-0.8, 0.8].forEach(x => { const b = mesh(cap, M(t.band), L, x, 0, 0); b.rotation.set(0, 0, Math.PI / 2); });
+  [-W / 2 + 0.06, W / 2 - 0.06].forEach(x => { const b = mesh(new THREE.CylinderGeometry(Rl + 0.03, Rl + 0.03, 0.14, 20, 1, false, 0, Math.PI), M(t.band), L, x, 0, 0); b.rotation.set(0, 0, Math.PI / 2); });
+  if (!open) { B(L, 0.5, 0.36, 0.1, t.lock, 0, 0.0, D / 2 + 0.02); }
+  if (t.gem) { const gm = mesh(new THREE.OctahedronGeometry(0.24), M(t.gem[0], { emissive: 0x203060 }), L, 0, Rl * 0.72, Rl * 0.72); gm.scale.set(1, 1.2, 0.6); [-0.42, 0.42].forEach(x => mesh(new THREE.OctahedronGeometry(0.12), M(t.gem[1], { emissive: 0x204020 }), L, x, Rl * 0.82, Rl * 0.58)); }
+  if (open) {
+    lid.rotation.x = -1.95;
+    // brilho e tesouro dentro
+    B(g, W - 0.2, 0.06, D - 0.2, M(0xfff3b0, { emissive: 0xffd040 }), 0, -0.14, 0);
+    const cc = [0xffc531, 0xffd84a, 0xffb000];
+    for (let i = 0; i < 26; i++) { const c = C(g, 0.17, 0.17, 0.05, M(cc[i % 3], { emissive: 0x6a4a00 }), -0.95 + (i % 9) * 0.24, -0.08 + Math.floor(i / 9) * 0.07 + Math.sin(i) * 0.04, -0.5 + ((i * 7) % 5) * 0.25, 12); c.rotation.set(Math.sin(i) * 0.6, i, Math.cos(i) * 0.5); }
+    const gc = t.gem || [0x3e8bff, 0xff4e4e];
+    for (let i = 0; i < 4; i++) { const gm = mesh(new THREE.OctahedronGeometry(0.16), M(gc[i % 2], { emissive: 0x203050 }), g, -0.6 + i * 0.4, 0.12, -0.15 + (i % 2) * 0.3); gm.rotation.y = i; }
+  }
+  return g;
+}
 const ICONS = {
+  chest: () => chestModel(0, false), chest_gold: () => chestModel(1, false), chest_epic: () => chestModel(2, false),
+  chest_open: () => chestModel(0, true), chest_gold_open: () => chestModel(1, true), chest_epic_open: () => chestModel(2, true),
   esp0: () => espFeira(), esp1: () => espHotel(), esp2: () => espAlfandega(), esp3: () => espDegelo(), esp4: () => espHeli(), esp5: () => espResort(), heli: () => helicopter(),
   network: () => { const g = new THREE.Group(); Sp(g, 1.1, 0x2f7bff, 0, 0, 0, 16); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; Sp(g, 0.28, 0xffc928, Math.cos(a) * 1.1, Math.sin(a) * 1.1, 0.3, 8); } return g; },
   cargo: () => { const g = new THREE.Group(); B(g, 1.6, 1.2, 1.2, 0xff8a1f, 0, -0.8, 0); for (let i = 0; i < 4; i++) B(g, 0.06, 1.1, 1.22, 0xd86a10, -0.6 + i * 0.4, -0.75, 0); B(g, 1.0, 0.8, 0.9, 0x2f7bff, 0.2, 0.4, 0); return g; },
@@ -1030,8 +1073,6 @@ const ICONS = {
   map: () => { const g = new THREE.Group(); B(g, 2.2, 0.1, 1.6, 0x9fdc7a, 0, 0, 0); B(g, 1.8, 0.12, 0.25, 0x4c5160, 0, 0.01, -0.3); Sp(g, 0.25, 0xff4e4e, 0.4, 0.6, 0.2, 10); mesh(G.cone(0.2, 0.4, 10), M(0xff4e4e), g, 0.4, 0.3, 0.2).rotation.x = Math.PI; return g; },
   mission: () => { const g = new THREE.Group(); B(g, 1.6, 2.0, 0.15, 0xf7f9fc, 0, -1, 0); B(g, 0.8, 0.3, 0.17, 0x8a5a34, 0, 0.9, 0); for (let i = 0; i < 3; i++) { B(g, 0.25, 0.25, 0.17, i < 2 ? 0x3fd46b : 0xd0d6e0, -0.45, 0.4 - i * 0.55, 0.02); B(g, 0.75, 0.12, 0.17, 0xaab3c2, 0.2, 0.47 - i * 0.55, 0.02); } return g; },
 
-  chest: () => { const g = new THREE.Group(); B(g, 2, 1.1, 1.3, 0x8a5a34, 0, -0.9, 0); const lid = mesh(new THREE.CylinderGeometry(0.65, 0.65, 2, 14, 1, false, 0, Math.PI), M(0xa86a3c), g, 0, 0.2, 0); lid.rotation.z = Math.PI / 2; lid.rotation.y = Math.PI / 2; lid.rotation.set(0, 0, Math.PI / 2); B(g, 2.05, 0.18, 1.35, 0xffc531, 0, -0.25, 0); B(g, 0.25, 1.9, 1.36, 0xffc531, -0.7, -0.9, 0); B(g, 0.25, 1.9, 1.36, 0xffc531, 0.7, -0.9, 0); B(g, 0.35, 0.45, 0.1, 0xffe27a, 0, -0.55, 0.68); return g; },
-  chest_gold: () => { const g = ICONS.chest(); g.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() === 0x8a5a34) o.material = M(0xffb300); if (o.isMesh && o.material.color && o.material.color.getHex() === 0xa86a3c) o.material = M(0xffd84a); }); return g; },
   card: () => { const g = new THREE.Group(); B(g, 1.6, 2.2, 0.12, 0x2f7bff, 0, -1.1, 0); B(g, 1.4, 2.0, 0.14, 0xf7f9fc, 0, -1.0, 0); const p = plane(1, 0); p.scale.setScalar(0.17); p.rotation.set(0.6, Math.PI * 0.75, 0); p.position.set(0, 0.1, 0.3); g.add(p); return g; },
   medal: () => { const g = new THREE.Group(); B(g, 0.4, 1.2, 0.08, 0xe8343b, -0.25, 0.1, 0).rotation.z = 0.3; B(g, 0.4, 1.2, 0.08, 0x2f7bff, 0.25, 0.1, 0).rotation.z = -0.3; const c = mesh(G.cyl(0.75, 0.75, 0.2, 24), M(0xffc531), g, 0, -0.5, 0.1); c.rotation.x = Math.PI / 2; const st = mesh(G.cyl(0.5, 0.5, 0.22, 5), M(0xffe27a), g, 0, -0.5, 0.12); st.rotation.x = Math.PI / 2; return g; },
   wheel: () => { const g = new THREE.Group(); const cols = [0xff4e4e, 0xffc928, 0x2f7bff, 0x3fd46b, 0x8b5cf6, 0xff8a1f]; for (let i = 0; i < 6; i++) { const m = mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 8, 1, false, i * Math.PI / 3, Math.PI / 3), M(cols[i]), g); m.rotation.x = Math.PI / 2; } const c = mesh(G.cyl(0.25, 0.25, 0.3, 12), M(0xffffff), g); c.rotation.x = Math.PI / 2; mesh(G.cone(0.2, 0.4, 3), M(0x253154), g, 0, 1.35, 0.15).rotation.z = Math.PI; return g; },
@@ -1211,7 +1252,7 @@ window.STUDIO = {
     R.setSize(W, H); R.setClearColor(0x86d35e, 1); R.render(scene, cam);
     const r = crop(W, H, W / 2, H * oy, 'jpg'); r.k = k; return r;
   },
-  icon(name) { if (name.startsWith('pm_')) { const [, t, l] = name.split('_'); return iconShot(() => { const p = plane(+t, +l); p.rotation.y = Math.PI * 0.72; p.rotation.x = -0.15; const g = new THREE.Group(); g.add(p); return g; }); } return iconShot(ICONS[name]); },
+  icon(name) { if (name.startsWith('pm_')) { const [, t, l] = name.split('_'); return iconShot(() => { const p = plane(+t, +l); p.rotation.y = Math.PI * 0.72; p.rotation.x = -0.15; const g = new THREE.Group(); g.add(p); return g; }); } return iconShot(ICONS[name], name.startsWith('chest') ? 384 : 192, name.startsWith('chest') ? { x: 0.42, y: -0.5 } : undefined); },
   iconNames: () => [...Object.keys(ICONS), ...[0, 1, 2].flatMap(t => [0, 1, 2, 3, 4, 5].map(l => `pm_${t}_${l}`))],
   keyart, appIcon, appIcon2,
 };

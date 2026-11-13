@@ -138,7 +138,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
               Align(alignment: const Alignment(0, 0.8), child: s == null
                   ? SizedBox(width: 240, child: Column(mainAxisSize: MainAxisSize.min, children: [GBar(value: progress, height: 18, color: K.gold), const SizedBox(height: 8), Text('Preparando a pista... ${(progress * 100).round()}%', style: body(14, color: Colors.white))]))
                   : Transform.scale(scale: el(0.45, 1), child: GBtn(color: K.green, onTap: _play, radius: 22, padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 16), child: Text('Jogar', style: display(32))))),
-              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.2', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
+              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.3', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
             ]);
           },
         ),

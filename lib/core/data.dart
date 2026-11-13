@@ -362,7 +362,9 @@ const seasonThemes = ['Verão no Litoral', 'Carnaval nos Céus', 'Festa Junina A
 const seasonPts = 100;
 
 /// Roleta diária.
-const wheelPrizes = [('coins', 180.0), ('gems', 5.0), ('miles', 25.0), ('chest', 1.0), ('coins', 600.0), ('gems', 15.0), ('boost', 900.0), ('chest_gold', 1.0)];
+/// Roleta: (tipo, valor, peso). O peso define a chance de cair no setor.
+const wheelPrizes = [('coins', 180.0), ('gems', 5.0), ('miles', 25.0), ('chest', 1.0), ('coins', 600.0), ('gems', 15.0), ('boost', 900.0), ('chest_gold', 1.0), ('coins', 300.0), ('gems', 8.0), ('chest_epic', 1.0), ('boost', 1800.0)];
+const wheelWeights = [16, 14, 10, 12, 8, 6, 9, 5, 14, 10, 1, 5];
 
 const destinationsBase = ['Campinas', 'Ribeirão Preto', 'Londrina', 'Uberlândia', 'Goiânia', 'Vitória'];
 

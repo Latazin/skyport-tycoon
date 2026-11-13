@@ -1,7 +1,7 @@
 name: skyport_tycoon
 description: "SkyPort Tycoon — construa e administre o aeroporto mais movimentado do mundo!"
 publish_to: 'none'
-version: 3.2.1+6
+version: 3.3.0+7
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

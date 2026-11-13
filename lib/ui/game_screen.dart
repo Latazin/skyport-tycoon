@@ -59,12 +59,21 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     fly.onArrive = (gem, v) { if (!gem) pending = math.max(0, pending - v); _bump = gem ? 'gem' : 'money'; _bumpN++; };
     WidgetsBinding.instance.addObserver(this);
     _hud = Timer.periodic(const Duration(milliseconds: 100), (_) => _tick());
-    if (widget.startPanel != null && widget.startPanel != 'none') Future.delayed(const Duration(seconds: 2), () { if (mounted) openPanel(widget.startPanel!); });
+    if (widget.startPanel != null && widget.startPanel != 'none') Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      switch (widget.startPanel) {
+        case 'wheel': openWheel(force: true); break;
+        case 'daily': s.dailyLast = -1; _openDaily(); break;
+        case 'levelup': s.chestsQ.add('chest_gold'); levelUp(s.alv); break;
+        case 'chest': s.chestsQ.add('chest_epic'); showChests(); break;
+        default: openPanel(widget.startPanel!);
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.startPanel != null) return;
       if (s.tut == 0) { _welcome(); }
       else if (widget.offlineSecs > 60) { _offerOffline(widget.offlineSecs); }
-      else if (s.dailyReady && s.tut >= 7) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) openPanel('missions'); }); }
+      else if (s.dailyReady && s.tut >= 7) { Future.delayed(const Duration(milliseconds: 900), () { if (mounted && _modal == null) _openDaily(); }); }
     });
   }
 
@@ -183,7 +192,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     if (props.any((p) => p.st == id && from < p.lvl && to >= p.lvl)) toast('Decoração nova em ${st.name}!');
   }
   @override
-  void levelUp(int lvl) { banner('NÍVEL $lvl!', 'Aeroporto subiu de nível · ganhou um baú'); Sfx.play('level'); confetti(80); }
+  void levelUp(int lvl) {
+    Sfx.play('level'); Sfx.haptic(40);
+    if (_modal != null || s.tut < 7) { banner('Nível $lvl!', 'Ganhou um baú'); return; }
+    final chest = s.chestsQ.isNotEmpty ? s.chestsQ.last : 'chest';
+    _showModal(LevelUpModal(level: lvl, gems: 2 + lvl ~/ 4, chest: chest, onDone: () { _closeModal(); _flyGems(2 + lvl ~/ 4, Offset(MediaQuery.of(context).size.width / 2, MediaQuery.of(context).size.height * 0.5)); showChests(); }));
+  }
   @override
   void eventStarted(String type) {
     Sfx.play('ding');
@@ -282,6 +296,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
   @override
   void boostTap() => _boostTap();
+  void _giftTap() {
+    if (!s.giftReady) { toast('Próximo presente em ${fmtTime(s.giftLeft / 1000)}'); return; }
+    final r = s.claimGift();
+    final sz = MediaQuery.of(context).size, o = Offset(sz.width - 40, MediaQuery.of(context).padding.top + 100);
+    switch (r.$1) {
+      case 'coins': _flyFrom(o, r.$2, 14); banner('Presente!', '+\$${fmt(r.$2)}'); break;
+      case 'gems': _flyGems(r.$2.toInt(), o); banner('Presente!', '+${r.$2.toInt()} gemas'); break;
+      case 'boost': banner('Presente!', 'Lucro x2 por 10 minutos'); Sfx.play('boost'); break;
+      default: showChests();
+    }
+    Sfx.play('gift'); Sfx.haptic(30); confetti(30);
+    setState(() {});
+  }
   void _boostTap() {
     if (s.boostOn) { toast('Lucro x2 ativo por mais ${fmtTime((s.boostUntil - nowMs()) / 1000)}'); return; }
     void give() { s.claimFree(); s.inc('x2'); Sfx.play('boost'); banner('Lucro x2!', 'Por 10 minutos'); setState(() {}); }
@@ -325,6 +352,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void closePanel() { setState(() => panel = null); game.scene.selected = null; }
   @override
   void focusStation(String id) => openPanel('st:$id');
+  void _openDaily() {
+    if (!s.dailyReady) return;
+    _showModal(DailyModal(day: s.dailyDay, label: (i) { final r = dailyRewards[i]; return r.$1 == 'coins' ? '\$${fmt(math.max(r.$2 * cityMult(s.city), s.rate * 60 * (i + 1)))}' : r.$1 == 'gems' ? '${r.$2.toInt()}' : r.$1 == 'boost' ? 'x2 30m' : 'Épico'; }, onClaim: () { _closeModal(); claimDaily(); showChests(); }));
+  }
   @override
   void claimDaily() {
     if (!s.dailyReady) return;
@@ -372,7 +403,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void openWheel({bool force = false}) {
     if (!s.spinReady && !force) return;
     closePanel();
-    _showModal(WheelModal(spin: s.spin, apply: (i) {
+    _showModal(WheelModal(spin: s.spin, labels: [for (var i = 0; i < wheelPrizes.length; i++) s.wheelLabel(i)], apply: (i) {
       final r = s.applyWheel(i);
       switch (r.$1) {
         case 'coins': flyCash(r.$2); return '\$${fmt(r.$2)}!';
@@ -380,6 +411,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         case 'miles': return '${r.$2.toInt()} milhas!';
         case 'boost': return 'Lucro x2 por 15 min!';
         case 'chest_gold': return 'Baú de ouro!';
+        case 'chest_epic': return 'Baú épico!';
       }
       return 'Baú de cartas!';
     }, onClose: () { _closeModal(); Save.save(s); showChests(); }));
@@ -586,7 +618,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Positioned.fill(child: RepaintBoundary(child: FlyLayer(c: fly))),
         Positioned.fill(child: RepaintBoundary(child: ConfettiLayer(c: conf))),
         if (_banner != null) Positioned.fill(child: BannerView(key: ValueKey(_banner), title: _banner!.$1, sub: _banner!.$2, onDone: _nextBanner)),
-        if (_modal != null) Positioned.fill(child: Container(color: _modal is ChestModal ? const Color(0xE6101A33) : const Color(0x8C1F2A44), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: SingleChildScrollView(child: _modal))),
+        if (_modal != null) Positioned.fill(child: Container(color: (_modal is ChestModal || _modal is WheelModal || _modal is LevelUpModal) ? const Color(0xEB101A33) : const Color(0x8C1F2A44), alignment: Alignment.center, padding: const EdgeInsets.all(18), child: SingleChildScrollView(child: _modal))),
       ]),
     );
   }
@@ -656,6 +688,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     return Positioned(
       right: 10, top: pad.top + 74,
       child: Column(children: [
+        if (s.tut >= 7) _GiftBtn(s: s, onTap: _giftTap),
         _RoundBtn(icon: 'bolt', label: s.boostOn ? fmtTime((s.boostUntil - nowMs()) / 1000) : 'Lucro x2', ready: !s.boostOn, onTap: _boostTap),
         _RoundBtn(icon: 'wheel', label: 'Roleta', ready: s.spinReady, onTap: _wheelTap),
         _RoundBtn(icon: 'chest', label: s.chestReady ? 'Baú' : cd(s.chestAt), ready: s.chestReady, onTap: _chestTap),
@@ -971,4 +1004,45 @@ class _Vignette extends StatelessWidget {
   const _Vignette({required this.color});
   @override
   Widget build(BuildContext context) => Container(decoration: BoxDecoration(gradient: RadialGradient(radius: 1.15, colors: [Colors.transparent, Colors.transparent, color.withValues(alpha: 0.18)], stops: const [0, 0.78, 1])));
+}
+
+/// Presente da sessão: conta o tempo e balança quando fica pronto.
+class _GiftBtn extends StatefulWidget {
+  final GameState s;
+  final VoidCallback onTap;
+  const _GiftBtn({required this.s, required this.onTap});
+  @override
+  State<_GiftBtn> createState() => _GiftBtnState();
+}
+
+class _GiftBtnState extends State<_GiftBtn> with SingleTickerProviderStateMixin {
+  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+  @override
+  void dispose() { a.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s, ready = s.giftReady;
+    final total = GameState.giftWait[math.min(s.giftN, GameState.giftWait.length - 1)] * 1000;
+    final k = ready ? 1.0 : 1 - s.giftLeft / total;
+    final kind = s.giftKind;
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: 56, child: Column(children: [
+        AnimatedBuilder(animation: a, builder: (_, c) {
+          final w = ready ? math.sin(a.value * math.pi * 2 * 3) * (a.value < 0.35 ? 0.18 : 0.0) : 0.0;
+          return Transform.rotate(angle: w, child: Transform.scale(scale: ready ? 1 + math.sin(a.value * math.pi * 2) * 0.05 : 1, child: c));
+        }, child: Stack(alignment: Alignment.center, children: [
+          Container(width: 52, height: 52, decoration: BoxDecoration(shape: BoxShape.circle, color: ready ? K.gold : Colors.white, boxShadow: ready ? [BoxShadow(color: K.gold.withValues(alpha: 0.7), blurRadius: 16, spreadRadius: 2)] : K.shadow)),
+          SizedBox(width: 50, height: 50, child: CircularProgressIndicator(value: k.clamp(0.0, 1.0), strokeWidth: 3.5, color: ready ? Colors.white : K.gold, backgroundColor: K.track)),
+          Ico(kind.startsWith('chest') ? kind : 'gift', size: 34),
+        ])),
+        const SizedBox(height: 3),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(color: ready ? K.gold : Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(8)),
+          child: FittedBox(child: Text(ready ? 'Pegar!' : fmtTime(s.giftLeft / 1000), style: body(10.5, color: ready ? Colors.white : K.navy2, w: FontWeight.w900))),
+        ),
+      ]))),
+    );
+  }
 }
