@@ -60,7 +60,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     game.onAutosave = () => Save.save(s);
     fly.onArrive = (gem, v) { if (!gem) pending = math.max(0, pending - v); _bump = gem ? 'gem' : 'money'; _bumpN++; };
     WidgetsBinding.instance.addObserver(this);
-    _hud = Timer.periodic(const Duration(milliseconds: 100), (_) => _tick());
+    _hud = Timer.periodic(Duration(milliseconds: kIsWeb ? 160 : 100), (_) => _tick());
     if (widget.startPanel != null && widget.startPanel != 'none') Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       switch (widget.startPanel) {

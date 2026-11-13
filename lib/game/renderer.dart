@@ -47,7 +47,7 @@ class SceneRenderer extends Component {
   String? selected, hint;
   SceneRenderer(this.w, this.s);
 
-  final Paint _p = Paint()..filterQuality = FilterQuality.medium..isAntiAlias = true;
+  final Paint _p = Paint()..filterQuality = kIsWeb ? FilterQuality.low : FilterQuality.medium..isAntiAlias = !kIsWeb;
   final Paint _bgP = Paint()..filterQuality = FilterQuality.low;
   static final Map<String, _OT> _tc = {};
   final List<_D> _ds = [];
@@ -338,7 +338,8 @@ class SceneRenderer extends Component {
   void _ambient(Canvas c) {
     final day = (1 - night * 1.2).clamp(0.0, 1.0).toDouble();
     if (day <= 0.02) return;
-    for (var i = 0; i < 4; i++) {
+    // sombras de nuvens: gradiente grande cobrindo a tela é caro no navegador do celular
+    if (!kIsWeb) for (var i = 0; i < 4; i++) {
       const span = 5200.0;
       final x = -2600 + ((w.t * (16 + i * 5) + i * 1370) % span);
       final y = -1100 + i * 520 + math.sin(w.t * 0.05 + i) * 80;
@@ -569,7 +570,7 @@ class SceneRenderer extends Component {
       final tp = _text(f.text, (15 * f.big * k).roundToDouble(), f.color, const Color(0xCC1E2A47));
       c.save();
       c.translate(o.dx, o.dy); c.scale(sc);
-      c.saveLayer(null, Paint()..color = Color.fromRGBO(0, 0, 0, a));
+      c.saveLayer(Rect.fromLTWH(-tp.width / 2 - 4, -tp.height / 2 - 4, tp.width + 8, tp.height + 8), Paint()..color = Color.fromRGBO(0, 0, 0, a));
       tp.paint(c, Offset(-tp.width / 2, -tp.height / 2));
       c.restore(); c.restore();
     }
