@@ -413,7 +413,7 @@ class StarsPanel extends StatelessWidget {
     final mega = s.star >= 5;
     return Sheet(title: mega ? 'Estrelas · Mega Hub' : 'Estrelas', subtitle: starNames[math.min(s.star, maxStars)], icon: 'star', color: K.purple, onClose: h.closePanel, child: Column(children: [
       GCard(child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < maxStars; i++) Padding(padding: EdgeInsets.only(left: i == 5 ? 12 : 2, right: 2), child: Opacity(opacity: i < s.star ? 1 : 0.18, child: i >= 5 ? ColorFiltered(colorFilter: const ColorFilter.mode(Color(0xFFB66BFF), BlendMode.modulate), child: Ico('star', size: 34)) : const Ico('star', size: 30)))]),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < maxStars; i++) Padding(padding: EdgeInsets.only(left: i == 5 ? 12 : 2, right: 2), child: Opacity(opacity: i < s.star ? 1 : 0.18, child: i >= 5 ? const ColorFiltered(colorFilter: ColorFilter.matrix(<double>[0.55, 0.25, 0.2, 0, 0, 0.15, 0.25, 0.1, 0, 0, 0.45, 0.35, 0.75, 0, 40, 0, 0, 0, 1, 0]), child: Ico('star', size: 34)) : const Ico('star', size: 30)))]),
         if (!mega) ...[const SizedBox(height: 4), Text('Depois da 5ª estrela começa a era Mega Hub (estrelas roxas).', textAlign: TextAlign.center, style: body(12, color: K.purple, w: FontWeight.w800))],
         const SizedBox(height: 6),
         Text('Cada estrela dobra a receita (agora x${fmt(s.starMult)}) e libera novas áreas.', textAlign: TextAlign.center, style: body(13, color: K.muted)),
