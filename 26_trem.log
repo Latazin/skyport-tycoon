@@ -1,0 +1,2 @@
+debug: Injecting <script> tag. Using callback.
+error: Blocked call to navigator.vibrate because user hasn't tapped on the frame or any embedded frame yet: https://www.chromestatus.com/feature/5644273861001216.
