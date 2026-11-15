@@ -500,9 +500,61 @@ class AirWorld {
     }
   }
 
+  // ---------- jato do milionário (pousa, estaciona no pátio e só sai com anúncio) ----------
+  static const jetX = 31.5;
+  Path3? _jetPath;
+  double _jetD = 0, _jetPush = 0;
+  int jetStage = 0; // 0 nada, 1 chegando, 2 estacionado, 3 empurrando, 4 saindo
+  Pose? jetPose;
+  double get _jetPark => Routes.parkZ(2);
+  void _jetTick(double dt) {
+    final ph = s.phase;
+    if (jetStage == 0) {
+      if (s.jetParked) { jetStage = 2; jetPose = Pose(P3(jetX, 0, _jetPark), 0); return; }
+      if (s.jetIncoming) {
+        final cr = Routes.connR(ph);
+        _jetPath = Path3.round([
+          const P3(Lay.runwayX0 - 80, 16, Lay.runwayZ), const P3(Lay.runwayX0 + 12, 0, Lay.runwayZ),
+          P3(cr - 4, 0, Lay.runwayZ), P3(cr, 0, Lay.runwayZ), P3(cr, 0, Lay.laneZ), P3(jetX, 0, Lay.laneZ), P3(jetX, 0, _jetPark),
+        ], 3.2);
+        _jetD = 0; jetStage = 1;
+      }
+      return;
+    }
+    if (jetStage == 1) {
+      final p = _jetPath!.at(_jetD).p;
+      _jetD += dt * (p.y > 0.2 || p.x < Routes.connR(ph) - 10 ? 26 : 7);
+      jetPose = _jetPath!.at(_jetD);
+      if (_jetD >= _jetPath!.length) { jetStage = 2; s.jetArrived(); }
+      return;
+    }
+    if (jetStage == 2) {
+      jetPose = Pose(P3(jetX, 0, _jetPark), 0);
+      if (s.jetLeaving) { jetStage = 3; _jetPush = 0; }
+      return;
+    }
+    if (jetStage == 3) {
+      _jetPush += dt * 3;
+      final z = _jetPark - _jetPush;
+      jetPose = Pose(P3(jetX, 0, math.max(z, Lay.laneZ)), 0);
+      if (z <= Lay.laneZ) {
+        _jetPath = Path3.round([P3(jetX, 0, Lay.laneZ), const P3(Lay.connL, 0, Lay.laneZ), const P3(Lay.connL, 0, Lay.holdZ), ...Routes.takeoff.pts.skip(1)], 3.2);
+        _jetD = 0; jetStage = 4;
+      }
+      return;
+    }
+    if (jetStage == 4) {
+      final p = _jetPath!.at(_jetD).p;
+      _jetD += dt * (p.y > 0.2 ? 30 : p.z < Lay.holdZ - 2 ? 22 : 8);
+      jetPose = _jetPath!.at(_jetD);
+      if (_jetD >= _jetPath!.length) { jetStage = 0; jetPose = null; s.jetLeaving = false; }
+    }
+  }
+
   void update(double dt) {
     t += dt;
     _trainTick();
+    _jetTick(dt);
     _spawnT -= dt;
     if (_spawnT <= 0) {
       _spawnT = 1 / _visRate * (0.7 + r.nextDouble() * 0.6);

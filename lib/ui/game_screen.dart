@@ -14,7 +14,8 @@ import '../core/save.dart';
 import '../core/state.dart';
 import '../game/art.dart';
 import '../game/sky_game.dart';
-import '../game/world.dart' show iso, Floater, Puff;
+import '../game/world.dart' show iso, Floater, Puff, AirWorld;
+import '../core/paths.dart' show Routes;
 import 'effects.dart';
 import 'kit.dart';
 import 'minigames.dart';
@@ -69,10 +70,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         case 'daily': s.dailyLast = -1; _openDaily(); break;
         case 'levelup': s.chestsQ.add('chest_gold'); levelUp((s.alv ~/ 5 + 1) * 5); break;
         case 'incident': s.incCur = 0; _openIncident(); break;
+        case 'jetview': game.focusWorld(AirWorld.jetX, Routes.parkZ(2), zoomTo: 0.7); break;
+        case 'jet': game.focusWorld(AirWorld.jetX, Routes.parkZ(2), zoomTo: 0.7); Future.delayed(const Duration(milliseconds: 600), _jetTap); break;
         case 'sat': _openSatisfaction(); break;
         case 'build': s.buildEnd['solar'] = nowMs() + 420000; openPanel('st:solar'); break;
         case 'chest': s.chestsQ.add('chest_epic'); showChests(); break;
-        default: openPanel(widget.startPanel!);
+        default: if (widget.startPanel!.startsWith('mg:')) { _playGame(widget.startPanel!.substring(3)); } else { openPanel(widget.startPanel!); }
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -267,6 +270,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Sfx.play('alert'); Sfx.haptic(30);
         toast('Incidente no aeroporto! Toque no aviso para decidir.');
         break;
+      case 'jet_in':
+        Sfx.play('jet'); toast('Um jato dourado está pousando...');
+        break;
+      case 'jet_parked':
+        Sfx.play('ding'); Sfx.haptic(30);
+        game.focusWorld(AirWorld.jetX, Routes.parkZ(2));
+        banner('Jato do Milionário!', 'Estacionou no pátio. Toque nele!');
+        break;
       case 'megahub':
         banner('Era Mega Hub!', 'Agora são 8 estrelas: Shopping e Torre Panorâmica');
         break;
@@ -290,6 +301,31 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     final g = s.finishGems(id);
     if (s.gems < g) { toast('Faltam ${g - s.gems} gemas'); return; }
     s.gems -= g; s.finishBuild(id); setState(() {});
+  }
+  void _jetTap() {
+    if (!s.jetParked || _modal != null) return;
+    Sfx.click();
+    _showModal(GameModal(title: 'Jato do Milionário', icon: 'crown', color: K.gold, actions: [
+      GBtn(color: K.green, pulse: true, onTap: () { _closeModal(); _ad(() {
+        final cash = s.jetCash, g = s.jetGems;
+        s.claimJet();
+        final o = game.worldToScreen(iso(AirWorld.jetX, Routes.parkZ(2), 4));
+        _flyFrom(o, cash, 24); _flyGems(g, o);
+        Sfx.play('cash'); Sfx.haptic(60); confetti(120);
+        banner('Gorjeta milionária!', '+\$${fmt(cash)} e +$g gemas');
+        Save.save(s); setState(() {});
+      }); }, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.play_circle_fill_rounded, color: Colors.white), const SizedBox(width: 6), Text('Liberar decolagem', style: display(17))])),
+      const SizedBox(height: 6),
+      GestureDetector(onTap: _closeModal, child: Padding(padding: const EdgeInsets.all(8), child: Text('Agora não (ele fica esperando)', style: body(13.5, color: K.muted, w: FontWeight.w800)))),
+    ], child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('Um bilionário estacionou o jatinho dourado no seu pátio. Assista a um anúncio para liberar a decolagem e ele deixa uma gorjeta enorme:', textAlign: TextAlign.center, style: body(14.5)),
+      const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: K.greenL, borderRadius: BorderRadius.circular(14)), child: Price(fmt(s.jetCash), size: 20, color: K.greenD)),
+        const SizedBox(width: 10),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: K.purpleL, borderRadius: BorderRadius.circular(14)), child: Price('${s.jetGems}', icon: 'gem', size: 20, color: K.purple)),
+      ]),
+    ])));
   }
   void _openIncident() {
     if (!s.incOn || _modal != null) return;
@@ -329,7 +365,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
 
   // ================= anúncios premiados =================
-  bool _adBusy = false, _adPaid = false;
+  bool _adBusy = false;
   Future<void> _ad(VoidCallback reward) async {
     if (_adBusy) return;
     _adBusy = true; Sfx.pauseMusic();
@@ -512,6 +548,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void _onWorldTap(String id) {
     if (id == 'none') { if (panel != null) closePanel(); return; }
     if (id == 'ev') { _tapEvent(); return; }
+    if (id == 'jet') { _jetTap(); return; }
     if (id == 'pile:mirante') {
       final v = s.collectMirante(); if (v <= 0) return;
       _flyFrom(game.worldToScreen(iso(Lay.tower2.$1, Lay.tower2.$2, 8)), v, 12); Sfx.play('cash'); Sfx.haptic();
@@ -599,10 +636,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   }
 
   Future<void> _playGame(String which) async {
-    // a primeira partida de cada jogo é livre; depois, um anúncio por partida
-    if (s.c('mg_$which') > 0 && !_adPaid) { _ad(() { _adPaid = true; _playGame(which); }); return; }
-    _adPaid = false;
+    // minijogos sem anúncio: as 5 primeiras partidas do dia de cada jogo pagam o prêmio cheio
     s.inc('mg_$which');
+    _mgFull = _mgToday(which) < 5;
+    s.inc('mgd_${which}_${dayKey()}');
     Sfx.click();
     final page = switch (which) {
       'land' => LandingGame(rewardText: _rewardText, level: s.landingLevel) as Widget,
@@ -623,16 +660,18 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
     }
     s.inc('minigames'); s.sPts += 5;
     if (res.stars > 0) {
-      final v = s.gameReward(const [0.0, 60.0, 150.0, 300.0][res.stars]);
+      final v = s.gameReward(const [0.0, 60.0, 150.0, 300.0][res.stars]) * (_mgFull ? 1 : 0.3);
       s.earn(v); flyCash(v);
-      if (res.stars == 3) { s.gems += 3; flyGemsCenter(3); s.chestsQ.add('chest'); }
+      if (res.stars == 3 && _mgFull) { s.gems += 3; flyGemsCenter(3); s.chestsQ.add('chest'); }
       s.addXp(res.stars * 3.0);
       confetti(40);
     }
     Save.save(s);
     setState(() {});
   }
-  String _rewardText(int stars) => stars == 0 ? 'Tente de novo daqui a pouco.' : 'Prêmio: \$${fmt(s.gameReward(const [0.0, 60.0, 150.0, 300.0][stars]))}${stars == 3 ? ' + 3 gemas + baú' : ''}';
+  bool _mgFull = true;
+  int _mgToday(String which) => s.c('mgd_${which}_${dayKey()}').toInt();
+  String _rewardText(int stars) => stars == 0 ? 'Tente de novo!' : 'Prêmio: \$${fmt(s.gameReward(const [0.0, 60.0, 150.0, 300.0][stars]) * (_mgFull ? 1 : 0.3))}${stars == 3 && _mgFull ? ' + 3 gemas + baú' : ''}${_mgFull ? '' : '\n(prêmio reduzido: já jogou 5 vezes hoje)'}';
 
   // ================= construção =================
   @override
@@ -780,17 +819,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       ('wheel', 'Roleta', s.spinReady ? 'Giro grátis!' : 'Giro extra', s.spinReady, K.purple, () => go(_wheelTap)),
       ('chest', 'Baú', s.chestsQ.isNotEmpty ? '${s.chestsQ.length} para abrir' : s.chestReady ? 'Grátis!' : cd(s.chestAt), s.chestReady || s.chestsQ.isNotEmpty, K.orange, () => go(_chestTap)),
       ('cash', 'Cofrinho', s.piggyFull ? 'Cheio!' : '${(s.piggy / s.piggyCap * 100).clamp(0, 100).round()}%', s.piggyFull, K.green, () => go(_piggyTap)),
-      ('landing', 'Minijogos', gReady > 0 ? '$gReady grátis' : 'Jogar', gReady > 0, K.blue, () => go(() => openPanel('games'))),
+      ('landing', 'Minijogos', 'Jogar', gReady > 0, K.blue, () => go(() => openPanel('games'))),
     ]));
   }
 
   /// Minijogos disponíveis: (id, nome, ícone, pronto, recarga).
   List<(String, String, String, bool, int)> get _games => [
-        ('land', 'Pouso perfeito', 'landing', s.c('mg_land') == 0, 0),
-        ('xray', 'Raio-X', 'xray', s.c('mg_xray') == 0, 0),
-        ('bag', 'Esteira de malas', 'bags', s.c('mg_bag') == 0, 0),
-        if (s.phase >= 1) ('atc', 'Torre de controle', 'tower', s.c('mg_atc') == 0, 0),
-        if (s.phase >= 2) ('yard', 'Pátio', 'route', s.c('mg_yard') == 0, 0),
+        ('land', 'Pouso perfeito', 'landing', _mgToday('land') < 5, 0),
+        ('xray', 'Raio-X', 'xray', _mgToday('xray') < 5, 0),
+        ('bag', 'Esteira de malas', 'bags', _mgToday('bag') < 5, 0),
+        if (s.phase >= 1) ('atc', 'Torre de controle', 'tower', _mgToday('atc') < 5, 0),
+        if (s.phase >= 2) ('yard', 'Pátio', 'route', _mgToday('yard') < 5, 0),
       ];
   @override
   List<(String, String, String, bool, int)> get games => _games;

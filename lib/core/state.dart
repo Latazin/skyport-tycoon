@@ -97,6 +97,9 @@ class GameState {
   final Map<String, int> buildEnd = {};
   int incNext = 0, incCur = -1;
   double satMod = 0, mirPile = 0;
+  // jato do milionário
+  int jetNext = 0;
+  bool jetParked = false, jetIncoming = false, jetLeaving = false;
 
   // ---------- execução ----------
   Fx? fx;
@@ -430,7 +433,7 @@ class GameState {
     for (var g = 0; g < 6; g++) { if (pile[g] > 0 && clock - pileT[g] > wait) { earn(pile[g]); pile[g] = 0; } }
     if (shopPile > 0 && clock - shopPileT > wait) { earn(shopPile); shopPile = 0; }
     _eventsTick();
-    if (_acc == 0) { _ctTick(); _wkTick(); _offerTick(); _incTick(); _buildTick(); }
+    if (_acc == 0) { _ctTick(); _wkTick(); _offerTick(); _incTick(); _buildTick(); _jetTick(); }
     if (frenzy > 0 && !frenzyOn) frenzy = math.max(0, frenzy - dt * 0.012);
     _specialTick(dt);
     _histAcc += dt;
@@ -731,6 +734,23 @@ class GameState {
   void dropContract() { ctAir = -1; ctNext = nowMs() + 60000; }
   void _ctTick() { if (ctAir >= 0 && !ctReady && nowMs() >= ctUntil) { ctAir = -1; ctNext = nowMs() + 2 * 60000; fx?.toast('O contrato expirou'); } }
 
+  // ---------- jato do milionário ----------
+  void _jetTick() {
+    if (tut < 7 || phase < 2 || jetParked || jetIncoming || jetLeaving) return;
+    final now = nowMs();
+    if (jetNext == 0) { jetNext = now + 5 * 60000; return; }
+    if (now >= jetNext) { jetIncoming = true; fx?.special('jet_in', 0); }
+  }
+  void jetArrived() { jetIncoming = false; jetParked = true; fx?.special('jet_parked', 0); }
+  /// Prêmio do jato: 20 min de receita e 40 gemas.
+  double get jetCash => math.max(rate * 1200, 3000.0 * cityMult(city));
+  int get jetGems => 40;
+  void claimJet() {
+    if (!jetParked) return;
+    earn(jetCash); gems += jetGems; inc('jets'); sPts += 20;
+    jetParked = false; jetLeaving = true; jetNext = nowMs() + (14 + _r.nextInt(10)) * 60000;
+  }
+
   // ---------- obras com tempo ----------
   void _buildTick() {
     if (buildEnd.isEmpty) return;
@@ -953,7 +973,7 @@ class GameState {
         'res': research.toList(), 'rot': routesOwned.toList(), 'ach': achClaimed.toList(), 'cards': cards, 'mlv': mlv, 'cnt': cnt,
         'dk': dKey, 'wk': wKey, 'db': dBase, 'wb': wBase, 'dt': dTasks, 'wt': wTasks, 'dc': dClaimed, 'wc': wClaimed, 'dbo': dBonus,
         'si': sId, 'sp': sPts, 'sc': sClaimed.toList(), 'cq': chestsQ, 'gf': [giftAt, giftN, giftDay],
-        'pg': piggy, 'on': offerNext, 'tru': tripleUntil, 'hp': hotelPile, 'np': netPile, 'dec': decor.toList(), 'aa': abilAt, 'ct': [ctAir, ctNeed, ctUntil, ctGems, ctBase, ctNext], 'wke': [wkEnd, wkBase, wkClaimed ? 1 : 0], 'be': buildEnd, 'inc': [incNext, incCur], 'sm': satMod, 'mp': mirPile,
+        'pg': piggy, 'on': offerNext, 'tru': tripleUntil, 'hp': hotelPile, 'np': netPile, 'dec': decor.toList(), 'aa': abilAt, 'ct': [ctAir, ctNeed, ctUntil, ctGems, ctBase, ctNext], 'wke': [wkEnd, wkBase, wkClaimed ? 1 : 0], 'be': buildEnd, 'inc': [incNext, incCur], 'sm': satMod, 'mp': mirPile, 'jet': [jetNext, jetParked || jetIncoming ? 1 : 0],
       };
   void loadJson(Map<String, dynamic> j) {
     double d(String k, double def) => (j[k] as num?)?.toDouble() ?? def;
@@ -997,6 +1017,8 @@ class GameState {
     final ic = ((j['inc'] as List?) ?? []).map((e) => (e as num).toInt()).toList();
     if (ic.length == 2) { incNext = ic[0]; incCur = ic[1] < incidents.length ? ic[1] : -1; }
     satMod = ((j['sm'] as num?) ?? 0).toDouble(); mirPile = ((j['mp'] as num?) ?? 0).toDouble();
+    final jt = ((j['jet'] as List?) ?? []).map((e) => (e as num).toInt()).toList();
+    if (jt.length == 2) { jetNext = jt[0]; jetParked = jt[1] == 1; }
     ensurePeriods();
     _estimate();
   }

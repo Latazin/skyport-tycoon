@@ -1010,24 +1010,25 @@ class GamesPanel extends StatelessWidget {
   const GamesPanel({super.key, required this.s, required this.h});
   static const desc = {
     'land': 'Segure para descer e solte no ponto certo da pista',
-    'xray': 'Ache os itens proibidos nas malas',
-    'bag': 'Arraste cada mala para o avião da cor dela',
-    'atc': 'Autorize os pousos um de cada vez',
-    'yard': 'Mande cada avião para o portão da cor certa',
+    'xray': 'O conteúdo só aparece no scanner: pegue os itens proibidos',
+    'bag': 'Várias malas na esteira: cada uma no avião da sua cor',
+    'atc': 'Segure e libere os aviões sem deixar eles se encostarem',
+    'yard': 'Estacione nos portões certos e libere as decolagens',
   };
   @override
   Widget build(BuildContext context) {
     final list = h.games;
-    return Sheet(title: 'Minijogos', subtitle: 'Até 3 estrelas: dinheiro, gemas e baú', icon: 'landing', color: K.orange, onClose: h.closePanel, child: Column(children: [
+    return Sheet(title: 'Minijogos', subtitle: 'Sem anúncio! 5 partidas por dia com prêmio cheio', icon: 'landing', color: K.orange, onClose: h.closePanel, child: Column(children: [
       for (final g in list) GCard(padding: const EdgeInsets.all(10), child: Row(children: [
         IcoBox(g.$3, color: K.orange, size: 50),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(g.$2, style: body(16, w: FontWeight.w900)),
           Text(desc[g.$1] ?? '', style: body(12.5, color: K.muted)),
+          if (!g.$4) Text('Prêmio reduzido hoje (volta amanhã)', style: body(11.5, color: K.orange, w: FontWeight.w800)),
         ])),
         const SizedBox(width: 8),
-        GBtn(color: K.green, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: () => h.playGame(g.$1), child: Row(mainAxisSize: MainAxisSize.min, children: [if (!g.$4) ...[const Icon(Icons.play_circle_fill_rounded, size: 18), const SizedBox(width: 4)], Text('Jogar', style: display(14))])),
+        GBtn(color: K.green, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: () => h.playGame(g.$1), child: Text('Jogar', style: display(14))),
       ])),
       if (s.phase < 2) Text(s.phase < 1 ? 'Novos jogos chegam quando o aeroporto crescer: Torre (2ª fase) e Pátio (3ª fase).' : 'O jogo do Pátio chega na próxima fase do aeroporto.', textAlign: TextAlign.center, style: body(12.5, color: K.muted)),
     ]));

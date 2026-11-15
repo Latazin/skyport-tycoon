@@ -18,6 +18,7 @@ const fs = require('fs');
     ['18_rio_dourado', '?auto=1&demo=p1&city=4&panel=none', [32000]], ['19_costa', '?auto=1&demo=1&city=5&panel=none', [32000]],
     ['25_obras', '?auto=1&demo=1&star=5&extras=1&panel=none', [30000, 42000]], ['26_trem', '?auto=1&demo=1&star=5&extras=1&panel=st:trem', [28000, 33000]], ['27_bombeiros', '?auto=1&demo=1&star=5&extras=1&panel=st:bombeiros', [30000]], ['28_obra_nova', '?auto=1&demo=p1&panel=st:bombeiros', [30000]],
     ['29_megahub', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=none', [30000]], ['30_shopping', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=st:shopping', [30000]], ['31_mirante', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=st:mirante', [30000]], ['32_incidente', '?auto=1&demo=1&star=5&panel=incident', [30000]], ['33_obra', '?auto=1&demo=1&star=5&extras=1&panel=build', [30000]], ['34_estrelas', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=stars', [30000]], ['35_satisfacao', '?auto=1&demo=1&star=5&panel=sat', [30000]],
+    ['36_jato', '?auto=1&demo=1&star=5&jet=1&panel=jetview', [30000]], ['37_jato_modal', '?auto=1&demo=1&star=5&jet=1&panel=jet', [31000]], ['38_torre', '?auto=1&demo=1&panel=mg:atc', [26000, 36000], [[0, 195, 400]]], ['39_raiox', '?auto=1&demo=1&panel=mg:xray', [26000, 34000], [[0, 195, 400]]], ['40_esteira', '?auto=1&demo=1&panel=mg:bag', [26000, 34000], [[0, 195, 400]]], ['41_patio', '?auto=1&demo=1&panel=mg:yard', [26000, 36000], [[0, 195, 400]]],
     ['20_rede', '?auto=1&demo=1&city=2&star=5&panel=cities', [30000]],
   ];
   for (const [name, q, waits, clicks] of runs) {

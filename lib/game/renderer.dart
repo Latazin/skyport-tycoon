@@ -216,6 +216,7 @@ class SceneRenderer extends Component {
       final pose = w.planePose(g);
       if (pose != null) _plane(g, pose);
     }
+    if (w.jetPose != null) _jet(w.jetPose!);
     if (s.shopPile > 0) {
       final pp = AirWorld.shopPilePos, n = s.shopPile > s.rate * 30 ? 3 : s.shopPile > s.rate * 8 ? 2 : 1;
       _add(4, pp.$1 + pp.$2 + 0.5, (c) { final r = spr(c, 'cash$n', pp.$1, pp.$2, y: fy); if (r != null) hits.add(Hit(r.inflate(16), 'pile:shop', 0)); });
@@ -372,6 +373,42 @@ class SceneRenderer extends Component {
         final f = math.sin(w.t * 9 + i * 1.3) * 6;
         c.drawPath(Path()..moveTo(o.dx - 11, o.dy - f)..quadraticBezierTo(o.dx - 5, o.dy - 4, o.dx, o.dy)..quadraticBezierTo(o.dx + 5, o.dy - 4, o.dx + 11, o.dy - f), p);
       }
+    }
+  }
+
+  /// Jato do milionário: dourado, brilhando quando estacionado.
+  void _jet(Pose pose) {
+    var idx = (((pose.heading / (math.pi / 8)).round()) % 16 + 16) % 16;
+    var flip = false;
+    if (idx < 2 || idx > 10) { idx = ((4 - idx) % 16 + 16) % 16; flip = true; }
+    final p = pose.p, air = p.y > 0.3, len = planeTypes[2].len;
+    _add(0, p.x + p.z - 0.5, (c) {
+      final o = iso(p.x + 0.4 + p.y * 0.25, p.z - 0.4 - p.y * 0.25);
+      final k = (1 - p.y / 70).clamp(0.2, 1.0);
+      c.drawOval(Rect.fromCenter(center: o, width: len * S * 0.75 * k, height: len * S * 0.36 * k), Paint()..color = Color.fromRGBO(20, 30, 50, 0.22 * k));
+      if (w.jetStage == 2) {
+        // tapete vermelho e brilho no chão
+        final g = 0.5 + 0.5 * math.sin(w.t * 3);
+        c.drawOval(Rect.fromCenter(center: iso(p.x, p.z), width: len * S * 1.25, height: len * S * 0.62), Paint()..color = Color.fromRGBO(255, 210, 63, 0.18 + 0.12 * g));
+      }
+    });
+    _add(air ? 5 : 0, p.x + p.z, (c) {
+      final r = spr(c, 'pl2_3_$idx', p.x, p.z, y: p.y, scale: air ? 1 + p.y / 80 : 1.0, flip: flip);
+      if (w.jetStage == 2 && r != null) {
+        hits.add(Hit(r.inflate(10), 'jet', 0));
+        for (var i = 0; i < 4; i++) {
+          final a = w.t * 2.4 + i * 1.57;
+          c.drawCircle(iso(p.x + math.cos(a) * len * 0.45, p.z + math.sin(a) * len * 0.45, 2.2 + math.sin(a * 2) * 0.6), 4.5, Paint()..color = const Color(0xFFFFF1A8));
+        }
+      }
+    });
+    if (w.jetStage == 2) {
+      _add(9, 1e9, (c) {
+        final k = (1 / zoom).clamp(0.9, 2.4).toDouble();
+        final o = iso(p.x, p.z, 7) - Offset(0, math.sin(w.t * 3) * 4 * k);
+        final r = plate(c, 'PRÊMIO GIGANTE', o, 12 * k, const Color(0xFFFFB020), ico: 'gem', solid: true);
+        hits.add(Hit(r.inflate(14), 'jet', 0));
+      });
     }
   }
 
