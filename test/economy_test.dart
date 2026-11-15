@@ -132,8 +132,8 @@ void main() {
     s.lv['esp3'] = 20; expect(s.snowSpeed > 1, true);
   });
 
-  test('comprar o próximo aeroporto exige 5 estrelas e dinheiro', () {
-    final s = GameState()..star = 5..money = 10;
+  test('comprar o próximo aeroporto exige todas as estrelas e dinheiro', () {
+    final s = GameState()..star = maxStars..money = 10;
     expect(s.canPrestige, false);
     s.money = s.nextPrice * 2;
     expect(s.canPrestige, true);
