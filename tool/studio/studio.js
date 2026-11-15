@@ -598,7 +598,7 @@ const CITY = [
 ];
 function shadeHex(c, f) { const k = v => Math.max(0, Math.min(255, Math.round(v * f))); return (k((c >> 16) & 255) << 16) | (k((c >> 8) & 255) << 8) | k(c & 255); }
 /* lotes das construções extras: o fundo fica livre (árvores e prédios saem) */
-const LOTS = [[-83, -71, -27, -17], [-74, -66, 1.5, 8.5], [56, 68, -0.5, 8.5], [-73, -51, 25.5, 35.5], [-140, -72, 27.4, 31.2], [58.5, 73.5, -29.5, -18.5]];
+const LOTS = [[45, 59, 25.5, 36.5], [-49, -41, 32, 40], [-83, -71, -27, -17], [-74, -66, 1.5, 8.5], [56, 68, -0.5, 8.5], [-73, -51, 25.5, 35.5], [-140, -72, 27.4, 31.2], [58.5, 73.5, -29.5, -18.5]];
 function clearLots(g) { for (const o of [...g.children]) { if (!(o.isGroup || o.position.y > 0.07)) continue; const x = o.position.x, z = o.position.z; if (LOTS.some(([a, b, c, d]) => x > a - 1 && x < b + 1 && z > c - 1 && z < d + 1)) g.remove(o); } }
 function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function dashedX(p, x0, x1, z, len, gap, w, c, y = 0.06) { for (let x = x0; x < x1 - len; x += len + gap) flat(p, len, w, c, x + len / 2, z, y); }
@@ -1115,6 +1115,71 @@ function solarFarm() {
   C(g, 0.08, 0.08, 4, 0x6b7280, 6.6, 0.1, -3.8, 6); B(g, 1.6, 0.06, 0.06, 0x6b7280, 6.6, 3.8, -3.8);
   return g;
 }
+/* ===== era Mega Hub (v3.5) ===== */
+function mallModel(tier) {
+  const g = new THREE.Group();
+  B(g, 13, 0.12, 11, 0xc5cbd5, 0, 0, 0);
+  // estacionamento na frente
+  for (let i = 0; i < 6; i++) flat(g, 0.12, 2.2, 0xffffff, -5 + i * 2, 4.2, 0.13);
+  const carC = [0xff6b6b, 0x4f8bff, 0xffc928, 0xffffff, 0x2ec27e];
+  for (let i = 0; i < (tier + 2); i++) { const x = -4 + i * 2, cc = carC[i % carC.length]; B(g, 1.2, 0.6, 1.8, cc, x, 0.15, 4.2); B(g, 1.0, 0.45, 1.0, M(0x8fd6ff), x, 0.7, 4.1); }
+  const H = tier === 1 ? 4.2 : tier === 2 ? 5.6 : 6.4;
+  const main = tier === 3 ? 0xfff4e0 : 0xf7f9fc;
+  B(g, 11, H, 6.4, main, -0.4, 0.12, -1.6);
+  B(g, 11.2, 0.35, 6.6, tier === 3 ? 0xd4a24c : 0xff6fae, -0.4, H + 0.12, -1.6);
+  // vitrines de vidro em dois andares
+  for (let f = 0; f < (tier === 1 ? 2 : 3); f++) {
+    const y = 0.5 + f * (H - 0.6) / (tier === 1 ? 2 : 3);
+    B(g, 10.4, 1.0, 0.08, M(0x8fd6ff), -0.4, y, 1.62);
+    B(g, 0.08, 1.0, 5.6, M(0x8fd6ff), 5.12, y, -1.6);
+    for (let k = 0; k < 6; k++) B(g, 0.1, 1.0, 0.1, 0xb8c0cf, -5 + k * 2, y, 1.66);
+  }
+  // entrada com marquise
+  B(g, 3.4, 2.4, 0.4, M(0x5b8cff), -0.4, 0.12, 1.75);
+  B(g, 4.4, 0.25, 1.8, tier === 3 ? 0xd4a24c : 0xff6fae, -0.4, 2.7, 2.4);
+  sign(g, 'SHOPPING', 5.0, 0.9, tier === 3 ? '#d4a24c' : '#ff6fae', '#ffffff', -0.4, H - 0.6, 1.72);
+  if (tier >= 2) {
+    // átrio com cúpula de vidro
+    const d = Sp(g, 2.2, M(0x9fdcff, { transparent: true, opacity: 0.85 }), -2.6, H + 0.3, -2.0, 18); d.scale.y = 0.6;
+    B(g, 3.2, 3.2, 3.0, 0xf7f9fc, 3.6, H + 0.12, -2.8);
+    B(g, 0.08, 2.2, 2.4, M(0x8fd6ff), 5.22, H + 0.6, -2.8);
+    B(g, 3.0, 2.2, 0.08, M(0x8fd6ff), 3.6, H + 0.6, -1.28);
+  }
+  if (tier === 3) {
+    // telão de LED e jardim no telhado
+    B(g, 0.12, 2.4, 3.6, M(0x7c5cfa, { emissive: 0x3a2a80 }), 5.3, 1.4, -1.0);
+    for (let i = 0; i < 5; i++) { Sp(g, 0.55, 0x2ec27e, -5.0 + i * 1.2, H + 0.85, -4.2, 8); C(g, 0.5, 0.5, 0.35, 0x9c6b3c, -5.0 + i * 1.2, H + 0.47, -4.2, 8); }
+    for (const x of [-6.0, 5.6]) palmTree(g, x, 3.0);
+  }
+  return g;
+}
+function palmTree(g, x, z) {
+  const tr = C(g, 0.12, 0.18, 2.6, 0x9c6b3c, x, 0.12, z, 6);
+  for (let i = 0; i < 6; i++) { const f = B(g, 1.6, 0.06, 0.4, 0x2ec27e, x + Math.cos(i) * 0.6, 2.75, z + Math.sin(i) * 0.6); f.rotation.y = i; f.rotation.z = -0.35; }
+  return tr;
+}
+function miranteModel() {
+  const g = new THREE.Group();
+  C(g, 3.2, 3.6, 0.6, 0xc5cbd5, 0, 0, 0, 20);
+  C(g, 2.2, 2.4, 2.0, 0xf7f9fc, 0, 0.6, 0, 16);
+  B(g, 1.6, 1.6, 0.08, M(0x8fd6ff), 0, 0.7, 2.25);
+  // haste
+  C(g, 0.9, 1.25, 14.5, 0xf7f9fc, 0, 2.6, 0, 14);
+  for (let y = 4; y < 16; y += 2.4) C(g, 1.15 - (y - 4) * 0.012, 1.15 - (y - 4) * 0.012, 0.18, 0x2f7bff, 0, y, 0, 14);
+  // trilho do elevador panorâmico
+  B(g, 0.35, 14.2, 0.35, 0xb8c0cf, 0.75, 2.6, 0.75);
+  // mirante (disco com janelas)
+  C(g, 3.3, 2.4, 1.2, 0xf7f9fc, 0, 16.6, 0, 24);
+  C(g, 3.45, 3.45, 1.3, M(0x6fc3ff), 0, 17.8, 0, 24);
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; B(g, 0.12, 1.3, 0.2, 0xf7f9fc, Math.cos(a) * 3.42, 17.8, Math.sin(a) * 3.42).rotation.y = -a; }
+  C(g, 3.6, 3.0, 0.7, 0x2f7bff, 0, 19.1, 0, 24);
+  C(g, 1.6, 1.0, 1.2, 0xf7f9fc, 0, 19.8, 0, 16);
+  C(g, 0.12, 0.12, 4.2, 0xdfe5ee, 0, 21.0, 0, 6);
+  Sp(g, 0.28, M(0xff4e4e, { emissive: 0xa02020 }), 0, 25.3, 0, 8);
+  // fila de turistas na base
+  for (let i = 0; i < 5; i++) { const p = C(g, 0.18, 0.2, 0.7, [0xff6b6b, 0x4f8bff, 0xffc928, 0x2ec27e, 0xb66bff][i], 1.6 + i * 0.55, 0.6, 2.6, 6); Sp(g, 0.17, 0xf2c9a0, 1.6 + i * 0.55, 1.45, 2.6, 6); }
+  return g;
+}
 function iconShot(build, size = 192, rot = { x: 0.35, y: -0.6 }) {
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0xb0b8d0, 0.75));
@@ -1173,6 +1238,7 @@ const ICONS = {
   chest: () => chestModel(0, false), chest_gold: () => chestModel(1, false), chest_epic: () => chestModel(2, false),
   chest_open: () => chestModel(0, true), chest_gold_open: () => chestModel(1, true), chest_epic_open: () => chestModel(2, true),
   esp0: () => espFeira(), esp1: () => espHotel(), esp2: () => espAlfandega(), esp3: () => espDegelo(), esp4: () => espHeli(), esp5: () => espResort(), heli: () => helicopter(),
+  mall: () => mallModel(2), mirante: () => miranteModel(),
   bombeiros: () => fireStation(), radar: () => radarStation(1), catering: () => cateringKitchen(), trem: () => { const g = new THREE.Group(); const t = trainSet(); t.position.x = 4; t.scale.setScalar(0.9); g.add(t); return g; }, solar: () => solarFarm(),
   network: () => { const g = new THREE.Group(); Sp(g, 1.1, 0x2f7bff, 0, 0, 0, 16); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; Sp(g, 0.28, 0xffc928, Math.cos(a) * 1.1, Math.sin(a) * 1.1, 0.3, 8); } return g; },
   cargo: () => { const g = new THREE.Group(); B(g, 1.6, 1.2, 1.2, 0xff8a1f, 0, -0.8, 0); for (let i = 0; i < 4; i++) B(g, 0.06, 1.1, 1.22, 0xd86a10, -0.6 + i * 0.4, -0.75, 0); B(g, 1.0, 0.8, 0.9, 0x2f7bff, 0.2, 0.4, 0); return g; },
@@ -1452,4 +1518,6 @@ def('catering', cateringKitchen, { k: 1.2, W: 620, H: 520, oy: 0.6 });
 def('trem', trainStation, { k: 1.2, W: 760, H: 520, oy: 0.55 });
 def('train', trainSet, { k: 1.2, W: 760, H: 420, oy: 0.55, catcher: 0.15 });
 def('solar', solarFarm, { k: 1.2, W: 760, H: 520, oy: 0.55 });
+for (let t = 1; t <= 3; t++) def('mall_' + t, () => mallModel(t), { k: 1.2, W: 700, H: 620, oy: 0.62 });
+def('mirante', miranteModel, { k: 1.2, W: 340, H: 860, oy: 0.86 });
 window.STUDIO.spriteNames = () => Object.keys(BUILD);

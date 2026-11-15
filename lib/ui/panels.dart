@@ -27,6 +27,8 @@ abstract class PanelHost {
   void decorBought(Decor d);
   List<(String, String, String, bool, int)> get games;
   void playGame(String id);
+  void speedBuild(String id);
+  void finishBuildGems(String id);
 }
 
 Widget buildPanel(String p, GameState s, PanelHost h) {
@@ -147,6 +149,10 @@ List<(String, String, String?)> stationStats(GameState s, St st, int add) {
       return [('Velocidade na neve', 'x${s.snowSpeed.toStringAsFixed(2)}', nx(() => 'x${s.snowSpeed.toStringAsFixed(2)}'))];
     case 'esp4':
       return [('Helicóptero a cada', '${s.heliEvery.round()} s', nx(() => '${s.heliEvery.round()} s')), ('Cada pouso paga', '\$${fmt(s.heliValue)}', nx(() => '\$${fmt(s.heliValue)}'))];
+    case 'shopping':
+      return [('Lojas faturam', '+${(8 * s.lvl('shopping')).round()}%', add > 0 ? '+${8 * add}%' : null), ('Satisfação', '+${math.min(12, s.lvl('shopping') * 0.15).toStringAsFixed(1)}', null)];
+    case 'mirante':
+      return [('Ingressos', '\$${perMin(s.mirRate)}', null), ('Ganho por nível', '+1% da receita', null)];
     case 'bombeiros':
       return [('Velocidade dos voos', '+15%', null), ('Velocidade total agora', 'x${s.speed.toStringAsFixed(2)}', null)];
     case 'radar':
@@ -216,8 +222,34 @@ class _StationPanelState extends State<StationPanel> {
           color: K.green, enabled: s.canUnlock(st), pulse: s.canUnlock(st),
           onTap: () { if (s.unlock(st.id)) widget.h.refresh(); },
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Construir  ', style: display(19)), Price(fmt(st.unlock), size: 19)]),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [Text('Construir  ', style: display(19)), Price(fmt(s.unlockCost(st)), size: 19)]),
         ),
+      ]));
+    }
+    if (s.building(st.id)) {
+      final left = s.buildLeft(st.id), total = buildSecs(st) * 1000;
+      final g = s.finishGems(st.id);
+      return Sheet(title: st.name, subtitle: 'Em obra', icon: st.icon, color: K.orange, onClose: widget.h.closePanel, child: Column(children: [
+        GCard(child: Column(children: [
+          Row(children: [
+            const Ico('hangar', size: 46), const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Pedreiros trabalhando...', style: body(15, w: FontWeight.w900)),
+              Text('Fica pronto em ${fmtTime(left / 1000)}', style: body(14, color: K.orange, w: FontWeight.w900)),
+            ])),
+          ]),
+          const SizedBox(height: 10),
+          GBar(value: (1 - left / total).clamp(0.0, 1.0).toDouble(), height: 12, color: K.orange),
+          const SizedBox(height: 8),
+          Text(st.desc, style: body(13, color: K.muted)),
+        ])),
+        Row(children: [
+          Expanded(child: GBtn(color: K.blue, onTap: () => widget.h.speedBuild(st.id), padding: const EdgeInsets.symmetric(vertical: 12), child: Column(mainAxisSize: MainAxisSize.min, children: [Text('Acelerar', style: display(16)), Text(left <= 120000 ? 'termina já' : 'metade do tempo', style: body(11.5, color: Colors.white70, w: FontWeight.w800))]))),
+          const SizedBox(width: 10),
+          Expanded(child: GBtn(color: K.purple, enabled: s.gems >= g, onTap: () => widget.h.finishBuildGems(st.id), padding: const EdgeInsets.symmetric(vertical: 12), child: Column(mainAxisSize: MainAxisSize.min, children: [Text('Terminar', style: display(16)), Price('$g', icon: 'gem', size: 13)]))),
+        ]),
+        const SizedBox(height: 6),
+        Text('Você pode fechar o jogo: a obra continua.', style: body(12, color: K.muted)),
       ]));
     }
     if (st.oneTime) {
@@ -312,7 +344,7 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
             child: Column(children: [
               Opacity(opacity: s.starOk(st) ? 1 : 0.45, child: Ico(st.icon, size: 40)),
               Text(st.name, style: body(12, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
-              s.starOk(st) ? Price(fmt(st.unlock), size: 12) : Row(mainAxisSize: MainAxisSize.min, children: [const Ico('star', size: 16), Text(' ${st.star} estrelas', style: body(11, color: K.purple))]),
+              s.starOk(st) ? Price(fmt(s.unlockCost(st)), size: 12) : Row(mainAxisSize: MainAxisSize.min, children: [const Ico('star', size: 16), Text(' ${st.star} estrelas', style: body(11, color: K.purple))]),
             ]),
           ),
         ])),
@@ -340,7 +372,7 @@ class _UpgradesPanelState extends State<UpgradesPanel> {
   Widget _row(St st) {
     final l = s.lvl(st.id);
     final locked = l <= 0;
-    final b = locked ? (1, st.unlock) : s.buyInfo(st);
+    final b = locked ? (1, s.unlockCost(st)) : s.buyInfo(st);
     final can = !locked ? (b.$1 > 0 && s.money >= b.$2 && !st.oneTime) : s.canUnlock(st);
     final bott = s.bottleneck == st.id || (s.bottleneck == 'gates' && st.kind == Kind.gate);
     final best = s.bestBuy()?.$1 == st.id;
@@ -377,10 +409,12 @@ class StarsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tasks = s.starNow;
-    final nextPh = s.star < 5 ? phaseFor(s.city, s.star + 1) : s.phase;
-    return Sheet(title: 'Estrelas', subtitle: starNames[math.min(s.star, 5)], icon: 'star', color: K.purple, onClose: h.closePanel, child: Column(children: [
+    final nextPh = s.star < maxStars ? phaseFor(s.city, s.star + 1) : s.phase;
+    final mega = s.star >= 5;
+    return Sheet(title: mega ? 'Estrelas · Mega Hub' : 'Estrelas', subtitle: starNames[math.min(s.star, maxStars)], icon: 'star', color: K.purple, onClose: h.closePanel, child: Column(children: [
       GCard(child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < 5; i++) Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: Opacity(opacity: i < s.star ? 1 : 0.18, child: Ico('star', size: i == 2 ? 46 : 38)))]),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < maxStars; i++) Padding(padding: EdgeInsets.only(left: i == 5 ? 12 : 2, right: 2), child: Opacity(opacity: i < s.star ? 1 : 0.18, child: i >= 5 ? ColorFiltered(colorFilter: const ColorFilter.mode(Color(0xFFB66BFF), BlendMode.modulate), child: Ico('star', size: 34)) : const Ico('star', size: 30)))]),
+        if (!mega) ...[const SizedBox(height: 4), Text('Depois da 5ª estrela começa a era Mega Hub (estrelas roxas).', textAlign: TextAlign.center, style: body(12, color: K.purple, w: FontWeight.w800))],
         const SizedBox(height: 6),
         Text('Cada estrela dobra a receita (agora x${fmt(s.starMult)}) e libera novas áreas.', textAlign: TextAlign.center, style: body(13, color: K.muted)),
         if (nextPh != s.phase) ...[
@@ -394,8 +428,8 @@ class StarsPanel extends StatelessWidget {
           ])),
         ],
       ])),
-      if (s.star >= 5) GCard(child: Column(children: [
-        Text('Aeroporto 5 estrelas! Hora de abrir a próxima cidade.', textAlign: TextAlign.center, style: body(15)),
+      if (s.star >= maxStars) GCard(child: Column(children: [
+        Text('Lenda dos Céus! Todas as $maxStars estrelas. Hora de abrir a próxima cidade.', textAlign: TextAlign.center, style: body(15)),
         const SizedBox(height: 8),
         GBtn(color: K.green, pulse: true, onTap: () => h.openPanel('cities'), child: Text('Ver cidades', style: display(17))),
       ]))
@@ -405,14 +439,14 @@ class StarsPanel extends StatelessWidget {
         const SizedBox(height: 6),
         GBtn(color: K.purple, enabled: s.starReady, pulse: s.starReady, onTap: h.claimStar, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 13), child: Text(s.starReady ? 'Ganhar estrela!' : 'Complete as tarefas', style: display(18))),
         const SizedBox(height: 8),
-        Text('Libera: ${stations.where((st) => st.star == s.star + 1 && s.here(st)).map((st) => st.name).join(', ')}', textAlign: TextAlign.center, style: body(13, color: K.purple)),
+        Text(s.star < starUnlocks.length && starUnlocks[s.star].isNotEmpty ? 'Libera: ${starUnlocks[s.star]}' : '', textAlign: TextAlign.center, style: body(13, color: K.purple)),
       ],
     ]));
   }
   Widget _task(Mission m) {
     final p = s.progress(m), done = p.$1 >= p.$2;
     return GCard(color: done ? K.greenL : null, padding: const EdgeInsets.all(10), child: Row(children: [
-      done ? Container(width: 40, height: 40, decoration: const BoxDecoration(color: K.green, shape: BoxShape.circle), child: const Icon(Icons.check_rounded, color: Colors.white, size: 26)) : IcoBox((m.type == 'lvl' || m.type == 'unlock') ? stationById(m.target).icon : m.type == 'flights' ? 'plane' : 'pax', color: K.purple, size: 40),
+      done ? Container(width: 40, height: 40, decoration: const BoxDecoration(color: K.green, shape: BoxShape.circle), child: const Icon(Icons.check_rounded, color: Colors.white, size: 26)) : IcoBox((m.type == 'lvl' || m.type == 'unlock') ? stationById(m.target).icon : m.type == 'flights' ? 'plane' : m.type == 'incid' ? 'cloud' : m.type == 'decor' ? 'decor' : m.type == 'sat' ? 'pax' : 'pax', color: K.purple, size: 40),
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(s.missionText(m), style: body(15, w: FontWeight.w900)),
@@ -854,7 +888,7 @@ class _CitiesPanelState extends State<CitiesPanel> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(cur.name, style: body(17, w: FontWeight.w900)),
             Text(cur.sub, style: body(12.5, color: K.muted)),
-            Row(children: [for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: const Ico('star', size: 18)), const SizedBox(width: 6), Text(s.ph.name, style: body(12, color: K.purple))]),
+            Row(children: [for (var i = 0; i < maxStars; i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: const Ico('star', size: 14)), const SizedBox(width: 6), Text(s.ph.name, style: body(12, color: K.purple))]),
           ])),
         ]),
         const SizedBox(height: 8),
@@ -862,7 +896,7 @@ class _CitiesPanelState extends State<CitiesPanel> {
         _feat(Icons.apartment_rounded, themeCol[s.city % 6], 'Exclusivo: ${ec.name}', s.built(ec.id) ? 'Nível ${s.lvl(ec.id)}' : 'Libera com 1 estrela, ao lado da estrada'),
       ])),
       const SectionTitle('À venda'),
-      GCard(border: s.star >= 5 ? K.green.withValues(alpha: 0.6) : null, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      GCard(border: s.star >= maxStars ? K.green.withValues(alpha: 0.6) : null, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           IcoBox(en.icon, color: themeCol[(s.city + 1) % 6], size: 52),
           const SizedBox(width: 10),
@@ -879,7 +913,7 @@ class _CitiesPanelState extends State<CitiesPanel> {
         const SizedBox(height: 4),
         Text('Você começa o novo aeroporto do zero. Pesquisas, rotas, frota, gemas e milhas vão junto. ${cur.name} continua rendendo na sua rede.', style: body(12, color: K.muted)),
         const SizedBox(height: 10),
-        if (s.star < 5) Row(children: [const Icon(Icons.lock_rounded, color: K.muted, size: 18), const SizedBox(width: 6), Expanded(child: Text('Conquiste as 5 estrelas de ${cur.name} para poder comprar (${s.star}/5)', style: body(13, color: K.muted)))])
+        if (s.star < maxStars) Row(children: [const Icon(Icons.lock_rounded, color: K.muted, size: 18), const SizedBox(width: 6), Expanded(child: Text('Conquiste as $maxStars estrelas de ${cur.name} para poder comprar (${s.star}/$maxStars)', style: body(13, color: K.muted)))])
         else ...[
           GBar(value: have / price, height: 8, color: K.green, label: '\$${fmt(math.min(have, price))} / \$${fmt(price)}'),
           const SizedBox(height: 10),
@@ -964,7 +998,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         ]),
       ])),
       const SizedBox(height: 8),
-      Text('SkyPort Tycoon v3.4', style: body(12, color: K.muted)),
+      Text('SkyPort Tycoon v3.5', style: body(12, color: K.muted)),
     ]));
   }
 }

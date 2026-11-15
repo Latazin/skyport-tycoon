@@ -284,6 +284,20 @@ class SceneRenderer extends Component {
       final tx = w.trainX, a = ((tx + 134) / 18).clamp(0.0, 1.0).toDouble();
       _add(3, tx + Lay.trainZ, (c) => spr(c, 'train', tx, Lay.trainZ, alpha: a));
     }
+    // era Mega Hub
+    extra('shopping', Lay.mall, 'obra_l', 7, 6, 5, (c) => spr(c, 'mall_${s.lvl('shopping') >= 75 ? 3 : s.lvl('shopping') >= 25 ? 2 : 1}', Lay.mall.$1, Lay.mall.$2, scale: _bounce('shopping')));
+    extra('mirante', Lay.tower2, 'obra_m', 4, 4, 14, (c) {
+      spr(c, 'mirante', Lay.tower2.$1, Lay.tower2.$2, scale: _bounce('mirante'));
+      // elevador panorâmico subindo e descendo
+      final ey = 3 + (math.sin(w.t * 0.6) * 0.5 + 0.5) * 13;
+      final eo = iso(Lay.tower2.$1 + 0.9, Lay.tower2.$2 + 0.9, ey);
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: eo, width: 9, height: 12), const Radius.circular(3)), Paint()..color = const Color(0xFFFFE27A));
+      if (s.mirReady) {
+        final n = s.mirPile > s.mirRate * 300 ? 3 : s.mirPile > s.mirRate * 90 ? 2 : 1;
+        final r = spr(c, 'cash$n', Lay.tower2.$1 + 3.5, Lay.tower2.$2 + 3.5);
+        if (r != null) hits.add(Hit(r.inflate(18), 'pile:mirante', 0));
+      }
+    });
     extra('solar', Lay.solar, 'obra_l', 7, 5, 2, (c) {
       spr(c, 'solar', Lay.solar.$1, Lay.solar.$2, scale: _bounce('solar'));
       final g = (w.t * 0.25) % 1;
@@ -464,7 +478,7 @@ class SceneRenderer extends Component {
     }
     // próxima estrela: nuvem + selo nas áreas que ela libera
     for (final st in stations) {
-      if (!s.here(st) || s.built(st.id) || s.starOk(st) || st.star != s.star + 1) continue;
+      if (!s.here(st) || s.owned(st.id) || s.starOk(st) || st.star != s.star + 1) continue;
       if (st.only >= 0 && phaseFor(s.city, st.star) < 1) continue;
       final cc = w.stationCenter(st.id);
       final o = iso(cc.$1, cc.$2, 1.5);
@@ -484,10 +498,16 @@ class SceneRenderer extends Component {
       if (!view.inflate(80).contains(at)) continue;
       final isBest = best != null && best.$1 == st.id;
       final near = zoom >= 0.6;
+      if (s.building(st.id)) {
+        // obra em andamento: relógio laranja com o tempo que falta
+        final r = plate(c, fmtTime(s.buildLeft(st.id) / 1000), at, 12.5 * k, const Color(0xFFFF9F1C), ico: 'hangar', solid: true);
+        hits.add(Hit(r.inflate(14), st.id, 1));
+        continue;
+      }
       if (!s.built(st.id)) {
         final can = s.canUnlock(st);
         if (!can && !near && !isBest) continue;
-        final r = plate(c, '\$${fmt(st.unlock)}', at, 13 * k, can ? const Color(0xFF22B573) : const Color(0xFF7A8499), ico: can ? 'coin' : 'lock', solid: can);
+        final r = plate(c, '\$${fmt(s.unlockCost(st))}', at, 13 * k, can ? const Color(0xFF22B573) : const Color(0xFF7A8499), ico: can ? 'coin' : 'lock', solid: can);
         hits.add(Hit(r.inflate(12), st.id, 1));
         if (can) { final bob = math.sin(t * 4) * 3 * k; _arrow(c, Offset(at.dx, r.top - 14 * k + bob), 11 * k, const Color(0xFF22B573)); }
         continue;

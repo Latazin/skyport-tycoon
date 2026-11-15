@@ -578,3 +578,78 @@ class _LevelUpModalState extends State<LevelUpModal> with TickerProviderStateMix
         child: Column(children: [Ico(ic, size: 46), Text(t, style: body(16, w: FontWeight.w900))]),
       );
 }
+
+/// Incidente: uma situação com duas escolhas (uma pode ser arriscada).
+class IncidentModal extends StatelessWidget {
+  final Incident inc;
+  final double Function(IncChoice) money;
+  final void Function(int) onPick;
+  const IncidentModal({super.key, required this.inc, required this.money, required this.onPick});
+
+  List<(String, Color)> _hints(IncChoice ch) {
+    final o = ch.ok, out = <(String, Color)>[];
+    final m = money(ch);
+    if (m < 0) out.add(('-\$${fmt(-m)}', K.red));
+    if (m > 0) out.add(('+\$${fmt(m)}', K.greenD));
+    if ((o['s'] ?? 0) > 0) out.add(('Satisfação +', K.greenD));
+    if ((o['s'] ?? 0) < 0) out.add(('Satisfação −', K.red));
+    if ((o['g'] ?? 0) > 0) out.add(('+${o['g']!.round()} gemas', K.purple));
+    if (o.containsKey('b')) out.add(('Lucro x2', K.orange));
+    if (o.containsKey('r')) out.add(('Mais passageiros', K.teal));
+    if (o.containsKey('t')) out.add(('Voos turbo', K.blue));
+    if (o.containsKey('mi')) out.add(('+${o['mi']!.round()} milhas', K.blue));
+    if (o.containsKey('ch')) out.add(('Baú', K.orange));
+    if (ch.p < 1) out.add(('Arriscado: ${(ch.p * 100).round()}%', K.red));
+    return out;
+  }
+
+  Widget _option(int i, IncChoice ch) => GestureDetector(
+        onTap: () => onPick(i),
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: i == 0 ? K.blueL : const Color(0xFFFFF3E6),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: i == 0 ? K.blue : K.orange, width: 2),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(ch.label, style: body(16, w: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 4, children: [
+              for (final h in _hints(ch)) Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
+                child: Text(h.$1, style: body(12, color: h.$2, w: FontWeight.w900)),
+              ),
+              if (_hints(ch).isEmpty) Text('Nada muda', style: body(12, color: K.muted, w: FontWeight.w800)),
+            ]),
+          ]),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: K.shadow),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(color: K.redL, borderRadius: BorderRadius.circular(10)),
+            child: Text('INCIDENTE', style: body(11.5, color: K.red, w: FontWeight.w900)),
+          ),
+          const SizedBox(height: 8),
+          Ico(inc.icon, size: 74),
+          const SizedBox(height: 4),
+          Text(inc.title, textAlign: TextAlign.center, style: display(23).copyWith(color: K.navy)),
+          const SizedBox(height: 6),
+          Text(inc.text, textAlign: TextAlign.center, style: body(14.5, color: K.navy2)),
+          const SizedBox(height: 4),
+          Text('O que você faz?', style: body(13, color: K.muted, w: FontWeight.w800)),
+          _option(0, inc.a),
+          _option(1, inc.b),
+        ]),
+      );
+}

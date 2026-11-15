@@ -27,6 +27,9 @@ class Lay {
   static const trainSt = (-62.0, 31.0);
   static const trainZ = 29.3;
   static const solar = (66.0, -24.0);
+  // era Mega Hub (estrelas 6 a 8)
+  static const mall = (52.0, 31.0);
+  static const tower2 = (-45.0, 36.0);
   static const floorY = 0.35;
   static const termX0 = -48.0, termX1 = 36.0;
 }
@@ -48,7 +51,9 @@ const phases = [
   Phase('Hub Internacional', 'Hub completo com terminal de cargas', 54, 38, 36, 6, -86, 66, -50, 40),
 ];
 /// Fase conforme a cidade e as estrelas (a primeira cidade começa no barracão).
-int phaseFor(int city, int star) => city == 0 ? const [0, 1, 2, 2, 3, 3][star.clamp(0, 5).toInt()] : const [1, 1, 2, 2, 3, 3][star.clamp(0, 5).toInt()];
+int phaseFor(int city, int star) => city == 0 ? const [0, 1, 2, 2, 3, 3, 3, 3, 3][star.clamp(0, 8).toInt()] : const [1, 1, 2, 2, 3, 3, 3, 3, 3][star.clamp(0, 8).toInt()];
+/// Estrelas por aeroporto (as 3 últimas são a era "Mega Hub").
+const maxStars = 8;
 
 /// Aviões: comprimento, lugares base e nome.
 class PlaneType {
@@ -110,6 +115,9 @@ const stations = [
   St('esp3', 'Estação de Degelo', 'esp3', 'Só em Serra Alta. A neve deixa os aviões 40% mais lentos. O degelo recupera a velocidade e, em nível alto, deixa tudo mais rápido que o normal.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 3),
   St('esp4', 'Heliponto Executivo', 'esp4', 'Só em Rio Dourado. Helicópteros de executivos pousam de tempos em tempos: toque para ganhar uma bolada. Cada nível traz mais helicópteros e paga mais.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 4),
   St('esp5', 'Resort de Praia', 'esp5', 'Só em Costa Esmeralda. O resort manda ondas de turistas sozinho: movimento 3x por alguns segundos. Cada nível deixa a onda mais longa.', Kind.boost, base: 120, growth: 1.19, unlock: 900, star: 1, only: 5),
+  // ----- era Mega Hub (estrelas 6 a 8) -----
+  St('shopping', 'Shopping do Aeroporto', 'mall', 'Um shopping inteiro colado no terminal: todas as lojas faturam +10% por nível e os passageiros ficam mais felizes. Cresce nos níveis 25 e 75.', Kind.boost, base: 1.5e9, growth: 1.2, unlock: 6e9, star: 5),
+  St('mirante', 'Torre Panorâmica', 'mirante', 'Turistas pagam ingresso para ver os aviões lá de cima. O dinheiro se acumula na torre: toque nela para recolher. Cada nível aumenta o ingresso.', Kind.boost, base: 2e10, growth: 1.2, unlock: 8e10, star: 6),
   St('cargas', 'Terminal de Cargas', 'cargo', 'Cada voo leva carga no porão: +5% de receita por nível. Trens de bagagem levam os contêineres.', Kind.boost, base: 2e7, growth: 1.2, unlock: 4e7, star: 4),
 ];
 St stationById(String id) => stations.firstWhere((s) => s.id == id);
@@ -242,11 +250,80 @@ class Mission {
 const starTasks = [
   [Mission('lvl', 'checkin', 10), Mission('lvl', 'entrada', 10), Mission('lvl', 'seguranca', 10), Mission('unlock', 'g1', 1), Mission('flights', '', 15)],
   [Mission('lvl', 'g0', 40), Mission('lvl', 'lojas', 15), Mission('unlock', 'loja1', 1), Mission('unlock', 'g2', 1), Mission('lvl', 'pista', 15), Mission('manager', '', 2), Mission('flights', '', 120)],
-  [Mission('lvl', 'checkin', 75), Mission('unlock', 'vip', 1), Mission('unlock', 'g3', 1), Mission('lvl', 'torre', 40), Mission('unlock', 'loja3', 1), Mission('lvl', 'loja1', 25), Mission('flights', '', 450)],
-  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 125), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 125), Mission('lvl', 'lojas', 75), Mission('unlock', 'loja4', 1), Mission('flights', '', 1200)],
-  [Mission('unlock', 'combustivel', 1), Mission('unlock', 'g5', 1), Mission('lvl', 'pista', 60), Mission('lvl', 'entrada', 150), Mission('unlock', 'loja5', 1), Mission('lvl', 'cargas', 25), Mission('flights', '', 3000)],
+  [Mission('lvl', 'checkin', 75), Mission('unlock', 'vip', 1), Mission('unlock', 'g3', 1), Mission('lvl', 'torre', 40), Mission('unlock', 'loja3', 1), Mission('lvl', 'loja1', 25), Mission('unlock', 'radar', 1), Mission('flights', '', 700)],
+  [Mission('unlock', 'hangar', 1), Mission('lvl', 'g1', 125), Mission('unlock', 'g4', 1), Mission('lvl', 'seguranca', 125), Mission('lvl', 'lojas', 75), Mission('unlock', 'loja4', 1), Mission('incid', '', 3), Mission('flights', '', 2000)],
+  [Mission('unlock', 'combustivel', 1), Mission('unlock', 'g5', 1), Mission('lvl', 'pista', 60), Mission('lvl', 'entrada', 150), Mission('unlock', 'loja5', 1), Mission('lvl', 'cargas', 25), Mission('sat', '', 75), Mission('flights', '', 4500)],
+  // ----- era Mega Hub -----
+  [Mission('unlock', 'shopping', 1), Mission('unlock', 'trem', 1), Mission('lvl', 'g0', 200), Mission('lvl', 'torre', 100), Mission('incid', '', 8), Mission('sat', '', 82), Mission('flights', '', 8000)],
+  [Mission('unlock', 'mirante', 1), Mission('lvl', 'shopping', 50), Mission('unlock', 'solar', 1), Mission('decor', '', 8), Mission('lvl', 'loja5', 60), Mission('sat', '', 88), Mission('flights', '', 14000)],
+  [Mission('lvl', 'shopping', 120), Mission('lvl', 'mirante', 60), Mission('lvl', 'checkin', 300), Mission('lvl', 'g5', 200), Mission('incid', '', 20), Mission('sat', '', 92), Mission('flights', '', 25000)],
 ];
-const starNames = ['Aeródromo', 'Aeroporto Regional', 'Aeroporto Nacional', 'Aeroporto Internacional', 'Hub Global', 'Lenda dos Céus'];
+const starNames = ['Aeródromo', 'Aeroporto Regional', 'Aeroporto Nacional', 'Aeroporto Internacional', 'Hub Global', 'Mega Hub', 'Aeroporto do Ano', 'Patrimônio dos Céus', 'Lenda dos Céus'];
+/// O que cada estrela libera (mostrado no painel de estrelas).
+const starUnlocks = ['Portão 3, Café, Lanchonete e Bombeiros', 'Portão 4, Sala VIP, Radar e Cozinha de Bordo', 'Portão 5, Hangar e Estação de Trem', 'Portão 6, Duty Free, Combustível e Usina Solar', 'Shopping do Aeroporto (era Mega Hub)', 'Torre Panorâmica', 'Comprar o próximo aeroporto', ''];
+
+/// Tempo de obra dos prédios grandes (segundos), conforme a estrela que os libera.
+double buildSecs(St s) => const [20.0, 45.0, 120.0, 300.0, 600.0, 900.0, 1500.0, 2400.0][s.star.clamp(0, 7).toInt()];
+bool hasBuildTime(St s) => s.kind == Kind.building || s.id == 'shopping' || s.id == 'mirante';
+
+/// Incidentes: situações com duas escolhas. Efeitos: m = dinheiro (segundos de receita, negativo = custo),
+/// g = gemas, s = satisfação, b = lucro x2 (s), r = rush (s), t = turbo (s), mi = milhas, ch = baú.
+/// Uma escolha com p < 1 é arriscada: com chance p acontece "ok", senão "bad".
+class IncChoice {
+  final String label, okText, badText;
+  final double p;
+  final Map<String, double> ok, bad;
+  const IncChoice(this.label, this.okText, this.ok, {this.p = 1, this.badText = '', this.bad = const {}});
+}
+class Incident {
+  final String id, title, text, icon;
+  final IncChoice a, b;
+  const Incident(this.id, this.title, this.text, this.icon, this.a, this.b);
+}
+const incidents = [
+  Incident('storm', 'Tempestade chegando', 'Uma frente fria vai passar pela pista nos próximos minutos.', 'rain',
+    IncChoice('Segurar os voos', 'Voos atrasados, mas todo mundo seguro. Os passageiros gostaram do cuidado.', {'m': -40, 's': 10}),
+    IncChoice('Decolar assim mesmo', 'Deu certo! Os pilotos passaram antes da chuva.', {'g': 5}, p: 0.65, badText: 'Turbulência feia... os passageiros reclamaram muito.', bad: {'s': -25})),
+  Incident('celeb', 'Celebridade no saguão', 'Uma cantora famosa vai embarcar e os fãs estão chegando.', 'celeb',
+    IncChoice('Sala VIP exclusiva', 'Ela adorou e postou o aeroporto para milhões de seguidores.', {'m': -30, 'g': 10}),
+    IncChoice('Liberar fotos com os fãs', 'Multidão no aeroporto! Chega gente sem parar.', {'r': 45, 's': 5})),
+  Incident('bag', 'Mala do ministro sumiu', 'A mala de um ministro foi para o voo errado.', 'suitcase',
+    IncChoice('Equipe especial', 'Mala achada em 20 minutos. O ministro agradeceu.', {'m': -60, 'mi': 40}),
+    IncChoice('Pedir desculpas', 'Ele aceitou o voucher, mas saiu de cara fechada.', {'m': -10, 's': -8})),
+  Incident('strike', 'Greve dos carregadores', 'Os carregadores de malas cruzaram os braços.', 'bags',
+    IncChoice('Pagar hora extra', 'Voltaram ao trabalho na hora, felizes.', {'m': -90, 's': 10}),
+    IncChoice('Negociar', 'Acordo fechado! Eles voltaram com tudo.', {'t': 30}, p: 0.5, badText: 'A negociação travou e as filas cresceram.', bad: {'s': -20})),
+  Incident('overbook', 'Overbooking', 'Um voo vendeu 12 lugares a mais do que tem.', 'ticket',
+    IncChoice('Upgrade para executiva', 'Os passageiros saíram encantados.', {'m': -45, 's': 8}),
+    IncChoice('Vender assim mesmo', 'Lucro extra... e muita reclamação no balcão.', {'m': 90, 's': -15})),
+  Incident('influ', 'Influenciador quer filmar', 'Um influenciador de viagens pediu para gravar o aeroporto.', 'stats',
+    IncChoice('Tour completo', 'O vídeo viralizou! Lucro x2 por um minuto.', {'m': -20, 'b': 60}),
+    IncChoice('Gravar só a fachada', 'Vídeo simpático, algumas visitas a mais.', {'r': 20})),
+  Incident('system', 'Pane no check-in', 'O sistema dos balcões travou de repente.', 'checkin',
+    IncChoice('Chamar o técnico', 'Sistema de volta em minutos.', {'m': -50, 's': 4}),
+    IncChoice('Check-in no papel', 'Funcionou, mas a fila ficou enorme.', {'s': -15, 'g': 2})),
+  Incident('team', 'Time campeão chegando', 'O time da cidade foi campeão e desembarca hoje.', 'trophy',
+    IncChoice('Festa no saguão', 'Festa linda, aeroporto lotado de torcedores!', {'m': -40, 'r': 45, 'g': 5}),
+    IncChoice('Desembarque discreto', 'Tudo calmo e organizado.', {'s': 4})),
+  Incident('investor', 'Investidor visitando', 'Um investidor quer conhecer o aeroporto antes de investir.', 'cash',
+    IncChoice('Mostrar os números', 'Ele investiu! Dinheiro na conta.', {'m': 300}, p: 0.6, badText: 'Ele achou cedo demais e foi embora.', bad: {}),
+    IncChoice('Pedir patrocínio', 'Ele mandou um baú de presente para a equipe.', {'ch': 1})),
+  Incident('birds', 'Pássaros na pista', 'Um bando de pássaros pousou perto da cabeceira.', 'runway',
+    IncChoice('Chamar a falcoaria', 'Pista limpa e voos mais ágeis por um tempo.', {'m': -30, 't': 30, 's': 4}),
+    IncChoice('Esperar eles saírem', 'Demorou... alguns voos atrasaram.', {'s': -10})),
+  Incident('tourists', 'Turistas perdidos', 'Um grupo de turistas não acha o portão de embarque.', 'globe',
+    IncChoice('Contratar guias', 'Todos embarcaram a tempo e elogiaram o aeroporto.', {'m': -30, 's': 10, 'mi': 20}),
+    IncChoice('Placas novas', 'Ajudou um pouco.', {'m': -10, 's': 4})),
+  Incident('dog', 'Cachorro solto no terminal', 'Um vira-lata entrou no terminal e está fazendo amizade com todos.', 'pax',
+    IncChoice('Adotar como mascote', 'Virou o queridinho dos passageiros!', {'s': 15, 'g': 3}),
+    IncChoice('Chamar o resgate', 'Foi levado para um abrigo com segurança.', {'m': -10})),
+  Incident('fuelprice', 'Combustível em promoção', 'Um fornecedor ofereceu querosene com desconto por hoje.', 'fuel',
+    IncChoice('Comprar estoque', 'Economia garantida: os voos rendem mais por um tempo.', {'m': -60, 'b': 90}),
+    IncChoice('Recusar', 'Tudo segue normal.', {})),
+  Incident('fog2', 'Neblina na madrugada', 'A neblina deve fechar a pista por alguns minutos.', 'cloud',
+    IncChoice('Café grátis na espera', 'Os passageiros esperaram felizes.', {'m': -25, 's': 8}),
+    IncChoice('Liberar pousos por instrumento', 'Os pilotos pousaram certinho!', {'g': 4}, p: 0.7, badText: 'Dois voos arremeteram e atrasaram.', bad: {'s': -12})),
+];
 
 /// Missões curtas em sequência.
 const missionList = [

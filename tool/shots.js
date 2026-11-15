@@ -17,6 +17,7 @@ const fs = require('fs');
     ['16_porto_azul', '?auto=1&demo=p1&city=1&panel=none', [32000]], ['17_serra_alta', '?auto=1&demo=1&city=3&panel=none', [32000]],
     ['18_rio_dourado', '?auto=1&demo=p1&city=4&panel=none', [32000]], ['19_costa', '?auto=1&demo=1&city=5&panel=none', [32000]],
     ['25_obras', '?auto=1&demo=1&star=5&extras=1&panel=none', [30000, 42000]], ['26_trem', '?auto=1&demo=1&star=5&extras=1&panel=st:trem', [28000, 33000]], ['27_bombeiros', '?auto=1&demo=1&star=5&extras=1&panel=st:bombeiros', [30000]], ['28_obra_nova', '?auto=1&demo=p1&panel=st:bombeiros', [30000]],
+    ['29_megahub', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=none', [30000]], ['30_shopping', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=st:shopping', [30000]], ['31_mirante', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=st:mirante', [30000]], ['32_incidente', '?auto=1&demo=1&star=5&panel=incident', [30000]], ['33_obra', '?auto=1&demo=1&star=5&extras=1&panel=build', [30000]], ['34_estrelas', '?auto=1&demo=1&star=5&extras=1&mega=1&panel=stars', [30000]], ['35_satisfacao', '?auto=1&demo=1&star=5&panel=sat', [30000]],
     ['20_rede', '?auto=1&demo=1&city=2&star=5&panel=cities', [30000]],
   ];
   for (const [name, q, waits, clicks] of runs) {

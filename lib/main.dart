@@ -87,6 +87,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
     if (q['demo'] == '1') st.decor.addAll(['d1', 'd2', 'd3', 'd4']);
     if (q['star'] != null) st.star = int.parse(q['star']!);
     if (q['city'] != null) { st.city = int.parse(q['city']!); st.lv['esp${st.city % 6}'] = 8; st.hotelPile = 1e6; st.netPile = 5e6; st.estimate(); }
+    if (q['mega'] == '1') { st.star = 7; st.lv['shopping'] = 30; st.lv['mirante'] = 12; st.mirPile = 1e12; st.estimate(); }
     if (q['extras'] == '1') { for (final id in ['bombeiros', 'radar', 'catering', 'trem', 'solar']) { st.lv[id] = 1; } st.estimate(); }
     Cine.clean = q['clean'] == '1'; Cine.a = Cine.parse(q['cam']); Cine.b = Cine.parse(q['cam2']); if (q['camT'] != null) Cine.dur = double.parse(q['camT']!);
     if (q['chest'] == '1') st.chestsQ.add('chest_gold');
@@ -141,7 +142,7 @@ class _TitleScreenState extends State<TitleScreen> with TickerProviderStateMixin
               Align(alignment: const Alignment(0, 0.8), child: s == null
                   ? SizedBox(width: 240, child: Column(mainAxisSize: MainAxisSize.min, children: [GBar(value: progress, height: 18, color: K.gold), const SizedBox(height: 8), Text('Preparando a pista... ${(progress * 100).round()}%', style: body(14, color: Colors.white))]))
                   : Transform.scale(scale: el(0.45, 1), child: GBtn(color: K.green, onTap: _play, radius: 22, padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 16), child: Text('Jogar', style: display(32))))),
-              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.4', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
+              Positioned(bottom: 10, left: 0, right: 0, child: Text('v3.5', textAlign: TextAlign.center, style: body(11, color: Colors.white38))),
             ]);
           },
         ),

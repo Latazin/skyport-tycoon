@@ -67,7 +67,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
       switch (widget.startPanel) {
         case 'wheel': openWheel(force: true); break;
         case 'daily': s.dailyLast = -1; _openDaily(); break;
-        case 'levelup': s.chestsQ.add('chest_gold'); levelUp(s.alv); break;
+        case 'levelup': s.chestsQ.add('chest_gold'); levelUp((s.alv ~/ 5 + 1) * 5); break;
+        case 'incident': s.incCur = 0; _openIncident(); break;
+        case 'sat': _openSatisfaction(); break;
+        case 'build': s.buildEnd['solar'] = nowMs() + 420000; openPanel('st:solar'); break;
         case 'chest': s.chestsQ.add('chest_epic'); showChests(); break;
         default: openPanel(widget.startPanel!);
       }
@@ -260,8 +263,61 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         Sfx.play('boost'); game.w.spawnGroup(12);
         banner('Onda de turistas!', 'O resort lotou o aeroporto por ${s.waveSecs.round()} s');
         break;
+      case 'incident':
+        Sfx.play('alert'); Sfx.haptic(30);
+        toast('Incidente no aeroporto! Toque no aviso para decidir.');
+        break;
+      case 'megahub':
+        banner('Era Mega Hub!', 'Agora são 8 estrelas: Shopping e Torre Panorâmica');
+        break;
+      default:
+        if (kind.startsWith('built:')) {
+          final st = stationById(kind.substring(6));
+          Sfx.play('build'); Sfx.haptic(40); confetti(70);
+          banner('Obra concluída!', st.name);
+          final c = game.w.stationCenter(st.id); game.w.burst(c.$1, c.$2, c.$3, 30, const [Color(0xFFFFE27A), Color(0xFFFFFFFF), Color(0xFF7BE3A0)]);
+        }
     }
   }
+  @override
+  void speedBuild(String id) {
+    void go() { if (s.buildLeft(id) <= 120000) { s.finishBuild(id); } else { s.speedBuild(id, 0.5); toast('Obra acelerada: metade do tempo!'); } setState(() {}); }
+    if (s.c('ad_build') == 0) { s.inc('ad_build'); go(); return; }
+    _ad(go);
+  }
+  @override
+  void finishBuildGems(String id) {
+    final g = s.finishGems(id);
+    if (s.gems < g) { toast('Faltam ${g - s.gems} gemas'); return; }
+    s.gems -= g; s.finishBuild(id); setState(() {});
+  }
+  void _openIncident() {
+    if (!s.incOn || _modal != null) return;
+    final inc = incidents[s.incCur];
+    _showModal(IncidentModal(inc: inc, money: s.incMoney, onPick: (i) {
+      final r = s.resolveIncident(i);
+      _closeModal();
+      Sfx.play(r.$2 ? 'level' : 'nope'); Sfx.haptic(r.$2 ? 25 : 60);
+      if (r.$2) confetti(30);
+      _showModal(GameModal(title: r.$2 ? 'Resolvido!' : 'Deu ruim...', icon: inc.icon, color: r.$2 ? K.green : K.red, actions: [GBtn(color: r.$2 ? K.green : K.navy2, onTap: _closeModal, child: Text('Continuar', style: display(17)))], child: Text(r.$1, textAlign: TextAlign.center, style: body(15))));
+      setState(() {});
+    }));
+  }
+  void _openSatisfaction() {
+    final rs = s.satReasons;
+    _showModal(GameModal(title: 'Satisfação: ${s.sat.round()}%', icon: 'pax', color: _satColor, actions: [GBtn(color: K.blue, onTap: _closeModal, child: Text('Entendi', style: display(17)))], child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('Passageiros felizes pagam mais: a receita agora está x${s.tipMult.toStringAsFixed(2)} por causa da satisfação.', textAlign: TextAlign.center, style: body(14)),
+      const SizedBox(height: 10),
+      for (final r in rs) Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [
+        Icon(r.$2 ? Icons.add_circle_rounded : Icons.remove_circle_rounded, color: r.$2 ? K.green : K.red, size: 20), const SizedBox(width: 6),
+        Expanded(child: Text(r.$1, style: body(13.5, w: FontWeight.w800))),
+      ])),
+      if (rs.isEmpty) Text('Tudo tranquilo por aqui.', style: body(13, color: K.muted)),
+    ])));
+  }
+  Color get _satColor => s.sat >= 80 ? K.green : s.sat >= 55 ? K.orange : K.red;
+  IconData get _satIcon => s.sat >= 80 ? Icons.sentiment_very_satisfied_rounded : s.sat >= 55 ? Icons.sentiment_neutral_rounded : Icons.sentiment_very_dissatisfied_rounded;
+
   @override
   void decorBought(Decor d) {
     game.w.bump[d.id] = game.w.t;
@@ -392,7 +448,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
         child: Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (var i = 0; i < 5; i++) TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 500 + i * 180), curve: Curves.elasticOut, builder: (_, v, c) => Transform.scale(scale: i < n ? v : 1, child: c), child: Opacity(opacity: i < n ? 1 : 0.2, child: const Ico('star', size: 52)))]),
           const SizedBox(height: 8),
-          Text(starNames[math.min(n, 5)], style: body(22, color: K.purple, w: FontWeight.w900)),
+          Text(starNames[math.min(n, maxStars)], style: body(22, color: K.purple, w: FontWeight.w900)),
           const SizedBox(height: 6),
           Text('Toda a receita agora rende x${fmt(s.starMult)}!${n < 5 ? '\nNovas áreas liberadas: ${stations.where((st) => st.star == n && s.here(st)).map((st) => st.name).join(', ')}.' : '\nPróxima cidade liberada!'}', textAlign: TextAlign.center, style: body(15)),
         ])));
@@ -456,6 +512,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
   void _onWorldTap(String id) {
     if (id == 'none') { if (panel != null) closePanel(); return; }
     if (id == 'ev') { _tapEvent(); return; }
+    if (id == 'pile:mirante') {
+      final v = s.collectMirante(); if (v <= 0) return;
+      _flyFrom(game.worldToScreen(iso(Lay.tower2.$1, Lay.tower2.$2, 8)), v, 12); Sfx.play('cash'); Sfx.haptic();
+      game.w.floaters.add(Floater(Lay.tower2.$1, Lay.tower2.$2, 9, 'Ingressos +\$${fmt(v)}', const Color(0xFFFFE27A), 1.2));
+      return;
+    }
     if (id == 'pile:hotel') {
       final v = s.collectHotel(); if (v <= 0) return;
       _flyFrom(game.worldToScreen(iso(Lay.special.$1 - 1.5, Lay.special.$2 + 4.6, 1)), v, 12); Sfx.play('cash'); Sfx.haptic();
@@ -650,7 +712,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: K.shadow, border: s.starReady ? Border.all(color: K.purple, width: 2) : null),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  for (var i = 0; i < 5; i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: const Ico('star', size: 16)),
+                  for (var i = 0; i < (s.star >= 5 ? maxStars : 5); i++) Opacity(opacity: i < s.star ? 1 : 0.2, child: Ico('star', size: s.star >= 5 ? 12 : 16)),
                   const SizedBox(width: 6),
                   Expanded(child: Text(city.name, style: body(12.5, w: FontWeight.w900), overflow: TextOverflow.ellipsis)),
                 ]),
@@ -665,6 +727,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
           ),
           const SizedBox(width: 6),
           Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: <Widget>[
+            if (s.tut >= 7) GestureDetector(onTap: _openSatisfaction, child: Container(
+              padding: const EdgeInsets.fromLTRB(4, 2, 9, 2),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: K.shadowS),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(_satIcon, color: _satColor, size: 20), const SizedBox(width: 3), Text('${s.sat.round()}%', style: body(11.5, color: _satColor, w: FontWeight.w900))]),
+            )),
+            if (s.incOn) GestureDetector(onTap: _openIncident, child: _Pulse(child: _chip('cloud', 'Incidente!', K.red))),
+            for (final id in s.buildingNow.take(1)) GestureDetector(onTap: () => openPanel('st:$id'), child: _chip('hangar', 'Obra ${fmtTime(s.buildLeft(id) / 1000)}', K.orange)),
             if (s.boostOn) _chip('bolt', 'x2 ${fmtTime((s.boostUntil - nowMs()) / 1000)}', K.gold),
             if (s.rushOn) _chip('rush', 'Rush ${fmtTime((s.rushUntil - nowMs()) / 1000)}', K.red),
             if (s.turboOn) _chip('turbo', 'Turbo ${fmtTime((s.turboUntil - nowMs()) / 1000)}', K.blue),
@@ -677,7 +746,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             if (s.snow) _chip('esp3', 'Neve x${s.snowSpeed.toStringAsFixed(2)}', s.snowSpeed < 1 ? K.blue : K.green),
             if (s.netReady) GestureDetector(onTap: () => openPanel('cities'), child: _chip('network', 'Rede: \$${fmt(s.netPile)}', K.green)),
             if (s.ctAir >= 0) GestureDetector(onTap: () => openPanel('fleet'), child: _chip('contract', '${airlines[s.ctAir].$1} ${math.min(s.ctDone, s.ctNeed)}/${s.ctNeed}', s.ctReady ? K.green : K.teal)),
-          ].take(3).toList())),
+          ].take(4).toList())),
         ]),
       ]),
     );
@@ -825,7 +894,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(starTxt ?? (done ? 'Complete as estrelas do aeroporto' : s.missionText()), style: body(14, w: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 5),
-              done || starTxt != null ? GBar(value: s.star / 5, height: 7, color: K.purple, label: '${s.star}/5') : GBar(value: p.$1 / p.$2, height: 7, color: K.green, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
+              done || starTxt != null ? GBar(value: s.star / maxStars, height: 7, color: K.purple, label: '${s.star}/$maxStars') : GBar(value: p.$1 / p.$2, height: 7, color: K.green, label: '${fmt(math.min(p.$1, p.$2))}/${fmt(p.$2)}'),
             ])),
             const SizedBox(width: 8),
             if (ready) GBtn(color: s.starReady ? K.purple : K.green, pulse: true, radius: 12, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), onTap: go, child: Text(s.starReady ? 'Ganhar' : done ? 'Ver' : 'Pegar', style: display(14)))
@@ -860,6 +929,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver imp
 }
 
 // ================= widgets do HUD =================
+class _Pulse extends StatefulWidget {
+  final Widget child;
+  const _Pulse({required this.child});
+  @override
+  State<_Pulse> createState() => _PulseState();
+}
+class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  late final AnimationController a = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))..repeat(reverse: true);
+  @override
+  void dispose() { a.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(animation: a, builder: (_, c) => Transform.scale(scale: 1 + a.value * 0.08, child: c), child: widget.child);
+}
+
 /// Cartão "Prêmios": roleta, baú, cofrinho e minijogos num lugar só (tira 4 botões da tela).
 class _RewardsCard extends StatelessWidget {
   final List<(String, String, String, bool, Color, VoidCallback)> tiles;

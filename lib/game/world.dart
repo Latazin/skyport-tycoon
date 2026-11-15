@@ -459,6 +459,8 @@ class AirWorld {
       case 'catering': return (Lay.catering.$1, Lay.catering.$2, 5.0);
       case 'trem': return (Lay.trainSt.$1, Lay.trainSt.$2, 4.5);
       case 'solar': return (Lay.solar.$1, Lay.solar.$2, 3.5);
+      case 'shopping': return (Lay.mall.$1, Lay.mall.$2, 7.5);
+      case 'mirante': return (Lay.tower2.$1, Lay.tower2.$2, 19.0);
     }
     if (id.startsWith('g')) { final g = int.parse(id.substring(1)); return (Lay.gates[g] - 1, -1.5, 4.2); }
     return (0.0, 0.0, 0.0);
